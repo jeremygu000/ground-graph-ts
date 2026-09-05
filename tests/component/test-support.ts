@@ -2,7 +2,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Database } from "../../src/infrastructure/postgres/client";
-import { GenericContainer, Wait, type StartedTestContainer } from "testcontainers";
+import {
+  GenericContainer,
+  Wait,
+  getContainerRuntimeClient,
+  type StartedTestContainer,
+} from "testcontainers";
 
 process.env.TESTCONTAINERS_RYUK_DISABLED = "true";
 
@@ -18,6 +23,7 @@ export interface ComponentDb {
 
 let sharedContext: Promise<ComponentDb> | undefined;
 let sharedContextRefs = 0;
+let runtimeAvailable: Promise<boolean> | undefined;
 
 async function bootstrapSchema(db: Database): Promise<void> {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -105,6 +111,14 @@ async function waitForDatabase(db: Database): Promise<void> {
   }
 
   throw new Error("Database did not become ready in time");
+}
+
+export async function hasContainerRuntime(): Promise<boolean> {
+  runtimeAvailable ??= getContainerRuntimeClient()
+    .then(() => true)
+    .catch(() => false);
+
+  return runtimeAvailable;
 }
 
 export async function startComponentDatabase(): Promise<ComponentDb> {

@@ -1,10 +1,22 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { GenericContainer, Wait, type StartedTestContainer } from "testcontainers";
+import neo4j from "neo4j-driver";
 import { Neo4jClient } from "../../src/infrastructure/neo4j/client";
 import { Neo4jGraphRepository } from "../../src/infrastructure/neo4j/graph-repository";
+import {
+  decodeNeo4jDateTime,
+  decodeNeo4jJsonProperty,
+  decodeNeo4jJsonValue,
+  encodeNeo4jDateTime,
+  encodeNeo4jJsonProperty,
+  encodeNeo4jJsonValue,
+} from "../../src/infrastructure/neo4j";
 import { KnowledgeFactSchema } from "../../src/domain/knowledge/types";
+import { hasContainerRuntime } from "./test-support";
 
-describe("Neo4jGraphRepository component", () => {
+const describeComponent = (await hasContainerRuntime()) ? describe : describe.skip;
+
+describeComponent("Neo4jGraphRepository component", () => {
   const image = "neo4j:5.26-community";
   let container: StartedTestContainer;
   let client: Neo4jClient;
@@ -67,13 +79,17 @@ describe("Neo4jGraphRepository component", () => {
       subjectId,
       predicate: "related_to",
       objectId,
-      status: "candidate",
+      status: "verified",
       extractionMethod: "human",
       confidence: 0.9,
-      validFrom: new Date().toISOString(),
-      observedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      provenance: { sourceVersionId: crypto.randomUUID() },
+      validFrom: "2024-01-15T10:30:00.000Z",
+      validTo: "2024-01-16T10:30:00.000Z",
+      observedAt: "2024-01-15T10:45:00.000Z",
+      createdAt: "2024-01-15T10:50:00.000Z",
+      provenance: {
+        sourceVersionId: crypto.randomUUID(),
+        evidenceText: "source evidence",
+      },
     });
 
     const first = await repository.projectFact(projection);
@@ -118,6 +134,85 @@ describe("Neo4jGraphRepository component", () => {
       return result.records[0]?.get("count").toNumber() ?? 0;
     });
     expect(verify).toBe(1);
+
+    const storedProjection = await client.executeRead(async (tx) => {
+      const result = await tx.run(
+        `MATCH (f:Fact {id: $factId, tenantId: $tenantId})
+         RETURN f.validFrom AS validFrom,
+                f.validTo AS validTo,
+                f.observedAt AS observedAt,
+                f.createdAt AS createdAt,
+                f.provenanceJson AS provenanceJson`,
+        {
+          factId,
+          tenantId,
+        },
+      );
+      const record = result.records[0];
+      return {
+        validFrom: record?.get("validFrom"),
+        validTo: record?.get("validTo"),
+        observedAt: record?.get("observedAt"),
+        createdAt: record?.get("createdAt"),
+        provenanceJson: record?.get("provenanceJson"),
+      };
+    });
+
+    expect(neo4j.isDateTime(storedProjection.validFrom)).toBe(true);
+    expect(decodeNeo4jDateTime(storedProjection.validFrom)).toBe(projection.validFrom);
+    expect(decodeNeo4jDateTime(storedProjection.validTo)).toBe(projection.validTo);
+    expect(decodeNeo4jDateTime(storedProjection.observedAt)).toBe(projection.observedAt);
+    expect(decodeNeo4jDateTime(storedProjection.createdAt)).toBe(projection.createdAt);
+    expect(decodeNeo4jJsonProperty(storedProjection.provenanceJson)).toEqual(projection.provenance);
+
+    const nestedAttributes = {
+      alpha: "one",
+      beta: [1, { gamma: true }],
+      delta: {
+        epsilon: "nested",
+      },
+    };
+
+    const encodedAttributes = encodeNeo4jJsonProperty(nestedAttributes);
+    const encodedTimestamp = encodeNeo4jDateTime("2024-01-15T10:30:00.000Z");
+
+    await client.executeWrite(async (tx) => {
+      await tx.run(
+        `CREATE (:RoundTripProbe {
+          id: $id,
+          tenantId: $tenantId,
+          payloadJson: $payloadJson,
+          createdAt: $createdAt
+        })`,
+        {
+          id: crypto.randomUUID(),
+          tenantId,
+          payloadJson: encodedAttributes,
+          createdAt: encodedTimestamp,
+        },
+      );
+    });
+
+    const roundTrip = await client.executeRead(async (tx) => {
+      const result = await tx.run(
+        `MATCH (n:RoundTripProbe {tenantId: $tenantId})
+         RETURN n.payloadJson AS payloadJson, n.createdAt AS createdAt
+         ORDER BY n.createdAt DESC
+         LIMIT 1`,
+        { tenantId },
+      );
+      const record = result.records[0];
+      return {
+        payloadJson: record?.get("payloadJson"),
+        createdAt: record?.get("createdAt"),
+      };
+    });
+
+    expect(decodeNeo4jJsonProperty(roundTrip.payloadJson)).toEqual(nestedAttributes);
+    expect(decodeNeo4jDateTime(roundTrip.createdAt)).toBe("2024-01-15T10:30:00.000Z");
+
+    expect(() => encodeNeo4jJsonValue({ bad: new Date() })).toThrow("Invalid JSON value");
+    expect(() => decodeNeo4jJsonValue({ bad: new Date() })).toThrow("Invalid Neo4j JSON value");
 
     const zeroRows = await repository.projectFact({
       ...projection,

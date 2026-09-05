@@ -1,9 +1,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { outboxEvents, sources } from "../../src/infrastructure/postgres/schema";
 import { DefaultUnitOfWorkFactory } from "../../src/infrastructure/unit-of-work";
-import { startComponentDatabase } from "./test-support";
+import { hasContainerRuntime, startComponentDatabase } from "./test-support";
 
-describe("TransactionalUnitOfWork", () => {
+const describeComponent = (await hasContainerRuntime()) ? describe : describe.skip;
+
+describeComponent("TransactionalUnitOfWork", () => {
   let ctx: Awaited<ReturnType<typeof startComponentDatabase>>;
   let uowFactory: DefaultUnitOfWorkFactory;
   const tenantId = crypto.randomUUID();

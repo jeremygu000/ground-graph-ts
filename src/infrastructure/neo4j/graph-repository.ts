@@ -1,4 +1,6 @@
+import neo4j from "neo4j-driver";
 import { Neo4jClient } from "./client";
+import { encodeNeo4jDateTime, encodeNeo4jJsonProperty } from "./codec";
 import { KnowledgeFactSchema, type KnowledgeFact } from "../../domain/knowledge/types";
 import type {
   GraphTraversalPort,
@@ -46,13 +48,6 @@ export class Neo4jGraphRepository implements GraphTraversalPort {
     return value as T[];
   }
 
-  private normalizeObject<T extends object>(value: unknown): T {
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
-      throw new Error("Invalid Neo4j result: expected object");
-    }
-    return value as T;
-  }
-
   private normalizeRelationshipType(value: unknown): string {
     if (typeof value !== "string" || !this.allowedRelationshipTypes.has(value)) {
       throw new Error("Invalid Neo4j result: unexpected relationship type");
@@ -65,7 +60,10 @@ export class Neo4jGraphRepository implements GraphTraversalPort {
     relationship?: { type?: unknown; properties?: Record<string, unknown> };
     end?: { properties?: Record<string, unknown> };
   }> {
-    const path = this.normalizeObject<{ segments?: unknown }>(value);
+    if (!neo4j.isPath(value)) {
+      throw new Error("Invalid Neo4j result: expected path");
+    }
+    const path = value as { segments: unknown };
     return this.normalizeArray(path.segments ?? []);
   }
 
@@ -213,13 +211,13 @@ export class Neo4jGraphRepository implements GraphTraversalPort {
         status: validated.status,
         extractionMethod: validated.extractionMethod,
         confidence: validated.confidence,
-        validFrom: validated.validFrom,
-        validTo: validated.validTo ?? null,
+        validFrom: encodeNeo4jDateTime(validated.validFrom),
+        validTo: validated.validTo ? encodeNeo4jDateTime(validated.validTo) : null,
         supersededBy: validated.supersededBy ?? null,
         createdBy: validated.createdBy ?? null,
-        observedAt: validated.observedAt,
-        createdAt: validated.createdAt,
-        provenanceJson: JSON.stringify(validated.provenance),
+        observedAt: encodeNeo4jDateTime(validated.observedAt),
+        createdAt: encodeNeo4jDateTime(validated.createdAt),
+        provenanceJson: encodeNeo4jJsonProperty(validated.provenance),
       };
 
       const objectMatch = hasObjectEntity

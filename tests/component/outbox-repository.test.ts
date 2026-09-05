@@ -2,9 +2,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { outboxEvents } from "../../src/infrastructure/postgres/schema";
 import { PostgresOutboxRepository } from "../../src/infrastructure/postgres/repositories/outbox-repository";
-import { startComponentDatabase } from "./test-support";
+import { hasContainerRuntime, startComponentDatabase } from "./test-support";
 
-describe("PostgresOutboxRepository", () => {
+const describeComponent = (await hasContainerRuntime()) ? describe : describe.skip;
+
+describeComponent("PostgresOutboxRepository", () => {
   let ctx: Awaited<ReturnType<typeof startComponentDatabase>>;
   let repo: PostgresOutboxRepository;
   const tenantId = crypto.randomUUID();
