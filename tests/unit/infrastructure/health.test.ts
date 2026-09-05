@@ -29,6 +29,14 @@ describe("health checkers", () => {
     const result = await checker.check();
     expect(result.healthy).toBe(false);
     expect(result.error).toBe("boom");
+
+    const unknownErrorChecker = new PostgresHealthChecker({
+      client: vi.fn().mockRejectedValue("boom"),
+    } as never);
+    await expect(unknownErrorChecker.check()).resolves.toMatchObject({
+      healthy: false,
+      error: "Unknown error",
+    });
   });
 
   it("checks neo4j and minio health", async () => {
@@ -49,6 +57,12 @@ describe("health checkers", () => {
       } as never).check(),
     ).resolves.toMatchObject({ healthy: false, error: "neo4j boom" });
 
+    await expect(
+      new Neo4jHealthChecker({
+        verifyConnectivity: vi.fn().mockRejectedValue("neo4j boom"),
+      } as never).check(),
+    ).resolves.toMatchObject({ healthy: false, error: "Unknown error" });
+
     const minioChecker = new MinioHealthChecker({
       exists: vi.fn().mockResolvedValue(true),
     } as never);
@@ -65,5 +79,11 @@ describe("health checkers", () => {
         exists: vi.fn().mockRejectedValue(new Error("minio boom")),
       } as never).check(),
     ).resolves.toMatchObject({ healthy: false, error: "minio boom" });
+
+    await expect(
+      new MinioHealthChecker({
+        exists: vi.fn().mockRejectedValue("minio boom"),
+      } as never).check(),
+    ).resolves.toMatchObject({ healthy: false, error: "Unknown error" });
   });
 });

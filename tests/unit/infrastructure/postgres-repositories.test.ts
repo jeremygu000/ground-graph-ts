@@ -406,4 +406,166 @@ describe("postgres repositories", () => {
       factRepo.updateStatus(factRow.id, factRow.tenantId, "verified"),
     ).resolves.toMatchObject({ ok: false });
   });
+
+  it("covers additional empty-result branches across repositories", async () => {
+    const sourceRepo = new PostgresSourceRepository(createDbMock({ select: [[], []] }) as never);
+    await expect(sourceRepo.findByUri(sourceRow.uri, sourceRow.tenantId)).resolves.toMatchObject({
+      ok: true,
+      value: null,
+    });
+    await expect(sourceRepo.list(sourceRow.tenantId)).resolves.toMatchObject({
+      ok: true,
+      value: [],
+    });
+
+    const documentRepo = new PostgresDocumentRepository(
+      createDbMock({ select: [[], []] }) as never,
+    );
+    await expect(
+      documentRepo.findBySourceId(sourceRow.id, sourceRow.tenantId),
+    ).resolves.toMatchObject({ ok: true, value: null });
+    await expect(documentRepo.list(documentRow.tenantId)).resolves.toMatchObject({
+      ok: true,
+      value: [],
+    });
+
+    const versionRepo = new PostgresDocumentVersionRepository(
+      createDbMock({ select: [[], []] }) as never,
+    );
+    await expect(
+      versionRepo.listByDocument(documentRow.id, documentRow.tenantId),
+    ).resolves.toMatchObject({ ok: true, value: [] });
+
+    const chunkRepo = new PostgresChunkRepository(createDbMock({ select: [[]] }) as never);
+    await expect(
+      chunkRepo.findByDocumentVersion(chunkRow.documentVersionId, chunkRow.tenantId),
+    ).resolves.toMatchObject({ ok: true, value: [] });
+
+    const entityRepo = new PostgresEntityRepository(
+      createDbMock({ select: [[], [], []] }) as never,
+    );
+    await expect(
+      entityRepo.findByCanonicalName(entityRow.canonicalName, entityRow.tenantId),
+    ).resolves.toMatchObject({ ok: true, value: null });
+    await expect(entityRepo.findByAlias("missing", entityRow.tenantId)).resolves.toMatchObject({
+      ok: true,
+      value: [],
+    });
+    await expect(entityRepo.list(entityRow.tenantId)).resolves.toMatchObject({
+      ok: true,
+      value: [],
+    });
+
+    const factRepo = new PostgresFactRepository(
+      createDbMock({ select: [[], [], [], []] }) as never,
+    );
+    await expect(
+      factRepo.findBySubject(factRow.subjectId, factRow.tenantId),
+    ).resolves.toMatchObject({
+      ok: true,
+      value: [],
+    });
+    await expect(
+      factRepo.findByPredicate(factRow.predicate, factRow.tenantId),
+    ).resolves.toMatchObject({ ok: true, value: [] });
+    await expect(factRepo.findByStatus("candidate", factRow.tenantId)).resolves.toMatchObject({
+      ok: true,
+      value: [],
+    });
+    await expect(
+      factRepo.findTemporal(
+        factRow.subjectId,
+        factRow.predicate,
+        factRow.tenantId,
+        factRow.validFrom,
+      ),
+    ).resolves.toMatchObject({ ok: true, value: null });
+  });
+
+  it("covers repository failure branches across create and update paths", async () => {
+    const sourceRepo = new PostgresSourceRepository({
+      drizzle: {
+        insert: vi.fn().mockRejectedValue(new Error("source boom")),
+        select: vi.fn(() => createThenable([])),
+        update: vi.fn(() => createThenable([])),
+      },
+    } as never);
+    await expect(
+      sourceRepo.create(
+        {
+          type: "url",
+          uri: sourceRow.uri,
+        },
+        sourceRow.tenantId,
+      ),
+    ).resolves.toMatchObject({ ok: false });
+
+    const documentRepo = new PostgresDocumentRepository({
+      drizzle: {
+        insert: vi.fn().mockRejectedValue(new Error("document boom")),
+        select: vi.fn(() => createThenable([])),
+        update: vi.fn(() => createThenable([])),
+      },
+    } as never);
+    await expect(
+      documentRepo.create(
+        {
+          sourceId: sourceRow.id,
+        },
+        documentRow.tenantId,
+      ),
+    ).resolves.toMatchObject({ ok: false });
+
+    const versionRepo = new PostgresDocumentVersionRepository({
+      drizzle: {
+        insert: vi.fn().mockRejectedValue(new Error("version boom")),
+        select: vi.fn(() => createThenable([])),
+        update: vi.fn(() => createThenable([])),
+      },
+    } as never);
+    await expect(
+      versionRepo.create(documentRow.id, {
+        id: versionRow.id,
+        tenantId: versionRow.tenantId,
+        versionNumber: versionRow.versionNumber,
+        contentHash: versionRow.contentHash,
+        checksum: versionRow.checksum,
+        sizeBytes: versionRow.sizeBytes,
+        isActive: true,
+      }),
+    ).resolves.toMatchObject({ ok: false });
+
+    const chunkRepo = new PostgresChunkRepository({
+      drizzle: {
+        insert: vi.fn().mockRejectedValue(new Error("chunk boom")),
+        select: vi.fn(() => createThenable([])),
+        update: vi.fn(() => createThenable([])),
+      },
+    } as never);
+    await expect(
+      chunkRepo.createMany([{ ...chunkRow, id: undefined } as never], chunkRow.tenantId),
+    ).resolves.toMatchObject({ ok: false });
+
+    const entityRepo = new PostgresEntityRepository({
+      drizzle: {
+        insert: vi.fn().mockRejectedValue(new Error("entity boom")),
+        select: vi.fn(() => createThenable([])),
+        update: vi.fn(() => createThenable([])),
+      },
+    } as never);
+    await expect(entityRepo.create(entityRow as never)).resolves.toMatchObject({ ok: false });
+
+    const factRepo = new PostgresFactRepository({
+      drizzle: {
+        insert: vi.fn().mockRejectedValue(new Error("fact boom")),
+        select: vi.fn(() => createThenable([])),
+        update: vi.fn(() => createThenable([])),
+      },
+    } as never);
+    await expect(factRepo.create(factRow as never)).resolves.toMatchObject({ ok: false });
+    await expect(factRepo.createMany([factRow as never])).resolves.toMatchObject({ ok: false });
+    await expect(
+      factRepo.updateStatus(factRow.id, factRow.tenantId, "verified"),
+    ).resolves.toMatchObject({ ok: false });
+  });
 });

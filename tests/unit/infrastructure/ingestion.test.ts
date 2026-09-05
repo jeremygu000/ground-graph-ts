@@ -240,6 +240,30 @@ describe("ingestion infrastructure", () => {
         }),
       ).rejects.toThrow("No parser available");
     });
+
+    it("covers parser canParse false branches", () => {
+      const markdown = new MarkdownParser();
+      expect(markdown.canParse({ type: "url", uri: "https://example.com/file.txt" })).toBe(false);
+
+      const html = new HtmlParser();
+      expect(
+        html.canParse({ type: "url", uri: "https://example.com", mimeType: "application/json" }),
+      ).toBe(false);
+
+      const plain = new PlainTextParser();
+      expect(
+        plain.canParse({ type: "url", uri: "https://example.com", mimeType: "application/json" }),
+      ).toBe(false);
+
+      const composite = new CompositeParser();
+      expect(
+        composite.canParse({
+          type: "url",
+          uri: "https://example.com/file.bin",
+          mimeType: "application/x-custom",
+        }),
+      ).toBe(false);
+    });
   });
 
   describe("content fetchers", () => {
@@ -259,6 +283,7 @@ describe("ingestion infrastructure", () => {
       await expect(composite.fetch(`file://${filePath}`)).resolves.toEqual(
         Buffer.from("hello file"),
       );
+      await expect(composite.fetch("s3://bucket/key")).rejects.toThrow("No ContentFetcher");
 
       const factory = new DefaultContentFetcherFactory();
       expect(factory.create()).toBeInstanceOf(CompositeContentFetcher);

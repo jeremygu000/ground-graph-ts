@@ -11,6 +11,7 @@ import {
   mapToOutboxEvent,
   mapToSource,
 } from "../../../src/application/validation";
+import { validateOrDefault } from "../../../src/domain/validation";
 
 describe("application validation mappers", () => {
   it("maps source rows with nullish optional values", () => {
@@ -106,5 +107,135 @@ describe("application validation mappers", () => {
   it("rejects invalid schema values at the boundary", () => {
     expect(SourceSchema.safeParse({ uri: "not-a-url" }).success).toBe(false);
     expect(DocumentSchema.safeParse({ id: crypto.randomUUID() }).success).toBe(false);
+  });
+
+  it("covers mapper fallback branches", () => {
+    const source = mapToSource({
+      id: crypto.randomUUID(),
+      tenantId: crypto.randomUUID(),
+      type: "api",
+      uri: "https://example.com/api",
+      isActive: false,
+      lastSyncedAt: undefined,
+      createdAt: 123,
+      updatedAt: true,
+    });
+
+    expect(source.mimeType).toBeUndefined();
+    expect(source.metadata).toBeUndefined();
+    expect(source.lastSyncedAt).toBeUndefined();
+    expect(source.createdAt).toBe("123");
+    expect(source.updatedAt).toBe("true");
+
+    const version = mapToDocumentVersion({
+      id: crypto.randomUUID(),
+      documentId: crypto.randomUUID(),
+      tenantId: crypto.randomUUID(),
+      versionNumber: "7",
+      contentHash: "hash",
+      checksum: "checksum",
+      sizeBytes: "42",
+      parsedDocument: null,
+      isActive: true,
+      createdAt: 123,
+    });
+    expect(version.createdBy).toBeUndefined();
+    expect(version.parsedDocument).toBeUndefined();
+
+    const chunk = mapToChunk({
+      id: crypto.randomUUID(),
+      documentVersionId: crypto.randomUUID(),
+      tenantId: crypto.randomUUID(),
+      sequenceNumber: "0",
+      content: "chunk",
+      contentHash: "hash",
+      locator: { type: "line", path: "doc.md", startLine: 1 },
+      metadata: undefined,
+      createdAt: 123,
+    });
+    expect(chunk.metadata).toBeUndefined();
+
+    const outbox = mapToOutboxEvent({
+      id: crypto.randomUUID(),
+      tenantId: crypto.randomUUID(),
+      aggregateType: "document",
+      aggregateId: crypto.randomUUID(),
+      eventType: "source.created",
+      payload: {},
+      idempotencyKey: "key",
+      status: "pending",
+      attempts: "0",
+      availableAt: 123,
+      claimedAt: null,
+      claimedBy: undefined,
+      leaseToken: undefined,
+      completedAt: undefined,
+      deadLetteredAt: null,
+      error: undefined,
+      createdAt: 123,
+      updatedAt: 123,
+    });
+    expect(outbox.claimedAt).toBeUndefined();
+    expect(outbox.claimedBy).toBeUndefined();
+    expect(outbox.leaseToken).toBeUndefined();
+    expect(outbox.completedAt).toBeUndefined();
+    expect(outbox.deadLetteredAt).toBeUndefined();
+    expect(outbox.error).toBeUndefined();
+  });
+
+  it("validates and defaults unknown JSON strings through parseJson helpers", () => {
+    expect(() =>
+      validateOrDefault(
+        SourceSchema,
+        { id: crypto.randomUUID() },
+        {
+          id: crypto.randomUUID(),
+          tenantId: crypto.randomUUID(),
+          type: "api",
+          uri: "https://example.com",
+          isActive: true,
+          createdAt: "2024-01-15T10:30:00.000Z",
+          updatedAt: "2024-01-15T10:30:00.000Z",
+        },
+      ),
+    ).not.toThrow();
+  });
+
+  it("maps document version parsedDocument when present and absent", () => {
+    const parsedDocument = ParsedDocumentSchema.parse({
+      sourceId: crypto.randomUUID(),
+      versionId: crypto.randomUUID(),
+      content: "content",
+      metadata: { nested: { ok: true } },
+      extractedAt: "2024-01-15T10:30:00.000Z",
+    });
+
+    const withParsed = mapToDocumentVersion({
+      id: crypto.randomUUID(),
+      documentId: crypto.randomUUID(),
+      tenantId: crypto.randomUUID(),
+      versionNumber: 1,
+      contentHash: "hash",
+      checksum: "checksum",
+      sizeBytes: 12,
+      parsedDocument,
+      isActive: true,
+      createdAt: new Date("2024-01-15T10:30:00.000Z"),
+    });
+    expect(withParsed.parsedDocument).toEqual(parsedDocument);
+
+    const withoutParsed = mapToDocumentVersion({
+      id: crypto.randomUUID(),
+      documentId: crypto.randomUUID(),
+      tenantId: crypto.randomUUID(),
+      versionNumber: 2,
+      contentHash: "hash",
+      checksum: "checksum",
+      sizeBytes: 12,
+      parsedDocument: undefined,
+      isActive: true,
+      createdAt: new Date("2024-01-15T10:30:00.000Z"),
+    });
+    expect(withoutParsed.parsedDocument).toBeUndefined();
   });
 });

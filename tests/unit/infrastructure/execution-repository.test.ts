@@ -151,4 +151,139 @@ describe("execution repositories", () => {
       ok: true,
     });
   });
+
+  it("covers execution repository failure and status variants", async () => {
+    const runDb = createDbMock({
+      select: [[], [runRow]],
+      update: [[{ ...runRow, status: "failed", completedAt: "2024-01-01T00:00:01.000Z" }], []],
+    });
+    const runRepo = new PostgresExecutionRunRepository(runDb as never);
+
+    await expect(runRepo.findById(runRow.id, runRow.tenantId)).resolves.toEqual({
+      ok: true,
+      value: null,
+    });
+    await expect(
+      runRepo.updateStatus(runRow.id, runRow.tenantId, "failed", { result: true }, "boom"),
+    ).resolves.toMatchObject({
+      ok: true,
+      value: { status: "failed" },
+    });
+    await expect(
+      runRepo.compareAndSetStatus(runRow.id, runRow.tenantId, "pending", "succeeded"),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: expect.any(Error),
+    });
+
+    const runningDb = createDbMock({
+      update: [[{ ...runRow, status: "running", startedAt: "2024-01-01T00:00:02.000Z" }]],
+    });
+    const runningRepo = new PostgresExecutionRunRepository(runningDb as never);
+    await expect(
+      runningRepo.updateStatus(runRow.id, runRow.tenantId, "running", { result: true }, "boom"),
+    ).resolves.toMatchObject({
+      ok: true,
+      value: { status: "running" },
+    });
+
+    const stepMissingDb = createDbMock({
+      select: [[]],
+      update: [[]],
+    });
+    const stepMissingRepo = new PostgresExecutionStepRepository(stepMissingDb as never);
+    await expect(stepMissingRepo.findById(stepRow.id, runRow.tenantId)).resolves.toEqual({
+      ok: true,
+      value: null,
+    });
+    await expect(
+      stepMissingRepo.updateStatus(stepRow.id, runRow.tenantId, "running"),
+    ).resolves.toMatchObject({ ok: false, error: expect.any(Error) });
+    await expect(
+      stepMissingRepo.updateStatus(
+        stepRow.id,
+        runRow.tenantId,
+        "succeeded",
+        { result: true },
+        "boom",
+      ),
+    ).resolves.toMatchObject({ ok: false, error: expect.any(Error) });
+    await expect(
+      stepMissingRepo.compareAndSetStatus(stepRow.id, runRow.tenantId, "pending", "succeeded"),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: expect.any(Error),
+    });
+    await expect(
+      stepMissingRepo.addDependency(stepRow.id, stepRow.id, runRow.tenantId),
+    ).resolves.toMatchObject({ ok: false, error: expect.any(Error) });
+
+    const missingStepDb = createDbMock({
+      transaction: [
+        {
+          select: [[], []],
+          execute: [[]],
+          insert: [[]],
+        },
+      ],
+    });
+    const missingStepRepo = new PostgresExecutionStepRepository(missingStepDb as never);
+    await expect(
+      missingStepRepo.addDependency(
+        stepRow.id,
+        "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        runRow.tenantId,
+      ),
+    ).resolves.toMatchObject({ ok: false, error: expect.any(Error) });
+
+    const crossRunDb = createDbMock({
+      transaction: [
+        {
+          select: [[{ runId: runRow.id }], [{ runId: "other-run" }]],
+          execute: [[]],
+          insert: [[]],
+        },
+      ],
+    });
+    const crossRunRepo = new PostgresExecutionStepRepository(crossRunDb as never);
+    await expect(
+      crossRunRepo.addDependency(
+        stepRow.id,
+        "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        runRow.tenantId,
+      ),
+    ).resolves.toMatchObject({ ok: false, error: expect.any(Error) });
+
+    const missingRunDb = createDbMock({
+      transaction: [
+        {
+          select: [[{ runId: runRow.id }], [{ runId: runRow.id }], []],
+          execute: [[]],
+          insert: [[]],
+        },
+      ],
+    });
+    const missingRunRepo = new PostgresExecutionStepRepository(missingRunDb as never);
+    await expect(
+      missingRunRepo.addDependency(
+        stepRow.id,
+        "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        runRow.tenantId,
+      ),
+    ).resolves.toMatchObject({ ok: false, error: expect.any(Error) });
+
+    const cycleDb = createDbMock({
+      transaction: [
+        {
+          select: [[{ runId: runRow.id }], [{ runId: runRow.id }], [{ id: runRow.id }]],
+          execute: [[{ one: 1 }]],
+          insert: [[]],
+        },
+      ],
+    });
+    const cycleRepo = new PostgresExecutionStepRepository(cycleDb as never);
+    await expect(
+      cycleRepo.addDependency(stepRow.id, "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", runRow.tenantId),
+    ).resolves.toMatchObject({ ok: false, error: expect.any(Error) });
+  });
 });

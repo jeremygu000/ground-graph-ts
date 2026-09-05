@@ -1,4 +1,3 @@
-import { createHash } from "crypto";
 import type { UnitOfWorkFactory } from "../../application/unit-of-work";
 import type { DocumentParser, ParsedContent } from "../../application/ingestion/parser-port";
 import type {
@@ -8,8 +7,9 @@ import type {
 } from "../../application/ingestion/chunker-port";
 import type { IngestionQualityReport } from "../../application/ingestion/types";
 import type { Document, Source } from "../../application/ingestion/ports";
-import type { Chunk } from "../../domain/documents/types";
 import type { ContentFetcher } from "../../application/ingestion/content-fetcher-port";
+import type { Chunk } from "../../application/ingestion/ports";
+import { computeContentHash } from "../../application/ingestion/hash";
 
 export interface IngestionWorkflowInput {
   sourceUri: string;
@@ -211,7 +211,7 @@ export class IngestionWorkflow {
   }
 
   private hashContent(content: string): string {
-    return createHash("sha256").update(content, "utf8").digest("hex");
+    return computeContentHash(content);
   }
 
   private computeChecksum(content: string): string {

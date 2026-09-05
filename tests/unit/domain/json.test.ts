@@ -114,5 +114,28 @@ describe("JSON", () => {
       expect(isJSONObject([])).toBe(false);
       expect(isJSONObject("string")).toBe(false);
     });
+
+    it("should reject nested invalid objects", () => {
+      expect(isJSONObject({ nested: { bad: new Date() } })).toBe(false);
+      expect(isJSONObject({ nested: [1, { bad: new Map() }] })).toBe(false);
+    });
+  });
+
+  describe("nested invalid values", () => {
+    it("should reject nested invalid JSON values", () => {
+      expect(JSON_VALUE_SCHEMA.safeParse({ nested: new Date() }).success).toBe(false);
+      expect(JSON_VALUE_SCHEMA.safeParse({ nested: { bad: Infinity } }).success).toBe(false);
+      expect(JSON_OBJECT_SCHEMA.safeParse({ nested: new Map() }).success).toBe(false);
+      expect(isJSONValue({ nested: [1, { bad: Infinity }] })).toBe(false);
+    });
+
+    it("should reject array-like wrappers and cyclic structures", () => {
+      expect(JSON_VALUE_SCHEMA.safeParse({ nested: [new Set()] }).success).toBe(false);
+      expect(JSON_OBJECT_SCHEMA.safeParse({ nested: [1, { bad: new Date() }] }).success).toBe(
+        false,
+      );
+      expect(isJSONObject([1, { bad: true }])).toBe(false);
+      expect(isJSONValue({ nested: { bad: new Map() } })).toBe(false);
+    });
   });
 });

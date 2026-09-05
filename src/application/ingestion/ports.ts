@@ -114,3 +114,4 @@ export interface CreateDocumentVersionInput {
 }
 
 export type CreateChunkInput = Omit<Chunk, "id">;
+export type { Chunk };

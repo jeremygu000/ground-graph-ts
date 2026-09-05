@@ -51,8 +51,10 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@babel/parser": "^8.0.4",
     "@types/node": "^26.4.1",
     "@types/pg": "^8.23.1",
+    "@typescript-eslint/typescript-estree": "^8.69.0",
     "@vitest/coverage-v8": "^5.0.0",
     "drizzle-kit": "^0.31.10",
     "oxfmt": "^0.66.0",

@@ -63,6 +63,25 @@ describe("Domain Errors", () => {
 
       expect(error.toJSON().cause).toBe("plain cause");
     });
+
+    it("should serialize an Error cause to its message", () => {
+      const error = new AppError({
+        code: "INTERNAL_ERROR",
+        message: "Something went wrong",
+        cause: new Error("root cause"),
+      });
+
+      expect(error.toJSON().cause).toBe("root cause");
+    });
+
+    it("should keep empty metadata when omitted", () => {
+      const error = new AppError({
+        code: "INTERNAL_ERROR",
+        message: "Something went wrong",
+      });
+
+      expect(error.metadata).toEqual({});
+    });
   });
 
   describe("ValidationError", () => {

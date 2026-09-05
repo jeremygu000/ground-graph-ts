@@ -45,6 +45,13 @@
       "cannotImport": ["domain", "infrastructure", "fastify", "drizzle-orm", "postgres", "neo4j-driver"]
     },
     {
+      "id": "APPS_COMPOSITION_ROOT",
+      "description": "Apps compose the system and may wire application and infrastructure, but not domain or workflows",
+      "from": "apps",
+      "canImport": ["application", "infrastructure", "standard built-in Node.js APIs"],
+      "cannotImport": ["domain", "workflows"]
+    },
+    {
       "id": "INFRASTRUCTURE_ADAPTERS_ONLY",
       "description": "Infrastructure implements application ports, never imports domain/application logic",
       "from": "infrastructure",
