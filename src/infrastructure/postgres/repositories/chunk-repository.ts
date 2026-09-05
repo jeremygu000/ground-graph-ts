@@ -25,8 +25,7 @@ export class PostgresChunkRepository implements ChunkRepository {
           metadata: chunk.metadata,
         })
         .returning();
-      const mapped = mapToChunk(result as Record<string, unknown>);
-      return { ok: true, value: mapped as Chunk };
+      return { ok: true, value: mapToChunk(result as Record<string, unknown>) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -51,8 +50,7 @@ export class PostgresChunkRepository implements ChunkRepository {
           })),
         )
         .returning();
-      const mapped = results.map((r) => mapToChunk(r as Record<string, unknown>));
-      return { ok: true, value: mapped as Chunk[] };
+      return { ok: true, value: results.map((r) => mapToChunk(r as Record<string, unknown>)) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -68,8 +66,7 @@ export class PostgresChunkRepository implements ChunkRepository {
         .from(chunks)
         .where(and(eq(chunks.id, id), eq(chunks.tenantId, tenantId)));
       if (!result) return { ok: true, value: null };
-      const mapped = mapToChunk(result as Record<string, unknown>);
-      return { ok: true, value: mapped as Chunk };
+      return { ok: true, value: mapToChunk(result as Record<string, unknown>) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -85,8 +82,7 @@ export class PostgresChunkRepository implements ChunkRepository {
         .from(chunks)
         .where(and(eq(chunks.documentVersionId, documentVersionId), eq(chunks.tenantId, tenantId)))
         .orderBy(chunks.sequenceNumber);
-      const mapped = results.map((r) => mapToChunk(r as Record<string, unknown>));
-      return { ok: true, value: mapped as Chunk[] };
+      return { ok: true, value: results.map((r) => mapToChunk(r as Record<string, unknown>)) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -101,8 +97,7 @@ export class PostgresChunkRepository implements ChunkRepository {
         .select()
         .from(chunks)
         .where(and(inArray(chunks.id, ids), eq(chunks.tenantId, tenantId)));
-      const mapped = results.map((r) => mapToChunk(r as Record<string, unknown>));
-      return { ok: true, value: mapped as Chunk[] };
+      return { ok: true, value: results.map((r) => mapToChunk(r as Record<string, unknown>)) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }

@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run --coverage",
+    "test:component": "vitest run tests/component --maxWorkers 1",
     "test:watch": "vitest",
     "test:unit:coverage": "vitest run --coverage --coverage.reporters=html --coverage.reporters=lcov --coverage.reporters=text-summary",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:unit",

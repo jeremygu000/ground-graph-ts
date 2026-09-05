@@ -34,8 +34,10 @@ export class PostgresDocumentVersionRepository implements DocumentVersionReposit
         .insert(documentVersions)
         .values(insertData)
         .returning();
-      const mapped = mapToDocumentVersion(result as Record<string, unknown>);
-      return { ok: true, value: mapped as DocumentVersion };
+      return {
+        ok: true,
+        value: mapToDocumentVersion(result as Record<string, unknown>) as DocumentVersion,
+      };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -51,8 +53,10 @@ export class PostgresDocumentVersionRepository implements DocumentVersionReposit
         .from(documentVersions)
         .where(and(eq(documentVersions.id, id), eq(documentVersions.tenantId, tenantId)));
       if (!result) return { ok: true, value: null };
-      const mapped = mapToDocumentVersion(result as Record<string, unknown>);
-      return { ok: true, value: mapped as DocumentVersion };
+      return {
+        ok: true,
+        value: mapToDocumentVersion(result as Record<string, unknown>) as DocumentVersion,
+      };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -76,8 +80,10 @@ export class PostgresDocumentVersionRepository implements DocumentVersionReposit
         .orderBy(desc(documentVersions.versionNumber))
         .limit(1);
       if (!result) return { ok: true, value: null };
-      const mapped = mapToDocumentVersion(result as Record<string, unknown>);
-      return { ok: true, value: mapped as DocumentVersion };
+      return {
+        ok: true,
+        value: mapToDocumentVersion(result as Record<string, unknown>) as DocumentVersion,
+      };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -95,8 +101,12 @@ export class PostgresDocumentVersionRepository implements DocumentVersionReposit
           and(eq(documentVersions.documentId, documentId), eq(documentVersions.tenantId, tenantId)),
         )
         .orderBy(desc(documentVersions.versionNumber));
-      const mapped = results.map((r) => mapToDocumentVersion(r as Record<string, unknown>));
-      return { ok: true, value: mapped as DocumentVersion[] };
+      return {
+        ok: true,
+        value: results.map(
+          (r) => mapToDocumentVersion(r as Record<string, unknown>) as DocumentVersion,
+        ),
+      };
     } catch (error) {
       return { ok: false, error: error as Error };
     }

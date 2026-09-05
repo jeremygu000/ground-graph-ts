@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { validateOrThrow } from "../domain/validation";
+import { ParsedDocumentSchema } from "../domain/documents/types";
 
 function toISOString(val: unknown): string {
   if (val instanceof Date) return val.toISOString();
@@ -12,6 +13,10 @@ function nullableString(val: unknown): string | null | undefined {
   if (val === null) return null;
   if (val === undefined) return undefined;
   return toISOString(val);
+}
+
+function undefinedIfNull<T>(value: T | null | undefined): T | undefined {
+  return value === null ? undefined : value;
 }
 
 export const SourceSchema = z.object({
@@ -35,8 +40,8 @@ export function mapToSource(row: Record<string, unknown>): SourceInput {
     tenantId: String(row.tenantId),
     type: row.type as "file" | "url" | "git" | "api",
     uri: String(row.uri),
-    mimeType: row.mimeType as string | undefined,
-    metadata: row.metadata as Record<string, unknown> | undefined,
+    mimeType: undefinedIfNull(row.mimeType as string | null | undefined),
+    metadata: undefinedIfNull(row.metadata as Record<string, unknown> | null | undefined),
     isActive: Boolean(row.isActive),
     lastSyncedAt: nullableString(row.lastSyncedAt) ?? undefined,
     createdAt: toISOString(row.createdAt),
@@ -63,16 +68,14 @@ export const DocumentVersionSchema = z.object({
   contentHash: z.string(),
   checksum: z.string(),
   sizeBytes: z.number().int().nonnegative(),
-  parsedDocument: z.unknown().optional(),
+  parsedDocument: ParsedDocumentSchema.optional(),
   isActive: z.boolean(),
   createdAt: z.string(),
   createdBy: z.string().uuid().optional(),
 });
 
-export function mapToDocumentVersion(
-  row: Record<string, unknown>,
-): z.infer<typeof DocumentVersionSchema> {
-  return {
+export function mapToDocumentVersion(row: Record<string, unknown>) {
+  const result = {
     id: String(row.id),
     documentId: String(row.documentId),
     tenantId: String(row.tenantId),
@@ -80,11 +83,13 @@ export function mapToDocumentVersion(
     contentHash: String(row.contentHash),
     checksum: String(row.checksum),
     sizeBytes: Number(row.sizeBytes),
-    parsedDocument: row.parsedDocument as z.infer<typeof DocumentVersionSchema>["parsedDocument"],
+    parsedDocument: undefinedIfNull(row.parsedDocument as z.infer<typeof ParsedDocumentSchema> | null | undefined),
     isActive: Boolean(row.isActive),
     createdAt: toISOString(row.createdAt),
-    createdBy: row.createdBy ? String(row.createdBy) : undefined,
+    createdBy: undefinedIfNull(row.createdBy as string | null | undefined),
   };
+
+  return validateOrThrow(DocumentVersionSchema, result, "DocumentVersion");
 }
 
 export const ChunkSchema = z.object({
@@ -104,8 +109,8 @@ export const ChunkSchema = z.object({
   createdAt: z.string(),
 });
 
-export function mapToChunk(row: Record<string, unknown>): z.infer<typeof ChunkSchema> {
-  return {
+export function mapToChunk(row: Record<string, unknown>) {
+  const result = {
     id: String(row.id),
     documentVersionId: String(row.documentVersionId),
     tenantId: String(row.tenantId),
@@ -113,9 +118,11 @@ export function mapToChunk(row: Record<string, unknown>): z.infer<typeof ChunkSc
     content: String(row.content),
     contentHash: String(row.contentHash),
     locator: row.locator as z.infer<typeof ChunkSchema>["locator"],
-    metadata: row.metadata as Record<string, unknown> | undefined,
+    metadata: undefinedIfNull(row.metadata as Record<string, unknown> | null | undefined),
     createdAt: toISOString(row.createdAt),
   };
+
+  return validateOrThrow(ChunkSchema, result, "Chunk");
 }
 
 export const OutboxEventSchema = z.object({

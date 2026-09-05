@@ -1,4 +1,5 @@
 import { eq, and, sql } from "drizzle-orm";
+import crypto from "node:crypto";
 import type { Database } from "../client";
 import { executionRuns, executionSteps, executionStepDependencies } from "../schema";
 import type {
@@ -8,6 +9,61 @@ import type {
 import type { ExecutionRun, ExecutionStep } from "../../../domain/execution/types";
 import { ExecutionRunSchema, ExecutionStepSchema } from "../../../domain/execution/types";
 import { validateOrThrow } from "../../../domain/validation";
+
+function undefinedIfNull<T>(value: T | null | undefined): T | undefined {
+  return value === null ? undefined : value;
+}
+
+function mapExecutionRunRow(row: Record<string, unknown>): ExecutionRun {
+  const input = undefinedIfNull(row.input as Record<string, unknown> | null | undefined);
+  const output = undefinedIfNull(row.output as Record<string, unknown> | null | undefined);
+  const error = undefinedIfNull(row.error as string | null | undefined);
+  const traceId = undefinedIfNull(row.traceId as string | null | undefined);
+  const spanId = undefinedIfNull(row.spanId as string | null | undefined);
+  const startedAt = row.startedAt instanceof Date ? row.startedAt.toISOString() : undefinedIfNull(row.startedAt as string | null | undefined);
+  const completedAt = row.completedAt instanceof Date ? row.completedAt.toISOString() : undefinedIfNull(row.completedAt as string | null | undefined);
+  const metadata = undefinedIfNull(row.metadata as Record<string, unknown> | null | undefined);
+
+  return validateOrThrow(
+    ExecutionRunSchema,
+    {
+      ...row,
+      input,
+      output,
+      error,
+      traceId,
+      spanId,
+      startedAt,
+      completedAt,
+      metadata,
+      createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
+    },
+    "ExecutionRun.map",
+  );
+}
+
+function mapExecutionStepRow(row: Record<string, unknown>): ExecutionStep {
+  const input = undefinedIfNull(row.input as Record<string, unknown> | null | undefined);
+  const output = undefinedIfNull(row.output as Record<string, unknown> | null | undefined);
+  const error = undefinedIfNull(row.error as string | null | undefined);
+  const startedAt = row.startedAt instanceof Date ? row.startedAt.toISOString() : undefinedIfNull(row.startedAt as string | null | undefined);
+  const completedAt = row.completedAt instanceof Date ? row.completedAt.toISOString() : undefinedIfNull(row.completedAt as string | null | undefined);
+  const metadata = undefinedIfNull(row.metadata as Record<string, unknown> | null | undefined);
+
+  return validateOrThrow(
+    ExecutionStepSchema,
+    {
+      ...row,
+      input,
+      output,
+      error,
+      startedAt,
+      completedAt,
+      metadata,
+    },
+    "ExecutionStep.map",
+  );
+}
 
 export class PostgresExecutionRunRepository implements ExecutionRunRepository {
   constructor(private db: Database) {}
@@ -21,11 +77,7 @@ export class PostgresExecutionRunRepository implements ExecutionRunRepository {
         .insert(executionRuns)
         .values(validated as typeof executionRuns.$inferInsert)
         .returning();
-      const validatedResult = validateOrThrow(
-        ExecutionRunSchema,
-        result,
-        "ExecutionRun.create.result",
-      );
+      const validatedResult = mapExecutionRunRow(result as Record<string, unknown>);
       return { ok: true, value: validatedResult };
     } catch (error) {
       return { ok: false, error: error as Error };
@@ -44,8 +96,7 @@ export class PostgresExecutionRunRepository implements ExecutionRunRepository {
       if (!result) {
         return { ok: true, value: null };
       }
-      const validated = validateOrThrow(ExecutionRunSchema, result, "ExecutionRun.findById");
-      return { ok: true, value: validated };
+      return { ok: true, value: mapExecutionRunRow(result as Record<string, unknown>) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -60,9 +111,7 @@ export class PostgresExecutionRunRepository implements ExecutionRunRepository {
         .select()
         .from(executionRuns)
         .where(and(eq(executionRuns.status, status), eq(executionRuns.tenantId, tenantId)));
-      const validated = results.map((r) =>
-        validateOrThrow(ExecutionRunSchema, r, "ExecutionRun.findByStatus"),
-      );
+      const validated = results.map((r) => mapExecutionRunRow(r as Record<string, unknown>));
       return { ok: true, value: validated };
     } catch (error) {
       return { ok: false, error: error as Error };
@@ -92,8 +141,7 @@ export class PostgresExecutionRunRepository implements ExecutionRunRepository {
       if (!result) {
         return { ok: false, error: new Error("Run not found") };
       }
-      const validated = validateOrThrow(ExecutionRunSchema, result, "ExecutionRun.updateStatus");
-      return { ok: true, value: validated };
+      return { ok: true, value: mapExecutionRunRow(result as Record<string, unknown>) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -123,12 +171,7 @@ export class PostgresExecutionRunRepository implements ExecutionRunRepository {
           error: new Error("Run not found or status mismatch (concurrent modification)"),
         };
       }
-      const validated = validateOrThrow(
-        ExecutionRunSchema,
-        result,
-        "ExecutionRun.compareAndSetStatus",
-      );
-      return { ok: true, value: validated };
+      return { ok: true, value: mapExecutionRunRow(result as Record<string, unknown>) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -169,12 +212,7 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
         .insert(executionSteps)
         .values(validated as typeof executionSteps.$inferInsert)
         .returning();
-      const validatedResult = validateOrThrow(
-        ExecutionStepSchema,
-        result,
-        "ExecutionStep.create.result",
-      );
-      return { ok: true, value: validatedResult };
+      return { ok: true, value: mapExecutionStepRow(result as Record<string, unknown>) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -193,8 +231,7 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
       if (!result?.step) {
         return { ok: true, value: null };
       }
-      const validated = validateOrThrow(ExecutionStepSchema, result.step, "ExecutionStep.findById");
-      return { ok: true, value: validated };
+      return { ok: true, value: mapExecutionStepRow(result.step as Record<string, unknown>) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -210,9 +247,7 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
         .from(executionSteps)
         .innerJoin(executionRuns, eq(executionRuns.id, executionSteps.runId))
         .where(and(eq(executionSteps.runId, runId), eq(executionRuns.tenantId, tenantId)));
-      const validated = results.map((r) =>
-        validateOrThrow(ExecutionStepSchema, r.step, "ExecutionStep.findByRunId"),
-      );
+      const validated = results.map((r) => mapExecutionStepRow(r.step as Record<string, unknown>));
       return { ok: true, value: validated };
     } catch (error) {
       return { ok: false, error: error as Error };
@@ -252,8 +287,7 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
       if (!result) {
         return { ok: false, error: new Error("Step not found") };
       }
-      const validated = validateOrThrow(ExecutionStepSchema, result, "ExecutionStep.updateStatus");
-      return { ok: true, value: validated };
+      return { ok: true, value: mapExecutionStepRow(result as Record<string, unknown>) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -289,12 +323,7 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
         };
       }
 
-      const validated = validateOrThrow(
-        ExecutionStepSchema,
-        result,
-        "ExecutionStep.compareAndSetStatus",
-      );
-      return { ok: true, value: validated };
+      return { ok: true, value: mapExecutionStepRow(result as Record<string, unknown>) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -332,14 +361,14 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
 
       const cycleCheck = await this.db.drizzle.execute(sql`
         WITH RECURSIVE cycle_check AS (
-          SELECT ${dependsOnStepId} AS step_id, ARRAY[${dependsOnStepId}] AS path
+          SELECT ${dependsOnStepId}::uuid AS step_id, ARRAY[${dependsOnStepId}::uuid] AS path
           UNION ALL
           SELECT sd.depends_on_step_id, cc.path || sd.depends_on_step_id
           FROM execution_step_dependencies sd
           JOIN cycle_check cc ON sd.step_id = cc.step_id
           WHERE NOT (sd.depends_on_step_id = ANY(cc.path))
         )
-        SELECT 1 FROM cycle_check WHERE step_id = ${stepId} LIMIT 1
+        SELECT 1 FROM cycle_check WHERE step_id = ${stepId}::uuid LIMIT 1
       `);
 
       if ((cycleCheck as unknown[]).length > 0) {
@@ -347,6 +376,7 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
       }
 
       await this.db.drizzle.insert(executionStepDependencies).values({
+        id: crypto.randomUUID(),
         stepId,
         dependsOnStepId,
       });
@@ -370,9 +400,7 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
           and(eq(executionStepDependencies.stepId, stepId), eq(executionRuns.tenantId, tenantId)),
         );
 
-      const steps = dependencies.map((d) =>
-        validateOrThrow(ExecutionStepSchema, d.step, "ExecutionStep.getDependencies"),
-      );
+      const steps = dependencies.map((d) => mapExecutionStepRow(d.step as Record<string, unknown>));
       return { ok: true, value: steps };
     } catch (error) {
       return { ok: false, error: error as Error };

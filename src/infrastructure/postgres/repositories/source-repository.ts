@@ -18,6 +18,7 @@ export class PostgresSourceRepository implements SourceRepository {
       const [result] = await this.db.drizzle
         .insert(sources)
         .values({
+          id: crypto.randomUUID(),
           tenantId,
           type: descriptor.type,
           uri: descriptor.uri,
