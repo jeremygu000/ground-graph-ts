@@ -4,17 +4,20 @@ import { fileURLToPath } from "node:url";
 import { Database } from "../../src/infrastructure/postgres/client";
 import { GenericContainer, Wait, type StartedTestContainer } from "testcontainers";
 
+process.env.TESTCONTAINERS_RYUK_DISABLED = "true";
+
 export const COMPONENT_POSTGRES_IMAGE = "pgvector/pgvector:0.8.6-pg16";
 
 export interface ComponentDb {
   container: StartedTestContainer;
   db: Database;
+  connectionString: string;
   close(): Promise<void>;
   reset(): Promise<void>;
 }
 
 let sharedContext: Promise<ComponentDb> | undefined;
-let processCleanupRegistered = false;
+let sharedContextRefs = 0;
 
 async function bootstrapSchema(db: Database): Promise<void> {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -23,7 +26,7 @@ async function bootstrapSchema(db: Database): Promise<void> {
   await db.client.unsafe(migrationSql);
 }
 
-async function createComponentDb(): Promise<ComponentDb> {
+async function createComponentDb(bootstrap = true, managed = true): Promise<ComponentDb> {
   const container = await new GenericContainer(COMPONENT_POSTGRES_IMAGE)
     .withEnvironment({
       POSTGRES_USER: "test",
@@ -31,26 +34,48 @@ async function createComponentDb(): Promise<ComponentDb> {
       POSTGRES_DB: "test",
     })
     .withExposedPorts(5432)
-    .withWaitStrategy(Wait.forLogMessage("database system is ready to accept connections"))
-    .withStartupTimeout(120_000)
+    .withWaitStrategy(Wait.forListeningPorts().withStartupTimeout(120_000))
     .start();
 
   const port = container.getMappedPort(5432);
   const host = container.getHost();
-  const db = new Database({ url: `postgres://test:test@${host}:${port}/test`, maxConnections: 4 });
+  const connectionString = `postgres://test:test@${host}:${port}/test`;
+  const db = new Database({ url: connectionString, maxConnections: 4 });
   await waitForDatabase(db);
-  await bootstrapSchema(db);
+  if (bootstrap) {
+    await bootstrapSchema(db);
+  }
 
-  return {
+  const close = async (): Promise<void> => {
+    if (!managed) {
+      await db.close();
+      await container.stop();
+      return;
+    }
+
+    sharedContextRefs = Math.max(0, sharedContextRefs - 1);
+    if (sharedContextRefs > 0) {
+      return;
+    }
+
+    sharedContext = undefined;
+    await db.close();
+    await container.stop();
+  };
+
+  const context: ComponentDb = {
     container,
     db,
-    close: async () => {},
+    connectionString,
+    close,
     reset: async () => {
       await db.client.unsafe(
         "TRUNCATE TABLE execution_step_dependencies, execution_steps, execution_runs, outbox_events, sources RESTART IDENTITY CASCADE",
       );
     },
   };
+
+  return context;
 }
 
 async function waitForDatabase(db: Database): Promise<void> {
@@ -76,21 +101,16 @@ async function waitForDatabase(db: Database): Promise<void> {
 
 export async function startComponentDatabase(): Promise<ComponentDb> {
   if (sharedContext) {
+    sharedContextRefs += 1;
     return sharedContext;
   }
 
-  sharedContext = createComponentDb();
-
-  if (!processCleanupRegistered) {
-    processCleanupRegistered = true;
-    process.once("beforeExit", async () => {
-      if (!sharedContext) return;
-      const ctx = await sharedContext;
-      await ctx.db.close();
-      await ctx.container.stop();
-      sharedContext = undefined;
-    });
-  }
+  sharedContext = createComponentDb(true, true);
+  sharedContextRefs = 1;
 
   return sharedContext;
+}
+
+export async function startRawComponentDatabase(): Promise<ComponentDb> {
+  return createComponentDb(false, false);
 }

@@ -101,6 +101,9 @@ describe("PostgresExecutionStepRepository", () => {
 
     expect(Number(first.ok) + Number(second.ok)).toBe(1);
     expect([first.ok, second.ok].sort()).toEqual([false, true]);
+    const loser = first.ok ? second : first;
+    if (loser.ok) throw new Error("expected loser failure");
+    expect(loser.error.message).toContain("status mismatch");
 
     const loaded = await stepRepo.findById(created.value.id, tenantId);
     expect(loaded.ok).toBe(true);
@@ -211,6 +214,9 @@ describe("PostgresExecutionStepRepository", () => {
 
     expect(Number(first.ok) + Number(second.ok)).toBe(1);
     expect([first.ok, second.ok].sort()).toEqual([false, true]);
+    const loser = first.ok ? second : first;
+    if (loser.ok) throw new Error("expected cycle failure");
+    expect(loser.error.message).toContain("cycle");
 
     const dependenciesA = await stepRepo.getDependencies(createdA.value.id, tenantId);
     const dependenciesB = await stepRepo.getDependencies(createdB.value.id, tenantId);
@@ -223,9 +229,10 @@ describe("PostgresExecutionStepRepository", () => {
       { stepId: createdA.value.id, deps: dependenciesA.value.map((d) => d.id) },
       { stepId: createdB.value.id, deps: dependenciesB.value.map((d) => d.id) },
     ];
-    expect(
-      graph.some((entry) => entry.deps.includes(createdA.value.id) && entry.deps.includes(createdB.value.id)),
-    ).toBe(false);
+    expect(graph).toEqual([
+      { stepId: createdA.value.id, deps: [createdB.value.id] },
+      { stepId: createdB.value.id, deps: [] },
+    ]);
   });
 
   it("rejects self dependency", async () => {

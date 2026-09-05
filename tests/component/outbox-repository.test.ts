@@ -195,4 +195,73 @@ describe("PostgresOutboxRepository", () => {
     expect(new Date(stored.availableAt).getTime()).toBeGreaterThan(Date.now());
     expect(stored.error).toContain("boom");
   });
+
+  it("rejects stale fail and deadLetter tokens after reclaim", async () => {
+    const eventId = crypto.randomUUID();
+    const expiredAt = new Date(Date.now() - 10_000);
+    await ctx.db.drizzle.insert(outboxEvents).values({
+      id: eventId,
+      tenantId,
+      aggregateType: "document",
+      aggregateId: crypto.randomUUID(),
+      eventType: "source.created",
+      payload: { hello: "world" },
+      idempotencyKey: `key-${Date.now()}`,
+      status: "claimed",
+      attempts: 1,
+      availableAt: expiredAt,
+      claimedAt: expiredAt,
+      claimedBy: "worker-a",
+      leaseToken: "token-a",
+    });
+
+    const reclaimed = await repo.claim([eventId], "worker-b", 30_000, tenantId);
+    expect(reclaimed.ok).toBe(true);
+    if (!reclaimed.ok) throw reclaimed.error;
+    const freshToken = reclaimed.value[0]?.leaseToken;
+    if (!freshToken) throw new Error("expected fresh token");
+
+    const staleFail = await repo.fail(eventId, "token-a", "boom", tenantId);
+    expect(staleFail.ok).toBe(false);
+    if (staleFail.ok) throw new Error("expected stale fail rejection");
+    expect(staleFail.error.message).toContain("token mismatch");
+
+    const staleDeadLetter = await repo.deadLetter(eventId, "token-a", "boom", tenantId);
+    expect(staleDeadLetter.ok).toBe(false);
+    if (staleDeadLetter.ok) throw new Error("expected stale deadLetter rejection");
+    expect(staleDeadLetter.error.message).toContain("token mismatch");
+
+    const freshDeadLetter = await repo.deadLetter(eventId, freshToken, "boom", tenantId);
+    expect(freshDeadLetter.ok).toBe(true);
+  });
+
+  it("dead letters on max attempts", async () => {
+    const eventId = crypto.randomUUID();
+    await ctx.db.drizzle.insert(outboxEvents).values({
+      id: eventId,
+      tenantId,
+      aggregateType: "document",
+      aggregateId: crypto.randomUUID(),
+      eventType: "source.created",
+      payload: { hello: "world" },
+      idempotencyKey: `key-${Date.now()}`,
+      status: "pending",
+      attempts: 0,
+      availableAt: new Date(Date.now() - 1_000),
+    });
+
+    const claimed = await repo.claim([eventId], "worker-a", 30_000, tenantId);
+    expect(claimed.ok).toBe(true);
+    if (!claimed.ok) throw claimed.error;
+    const leaseToken = claimed.value[0]?.leaseToken;
+    if (!leaseToken) throw new Error("expected lease token");
+
+    const result = await repo.fail(eventId, leaseToken, "boom", tenantId, 1);
+    expect(result.ok).toBe(true);
+
+    const [stored] = await ctx.db.drizzle.select().from(outboxEvents).where(eq(outboxEvents.id, eventId));
+    if (!stored) throw new Error("expected stored row");
+    expect(stored.status).toBe("dead_letter");
+    expect(stored.deadLetteredAt).not.toBeNull();
+  });
 });

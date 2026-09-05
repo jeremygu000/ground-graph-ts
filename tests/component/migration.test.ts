@@ -1,18 +1,89 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { startComponentDatabase } from "./test-support";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawn } from "node:child_process";
+import { startRawComponentDatabase } from "./test-support";
 
-describe("Database migration bootstrap", () => {
-  let ctx: Awaited<ReturnType<typeof startComponentDatabase>>;
+async function runCommand(command: string, args: string[], env: NodeJS.ProcessEnv): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(command, args, {
+      env,
+      stdio: "inherit",
+    });
+
+    child.on("error", reject);
+    child.on("exit", (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      reject(new Error(`${command} ${args.join(" ")} failed with exit code ${code ?? -1}`));
+    });
+  });
+}
+
+async function relationExists(
+  ctx: Awaited<ReturnType<typeof startRawComponentDatabase>>,
+  relationName: string,
+  schema = "public",
+): Promise<boolean> {
+  const [row] = await ctx.db.client.unsafe<{ exists: boolean }[]>(`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = '${schema}'
+        AND table_name = '${relationName}'
+    ) AS exists
+  `);
+  return row?.exists ?? false;
+}
+
+async function appliedMigrationCount(ctx: Awaited<ReturnType<typeof startRawComponentDatabase>>): Promise<number> {
+  const [row] = await ctx.db.client.unsafe<{ count: string }[]>(`
+    SELECT COUNT(*)::text AS count
+    FROM drizzle.__drizzle_migrations
+  `);
+  return Number(row?.count ?? 0);
+}
+
+describe("Database migrations", () => {
+  let ctx: Awaited<ReturnType<typeof startRawComponentDatabase>>;
+  let tempDir: string;
 
   beforeAll(async () => {
-    ctx = await startComponentDatabase();
+    ctx = await startRawComponentDatabase();
+    tempDir = await mkdtemp(join(tmpdir(), "ground-graph-migrate-"));
   }, 120_000);
 
   afterAll(async () => {
     await ctx?.close();
   });
 
-  it("boots the real migration with VECTOR(1536)", async () => {
+  it("applies migrations, records them, and is repeatable", async () => {
+    await runCommand("pnpm", ["db:migrate"], {
+      ...process.env,
+      DATABASE_URL: ctx.connectionString,
+      HOME: tempDir,
+    });
+
+    expect(await relationExists(ctx, "__drizzle_migrations", "drizzle")).toBe(true);
+    expect(await relationExists(ctx, "sources")).toBe(true);
+    expect(await relationExists(ctx, "chunk_embeddings")).toBe(true);
+    expect(await appliedMigrationCount(ctx)).toBe(1);
+
+    await runCommand("pnpm", ["db:migrate"], {
+      ...process.env,
+      DATABASE_URL: ctx.connectionString,
+      HOME: tempDir,
+    });
+
+    expect(await relationExists(ctx, "__drizzle_migrations", "drizzle")).toBe(true);
+    expect(await relationExists(ctx, "sources")).toBe(true);
+    expect(await relationExists(ctx, "chunk_embeddings")).toBe(true);
+    expect(await appliedMigrationCount(ctx)).toBe(1);
+
     const [row] = await ctx.db.client.unsafe<[{ column_type: string }]>(`
       SELECT format_type(a.atttypid, a.atttypmod) AS column_type
       FROM pg_attribute a
@@ -26,15 +97,5 @@ describe("Database migration bootstrap", () => {
     `);
 
     expect(row?.column_type).toBe("vector(1536)");
-  });
-
-  it("reset truncates seeded rows", async () => {
-    await ctx.db.client.unsafe(
-      `INSERT INTO sources (id, tenant_id, type, uri) VALUES ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', 'url', 'https://example.com')`,
-    );
-    await ctx.reset();
-
-    const [row] = await ctx.db.client.unsafe<[{ count: number }]>(`SELECT COUNT(*)::int AS count FROM sources`);
-    expect(row?.count).toBe(0);
   });
 });
