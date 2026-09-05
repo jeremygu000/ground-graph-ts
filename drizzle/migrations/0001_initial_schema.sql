@@ -113,7 +113,7 @@ CREATE TABLE chunk_embeddings (
   chunk_id UUID NOT NULL REFERENCES chunks(id) ON DELETE CASCADE,
   index_version_id UUID NOT NULL REFERENCES index_versions(id) ON DELETE CASCADE,
   tenant_id UUID NOT NULL,
-  embedding VECTOR,
+  embedding VECTOR(1536),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

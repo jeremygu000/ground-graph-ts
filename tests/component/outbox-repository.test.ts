@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { outboxEvents } from "../../src/infrastructure/postgres/schema";
 import { PostgresOutboxRepository } from "../../src/infrastructure/postgres/repositories/outbox-repository";
@@ -16,6 +16,10 @@ describe("PostgresOutboxRepository", () => {
 
   beforeEach(async () => {
     await ctx.reset();
+  });
+
+  afterAll(async () => {
+    await ctx?.close();
   });
 
   it("atomically claims only rows visible to this tenant", async () => {
@@ -76,10 +80,8 @@ describe("PostgresOutboxRepository", () => {
       repo.claim([eventId], "worker-b", 30_000, tenantId),
     ]);
 
-    expect(first.ok || second.ok, [first, second].map((r) => (r.ok ? "ok" : r.error.message)).join(" | ")).toBe(true);
-    if (first.ok && second.ok) {
-      expect(first.value.length + second.value.length).toBe(1);
-    }
+    const claimedCount = (first.ok ? first.value.length : 0) + (second.ok ? second.value.length : 0);
+    expect(claimedCount).toBe(1);
 
     const [stored] = await ctx.db.drizzle
       .select()
@@ -116,6 +118,42 @@ describe("PostgresOutboxRepository", () => {
     expect(result.error.message).toContain("lease expired");
   });
 
+  it("rejects stale owners after reclaim generates a new token", async () => {
+    const eventId = crypto.randomUUID();
+    const expiredAt = new Date(Date.now() - 10_000);
+    await ctx.db.drizzle.insert(outboxEvents).values({
+      id: eventId,
+      tenantId,
+      aggregateType: "document",
+      aggregateId: crypto.randomUUID(),
+      eventType: "source.created",
+      payload: { hello: "world" },
+      idempotencyKey: `key-${Date.now()}`,
+      status: "claimed",
+      attempts: 1,
+      availableAt: expiredAt,
+      claimedAt: expiredAt,
+      claimedBy: "worker-a",
+      leaseToken: "token-a",
+    });
+
+    const reclaimed = await repo.claim([eventId], "worker-b", 30_000, tenantId);
+    expect(reclaimed.ok).toBe(true);
+    if (!reclaimed.ok) throw reclaimed.error;
+    expect(reclaimed.value).toHaveLength(1);
+
+    const freshToken = reclaimed.value[0]!.leaseToken;
+    if (!freshToken) throw new Error("expected fresh lease token");
+
+    const staleComplete = await repo.complete(eventId, "token-a", tenantId);
+    expect(staleComplete.ok).toBe(false);
+    if (staleComplete.ok) throw new Error("expected stale owner failure");
+    expect(staleComplete.error.message).toContain("token mismatch");
+
+    const freshComplete = await repo.complete(eventId, freshToken, tenantId);
+    expect(freshComplete.ok).toBe(true);
+  });
+
   it("applies deterministic backoff on fail", async () => {
     const eventId = crypto.randomUUID();
     const availableAt = new Date(Date.now() + 60_000).toISOString();
@@ -135,7 +173,7 @@ describe("PostgresOutboxRepository", () => {
       leaseToken: "token-a",
     });
 
-    const result = await repo.fail(eventId, "token-a", "boom", 10, tenantId);
+    const result = await repo.fail(eventId, "token-a", "boom", tenantId, 10);
 
     expect(result.ok, result.ok ? undefined : result.error.message).toBe(true);
 
@@ -145,7 +183,7 @@ describe("PostgresOutboxRepository", () => {
       .where(eq(outboxEvents.id, eventId));
     if (!stored) throw new Error("expected stored row");
     expect(stored.status).toBe("pending");
-    expect(stored.attempts).toBe(2);
+    expect(stored.attempts).toBe(3);
     expect(new Date(stored.availableAt).getTime()).toBeGreaterThan(Date.now());
     expect(stored.error).toContain("boom");
   });

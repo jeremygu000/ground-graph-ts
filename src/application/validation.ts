@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { validateOrThrow } from "../domain/validation";
 import { ParsedDocumentSchema } from "../domain/documents/types";
+import type { DocumentVersion } from "./ingestion/ports";
 
 function toISOString(val: unknown): string {
   if (val instanceof Date) return val.toISOString();
@@ -74,8 +75,8 @@ export const DocumentVersionSchema = z.object({
   createdBy: z.string().uuid().optional(),
 });
 
-export function mapToDocumentVersion(row: Record<string, unknown>) {
-  const result = {
+export function mapToDocumentVersion(row: Record<string, unknown>): DocumentVersion {
+  const result: z.input<typeof DocumentVersionSchema> = {
     id: String(row.id),
     documentId: String(row.documentId),
     tenantId: String(row.tenantId),
@@ -83,13 +84,20 @@ export function mapToDocumentVersion(row: Record<string, unknown>) {
     contentHash: String(row.contentHash),
     checksum: String(row.checksum),
     sizeBytes: Number(row.sizeBytes),
-    parsedDocument: undefinedIfNull(row.parsedDocument as z.infer<typeof ParsedDocumentSchema> | null | undefined),
+    parsedDocument:
+      row.parsedDocument === null || row.parsedDocument === undefined
+        ? undefined
+        : (row.parsedDocument as z.input<typeof ParsedDocumentSchema>),
     isActive: Boolean(row.isActive),
     createdAt: toISOString(row.createdAt),
-    createdBy: undefinedIfNull(row.createdBy as string | null | undefined),
   };
 
-  return validateOrThrow(DocumentVersionSchema, result, "DocumentVersion");
+  if (row.createdBy != null) {
+    result.createdBy = String(row.createdBy);
+  }
+
+  const validated = validateOrThrow(DocumentVersionSchema, result, "DocumentVersion");
+  return validated as DocumentVersion;
 }
 
 export const ChunkSchema = z.object({
@@ -122,7 +130,7 @@ export function mapToChunk(row: Record<string, unknown>) {
     createdAt: toISOString(row.createdAt),
   };
 
-  return validateOrThrow(ChunkSchema, result, "Chunk");
+  return validateOrThrow(ChunkSchema, result, "Chunk") as z.infer<typeof ChunkSchema>;
 }
 
 export const OutboxEventSchema = z.object({

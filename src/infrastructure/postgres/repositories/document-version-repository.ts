@@ -36,7 +36,7 @@ export class PostgresDocumentVersionRepository implements DocumentVersionReposit
         .returning();
       return {
         ok: true,
-        value: mapToDocumentVersion(result as Record<string, unknown>) as DocumentVersion,
+        value: mapToDocumentVersion(result as Record<string, unknown>),
       };
     } catch (error) {
       return { ok: false, error: error as Error };
@@ -55,7 +55,7 @@ export class PostgresDocumentVersionRepository implements DocumentVersionReposit
       if (!result) return { ok: true, value: null };
       return {
         ok: true,
-        value: mapToDocumentVersion(result as Record<string, unknown>) as DocumentVersion,
+        value: mapToDocumentVersion(result as Record<string, unknown>),
       };
     } catch (error) {
       return { ok: false, error: error as Error };
@@ -82,7 +82,7 @@ export class PostgresDocumentVersionRepository implements DocumentVersionReposit
       if (!result) return { ok: true, value: null };
       return {
         ok: true,
-        value: mapToDocumentVersion(result as Record<string, unknown>) as DocumentVersion,
+        value: mapToDocumentVersion(result as Record<string, unknown>),
       };
     } catch (error) {
       return { ok: false, error: error as Error };
@@ -103,9 +103,7 @@ export class PostgresDocumentVersionRepository implements DocumentVersionReposit
         .orderBy(desc(documentVersions.versionNumber));
       return {
         ok: true,
-        value: results.map(
-          (r) => mapToDocumentVersion(r as Record<string, unknown>) as DocumentVersion,
-        ),
+        value: results.map((r) => mapToDocumentVersion(r as Record<string, unknown>)),
       };
     } catch (error) {
       return { ok: false, error: error as Error };

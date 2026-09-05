@@ -35,8 +35,8 @@ export interface OutboxRepository {
     id: string,
     token: string,
     error: string,
+    tenantId: string,
     maxAttempts?: number,
-    tenantId?: string,
   ): Promise<Result<void>>;
   deadLetter(id: string, token: string, error: string, tenantId: string): Promise<Result<void>>;
   findById(id: string, tenantId: string): Promise<Result<OutboxEvent | null>>;

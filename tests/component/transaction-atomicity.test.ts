@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { outboxEvents, sources } from "../../src/infrastructure/postgres/schema";
 import { DefaultUnitOfWorkFactory } from "../../src/infrastructure/unit-of-work";
 import { startComponentDatabase } from "./test-support";
@@ -17,6 +17,10 @@ describe("TransactionalUnitOfWork", () => {
 
   beforeEach(async () => {
     await ctx.reset();
+  });
+
+  afterAll(async () => {
+    await ctx?.close();
   });
 
   it("rolls back source and outbox writes when the transaction fails", async () => {
@@ -63,20 +67,20 @@ describe("TransactionalUnitOfWork", () => {
       expect(sourceResult.ok, sourceResult.ok ? undefined : sourceResult.error.message).toBe(true);
       if (!sourceResult.ok) throw sourceResult.error;
 
-        const outboxResult = await uow.outboxRepository.create({
-          id: crypto.randomUUID(),
-          tenantId,
-          aggregateType: "source",
-          aggregateId: sourceResult.value.id,
-          eventType: "source.created",
-          payload: { uri },
-          idempotencyKey: `key-${Date.now()}`,
-          status: "pending",
-          attempts: 0,
-          availableAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
+      const outboxResult = await uow.outboxRepository.create({
+        id: crypto.randomUUID(),
+        tenantId,
+        aggregateType: "source",
+        aggregateId: sourceResult.value.id,
+        eventType: "source.created",
+        payload: { uri },
+        idempotencyKey: `key-${Date.now()}`,
+        status: "pending",
+        attempts: 0,
+        availableAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
       expect(outboxResult.ok, outboxResult.ok ? undefined : outboxResult.error.message).toBe(true);
       if (!outboxResult.ok) throw outboxResult.error;
 

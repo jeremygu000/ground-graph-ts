@@ -335,50 +335,62 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
     tenantId: string,
   ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
     try {
-      if (stepId === dependsOnStepId) {
-        return { ok: false, error: new Error("Step cannot depend on itself") };
-      }
+      await this.db.drizzle.transaction(async (tx) => {
+        if (stepId === dependsOnStepId) {
+          throw new Error("Step cannot depend on itself");
+        }
 
-      const [step] = await this.db.drizzle
-        .select({ runId: executionSteps.runId })
-        .from(executionSteps)
-        .innerJoin(executionRuns, eq(executionRuns.id, executionSteps.runId))
-        .where(and(eq(executionSteps.id, stepId), eq(executionRuns.tenantId, tenantId)));
+        const [step] = await tx
+          .select({ runId: executionSteps.runId })
+          .from(executionSteps)
+          .innerJoin(executionRuns, eq(executionRuns.id, executionSteps.runId))
+          .where(and(eq(executionSteps.id, stepId), eq(executionRuns.tenantId, tenantId)));
 
-      const [dependsOn] = await this.db.drizzle
-        .select({ runId: executionSteps.runId })
-        .from(executionSteps)
-        .innerJoin(executionRuns, eq(executionRuns.id, executionSteps.runId))
-        .where(and(eq(executionSteps.id, dependsOnStepId), eq(executionRuns.tenantId, tenantId)));
+        const [dependsOn] = await tx
+          .select({ runId: executionSteps.runId })
+          .from(executionSteps)
+          .innerJoin(executionRuns, eq(executionRuns.id, executionSteps.runId))
+          .where(and(eq(executionSteps.id, dependsOnStepId), eq(executionRuns.tenantId, tenantId)));
 
-      if (!step || !dependsOn) {
-        return { ok: false, error: new Error("Step not found or tenant mismatch") };
-      }
+        if (!step || !dependsOn) {
+          throw new Error("Step not found or tenant mismatch");
+        }
 
-      if (step.runId !== dependsOn.runId) {
-        return { ok: false, error: new Error("Cannot create cross-run dependency") };
-      }
+        if (step.runId !== dependsOn.runId) {
+          throw new Error("Cannot create cross-run dependency");
+        }
 
-      const cycleCheck = await this.db.drizzle.execute(sql`
-        WITH RECURSIVE cycle_check AS (
-          SELECT ${dependsOnStepId}::uuid AS step_id, ARRAY[${dependsOnStepId}::uuid] AS path
-          UNION ALL
-          SELECT sd.depends_on_step_id, cc.path || sd.depends_on_step_id
-          FROM execution_step_dependencies sd
-          JOIN cycle_check cc ON sd.step_id = cc.step_id
-          WHERE NOT (sd.depends_on_step_id = ANY(cc.path))
-        )
-        SELECT 1 FROM cycle_check WHERE step_id = ${stepId}::uuid LIMIT 1
-      `);
+        const [lockedRun] = await tx
+          .select({ id: executionRuns.id })
+          .from(executionRuns)
+          .where(and(eq(executionRuns.id, step.runId), eq(executionRuns.tenantId, tenantId)))
+          .for("update");
 
-      if ((cycleCheck as unknown[]).length > 0) {
-        return { ok: false, error: new Error("Dependency would create a cycle") };
-      }
+        if (!lockedRun) {
+          throw new Error("Run not found or tenant mismatch");
+        }
 
-      await this.db.drizzle.insert(executionStepDependencies).values({
-        id: crypto.randomUUID(),
-        stepId,
-        dependsOnStepId,
+        const cycleCheck = await tx.execute(sql`
+          WITH RECURSIVE cycle_check AS (
+            SELECT ${dependsOnStepId}::uuid AS step_id, ARRAY[${dependsOnStepId}::uuid] AS path
+            UNION ALL
+            SELECT sd.depends_on_step_id, cc.path || sd.depends_on_step_id
+            FROM execution_step_dependencies sd
+            JOIN cycle_check cc ON sd.step_id = cc.step_id
+            WHERE NOT (sd.depends_on_step_id = ANY(cc.path))
+          )
+          SELECT 1 FROM cycle_check WHERE step_id = ${stepId}::uuid LIMIT 1
+        `);
+
+        if ((cycleCheck as unknown[]).length > 0) {
+          throw new Error("Dependency would create a cycle");
+        }
+
+        await tx.insert(executionStepDependencies).values({
+          id: crypto.randomUUID(),
+          stepId,
+          dependsOnStepId,
+        });
       });
       return { ok: true, value: undefined };
     } catch (error) {
