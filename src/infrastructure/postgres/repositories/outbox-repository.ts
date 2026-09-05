@@ -28,7 +28,13 @@ export class PostgresOutboxRepository implements OutboxRepository {
       const results = await this.db.drizzle
         .select()
         .from(outboxEvents)
-        .where(and(eq(outboxEvents.tenantId, tenantId), eq(outboxEvents.status, "pending")))
+        .where(
+          and(
+            eq(outboxEvents.tenantId, tenantId),
+            eq(outboxEvents.status, "pending"),
+            sql`${outboxEvents.availableAt} <= NOW()`,
+          ),
+        )
         .orderBy(asc(outboxEvents.availableAt))
         .limit(limit);
       return { ok: true, value: results as unknown as OutboxEvent[] };
@@ -40,10 +46,11 @@ export class PostgresOutboxRepository implements OutboxRepository {
   async claim(
     ids: string[],
     workerId: string,
-    _leaseDurationMs: number,
+    leaseDurationMs: number,
   ): Promise<{ ok: true; value: OutboxEvent[] } | { ok: false; error: Error }> {
     try {
-      const leaseToken = `${workerId}-${Date.now()}`;
+      const leaseToken = `${workerId}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      const claimUntil = new Date(Date.now() + leaseDurationMs).toISOString();
       const results = await this.db.drizzle
         .update(outboxEvents)
         .set({
@@ -52,6 +59,7 @@ export class PostgresOutboxRepository implements OutboxRepository {
           claimedBy: workerId,
           leaseToken,
           attempts: sql`${outboxEvents.attempts} + 1`,
+          availableAt: claimUntil,
         } as any)
         .where(and(sql`${outboxEvents.id} = ANY(${ids})`, eq(outboxEvents.status, "pending")))
         .returning();
@@ -67,13 +75,21 @@ export class PostgresOutboxRepository implements OutboxRepository {
     token: string,
   ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
     try {
-      await this.db.drizzle
+      const [result] = await this.db.drizzle
         .update(outboxEvents)
         .set({
           status: "completed",
           completedAt: new Date(),
-        } as any)
-        .where(and(eq(outboxEvents.id, id), eq(outboxEvents.leaseToken, token)));
+        })
+        .where(and(eq(outboxEvents.id, id), eq(outboxEvents.leaseToken, token)))
+        .returning({ id: outboxEvents.id });
+
+      if (!result) {
+        return {
+          ok: false,
+          error: new Error("Event not found, already completed, or lease token mismatch"),
+        };
+      }
       return { ok: true, value: undefined };
     } catch (error) {
       return { ok: false, error: error as Error };
@@ -86,7 +102,7 @@ export class PostgresOutboxRepository implements OutboxRepository {
     error: string,
   ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
     try {
-      await this.db.drizzle
+      const [result] = await this.db.drizzle
         .update(outboxEvents)
         .set({
           status: "pending",
@@ -94,8 +110,13 @@ export class PostgresOutboxRepository implements OutboxRepository {
           claimedBy: null,
           claimedAt: null,
           error: error.substring(0, 500),
-        } as any)
-        .where(and(eq(outboxEvents.id, id), eq(outboxEvents.leaseToken, token)));
+        })
+        .where(and(eq(outboxEvents.id, id), eq(outboxEvents.leaseToken, token)))
+        .returning({ id: outboxEvents.id });
+
+      if (!result) {
+        return { ok: false, error: new Error("Event not found or lease token mismatch") };
+      }
       return { ok: true, value: undefined };
     } catch (error) {
       return { ok: false, error: error as Error };
@@ -108,14 +129,19 @@ export class PostgresOutboxRepository implements OutboxRepository {
     error: string,
   ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
     try {
-      await this.db.drizzle
+      const [result] = await this.db.drizzle
         .update(outboxEvents)
         .set({
           status: "dead_letter",
           deadLetteredAt: new Date(),
           error: error.substring(0, 500),
-        } as any)
-        .where(and(eq(outboxEvents.id, id), eq(outboxEvents.leaseToken, token)));
+        })
+        .where(and(eq(outboxEvents.id, id), eq(outboxEvents.leaseToken, token)))
+        .returning({ id: outboxEvents.id });
+
+      if (!result) {
+        return { ok: false, error: new Error("Event not found or lease token mismatch") };
+      }
       return { ok: true, value: undefined };
     } catch (error) {
       return { ok: false, error: error as Error };

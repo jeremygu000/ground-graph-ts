@@ -6,8 +6,9 @@ import type {
   ChunkingOptions,
 } from "../../application/ingestion/chunker-port";
 import type { IngestionQualityReport } from "../../application/ingestion/types";
-import type { Document } from "../../application/ingestion/ports";
+import type { Document, Source } from "../../application/ingestion/ports";
 import type { Chunk } from "../../domain/documents/types";
+import type { ContentFetcher } from "../../application/ingestion/content-fetcher-port";
 
 export interface IngestionWorkflowInput {
   sourceUri: string;
@@ -33,28 +34,34 @@ export class IngestionWorkflow {
     private uowFactory: () => Promise<UnitOfWork>,
     private parser: DocumentParser,
     private chunker: Chunker,
+    private contentFetcher: ContentFetcher,
   ) {}
 
   async execute(input: IngestionWorkflowInput): Promise<IngestionWorkflowResult> {
     const uow = await this.uowFactory();
+    return await uow.transaction(async (uow) => {
+      const existingSource = await uow.sourceRepository.findByUri(input.sourceUri, input.tenantId);
+      let source: Source;
 
-    try {
-      const sourceResult = await uow.sourceRepository.create(
-        {
-          type: input.sourceType,
-          uri: input.sourceUri,
-          ...(input.mimeType !== undefined ? { mimeType: input.mimeType } : {}),
-          ...(input.metadata !== undefined ? { metadata: input.metadata } : {}),
-        },
-        input.tenantId,
-      );
-
-      if (!sourceResult.ok) {
-        throw new Error(`Failed to create source: ${sourceResult.error.message}`);
+      if (existingSource.ok && existingSource.value) {
+        source = existingSource.value;
+      } else {
+        const sourceResult = await uow.sourceRepository.create(
+          {
+            type: input.sourceType,
+            uri: input.sourceUri,
+            ...(input.mimeType !== undefined ? { mimeType: input.mimeType } : {}),
+            ...(input.metadata !== undefined ? { metadata: input.metadata } : {}),
+          },
+          input.tenantId,
+        );
+        if (!sourceResult.ok) {
+          throw new Error(`Failed to create source: ${sourceResult.error.message}`);
+        }
+        source = sourceResult.value;
       }
 
-      const source = sourceResult.value;
-      const content = await this.fetchContent(input.sourceUri);
+      const content = await this.contentFetcher.fetch(input.sourceUri);
 
       const parsed = await this.parser.parse(content, {
         type: input.sourceType,
@@ -98,7 +105,7 @@ export class IngestionWorkflow {
         sizeBytes: Buffer.byteLength(parsed.content, "utf-8"),
         parsedDocument: {
           sourceId: source.id,
-          versionId: "",
+          versionId: crypto.randomUUID(),
           ...(parsed.title !== undefined ? { title: parsed.title } : {}),
           content: parsed.content,
           metadata: parsed.metadata,
@@ -119,6 +126,13 @@ export class IngestionWorkflow {
         strategy: input.chunkingStrategy ?? "heading",
       });
 
+      if (chunks.length > 0) {
+        const chunkResult = await uow.chunkRepository.createMany(chunks, input.tenantId);
+        if (!chunkResult.ok) {
+          throw new Error(`Failed to create chunks: ${chunkResult.error.message}`);
+        }
+      }
+
       const qualityReport = this.generateQualityReport(
         document.id,
         version.id,
@@ -126,36 +140,13 @@ export class IngestionWorkflow {
         chunks,
       );
 
-      await uow.commit();
-
       return {
         documentId: document.id,
         versionId: version.id,
         chunksCreated: chunks.length,
         qualityReport,
       };
-    } catch (error) {
-      await uow.rollback();
-      throw error;
-    }
-  }
-
-  private async fetchContent(uri: string): Promise<Buffer> {
-    if (uri.startsWith("file://")) {
-      const path = uri.replace("file://", "");
-      const fs = await import("fs/promises");
-      return fs.readFile(path);
-    }
-
-    if (uri.startsWith("s3://")) {
-      const { getGlobalObjectStorageClient } =
-        await import("../../infrastructure/object-storage/client");
-      const client = getGlobalObjectStorageClient();
-      const key = uri.replace("s3://", "");
-      return client.download(key, "raw");
-    }
-
-    throw new Error(`Unsupported URI scheme: ${uri}`);
+    });
   }
 
   private async createChunks(

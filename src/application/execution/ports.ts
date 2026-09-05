@@ -16,6 +16,12 @@ export interface ExecutionRunRepository {
     output?: Record<string, unknown>,
     error?: string,
   ): Promise<Result<ExecutionRun>>;
+  compareAndSetStatus(
+    id: string,
+    tenantId: string,
+    expectedStatus: ExecutionRun["status"],
+    newStatus: ExecutionRun["status"],
+  ): Promise<Result<ExecutionRun>>;
   list(tenantId: string, limit?: number, offset?: number): Promise<Result<ExecutionRun[]>>;
 }
 

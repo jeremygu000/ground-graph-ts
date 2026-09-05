@@ -9,22 +9,22 @@ import type { ExecutionRunRepository, ExecutionStepRepository } from "./executio
 import type { OutboxRepository } from "./events/ports";
 
 export interface UnitOfWork {
-  sourceRepository: SourceRepository;
-  documentRepository: DocumentRepository;
-  documentVersionRepository: DocumentVersionRepository;
-  chunkRepository: ChunkRepository;
-  entityRepository: EntityRepository;
-  factRepository: FactRepository;
-  mentionRepository: MentionRepository;
-  executionRunRepository: ExecutionRunRepository;
-  executionStepRepository: ExecutionStepRepository;
-  outboxRepository: OutboxRepository;
+  readonly sourceRepository: SourceRepository;
+  readonly documentRepository: DocumentRepository;
+  readonly documentVersionRepository: DocumentVersionRepository;
+  readonly chunkRepository: ChunkRepository;
+  readonly entityRepository: EntityRepository;
+  readonly factRepository: FactRepository;
+  readonly mentionRepository: MentionRepository;
+  readonly executionRunRepository: ExecutionRunRepository;
+  readonly executionStepRepository: ExecutionStepRepository;
+  readonly outboxRepository: OutboxRepository;
 
   commit(): Promise<void>;
   rollback(): Promise<void>;
-  transaction<T>(fn: () => Promise<T>): Promise<T>;
+  transaction<T>(fn: (uow: UnitOfWork) => Promise<T>): Promise<T>;
 }
 
 export interface UnitOfWorkFactory {
-  create(): Promise<UnitOfWork>;
+  create(neo4jSession?: unknown): Promise<UnitOfWork>;
 }

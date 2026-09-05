@@ -2,10 +2,10 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
-import fastifyHealthcheck from "fastify-healthcheck";
 import { ZodError } from "zod";
+import type { HealthChecker } from "@/application/health";
 
-export async function buildApp() {
+export async function buildApp(healthCheckers: HealthChecker[] = []) {
   const app = Fastify({
     logger: true,
   });
@@ -15,12 +15,51 @@ export async function buildApp() {
     openapi: { info: { title: "GroundGraph API", version: "0.1.0" } },
   });
   await app.register(swaggerUi, { routePrefix: "/docs" });
-  await app.register(fastifyHealthcheck);
 
   app.get("/healthz", async () => ({ status: "ok", timestamp: new Date().toISOString() }));
 
-  app.get("/ready", async () => {
-    return { status: "ready", timestamp: new Date().toISOString() };
+  app.get("/ready", async (_request, reply) => {
+    const start = Date.now();
+    const results: Record<string, { healthy: boolean; latencyMs?: number; error?: string }> = {};
+    let allHealthy = true;
+    let anyChecked = false;
+
+    for (const checker of healthCheckers) {
+      anyChecked = true;
+      try {
+        const result = await checker.check();
+        const checkResult: { healthy: boolean; latencyMs?: number; error?: string } = {
+          healthy: result.healthy,
+        };
+        if (result.latencyMs !== undefined) {
+          checkResult.latencyMs = result.latencyMs;
+        }
+        if (result.error !== undefined) {
+          checkResult.error = result.error;
+        }
+        results[checker.name] = checkResult;
+        if (!result.healthy) {
+          allHealthy = false;
+        }
+      } catch (error) {
+        results[checker.name] = {
+          healthy: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+        allHealthy = false;
+      }
+    }
+
+    const overallLatencyMs = Date.now() - start;
+    const status = !anyChecked ? "degraded" : allHealthy ? "healthy" : "unhealthy";
+    const statusCode = status === "unhealthy" ? 503 : 200;
+
+    return reply.status(statusCode).send({
+      status,
+      timestamp: new Date().toISOString(),
+      checks: results,
+      overallLatencyMs,
+    });
   });
 
   app.setErrorHandler((error, request, reply) => {

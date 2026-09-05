@@ -15,12 +15,20 @@ export class PostgresDocumentVersionRepository implements DocumentVersionReposit
     version: CreateDocumentVersionInput,
   ): Promise<{ ok: true; value: DocumentVersion } | { ok: false; error: Error }> {
     try {
+      const insertData = {
+        documentId,
+        tenantId: version.tenantId,
+        versionNumber: version.versionNumber,
+        contentHash: version.contentHash,
+        checksum: version.checksum,
+        sizeBytes: version.sizeBytes,
+        parsedDocument: version.parsedDocument,
+        isActive: version.isActive,
+        createdBy: version.createdBy,
+      };
       const [result] = await this.db.drizzle
         .insert(documentVersions)
-        .values({
-          documentId,
-          ...version,
-        } as any)
+        .values(insertData)
         .returning();
       return { ok: true, value: result as unknown as DocumentVersion };
     } catch (error) {

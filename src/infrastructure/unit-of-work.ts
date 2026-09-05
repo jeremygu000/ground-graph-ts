@@ -58,8 +58,11 @@ export class DefaultUnitOfWork implements UnitOfWork {
     this.committed = false;
   }
 
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    return await this.db.transaction(fn);
+  async transaction<T>(fn: (uow: UnitOfWork) => Promise<T>): Promise<T> {
+    return await this.db.transaction(async () => {
+      const result = await fn(this);
+      return result;
+    });
   }
 }
 

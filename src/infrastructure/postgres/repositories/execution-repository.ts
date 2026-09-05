@@ -6,6 +6,8 @@ import type {
   ExecutionStepRepository,
 } from "../../../application/execution/ports";
 import type { ExecutionRun, ExecutionStep } from "../../../domain/execution/types";
+import { ExecutionRunSchema, ExecutionStepSchema } from "../../../domain/execution/types";
+import { validateOrThrow } from "../../../domain/validation";
 
 export class PostgresExecutionRunRepository implements ExecutionRunRepository {
   constructor(private db: Database) {}
@@ -14,11 +16,17 @@ export class PostgresExecutionRunRepository implements ExecutionRunRepository {
     run: ExecutionRun,
   ): Promise<{ ok: true; value: ExecutionRun } | { ok: false; error: Error }> {
     try {
+      const validated = validateOrThrow(ExecutionRunSchema, run, "ExecutionRun.create");
       const [result] = await this.db.drizzle
         .insert(executionRuns)
-        .values(run as any)
+        .values(validated as typeof executionRuns.$inferInsert)
         .returning();
-      return { ok: true, value: result as unknown as ExecutionRun };
+      const validatedResult = validateOrThrow(
+        ExecutionRunSchema,
+        result,
+        "ExecutionRun.create.result",
+      );
+      return { ok: true, value: validatedResult };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -33,7 +41,11 @@ export class PostgresExecutionRunRepository implements ExecutionRunRepository {
         .select()
         .from(executionRuns)
         .where(and(eq(executionRuns.id, id), eq(executionRuns.tenantId, tenantId)));
-      return { ok: true, value: (result ?? null) as unknown as ExecutionRun | null };
+      if (!result) {
+        return { ok: true, value: null };
+      }
+      const validated = validateOrThrow(ExecutionRunSchema, result, "ExecutionRun.findById");
+      return { ok: true, value: validated };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -47,8 +59,11 @@ export class PostgresExecutionRunRepository implements ExecutionRunRepository {
       const results = await this.db.drizzle
         .select()
         .from(executionRuns)
-        .where(and(eq(executionRuns.status, status as any), eq(executionRuns.tenantId, tenantId)));
-      return { ok: true, value: results as unknown as ExecutionRun[] };
+        .where(and(eq(executionRuns.status, status), eq(executionRuns.tenantId, tenantId)));
+      const validated = results.map((r) =>
+        validateOrThrow(ExecutionRunSchema, r, "ExecutionRun.findByStatus"),
+      );
+      return { ok: true, value: validated };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -71,13 +86,49 @@ export class PostgresExecutionRunRepository implements ExecutionRunRepository {
 
       const [result] = await this.db.drizzle
         .update(executionRuns)
-        .set(updateData as any)
+        .set(updateData)
         .where(and(eq(executionRuns.id, id), eq(executionRuns.tenantId, tenantId)))
         .returning();
       if (!result) {
         return { ok: false, error: new Error("Run not found") };
       }
-      return { ok: true, value: result as unknown as ExecutionRun };
+      const validated = validateOrThrow(ExecutionRunSchema, result, "ExecutionRun.updateStatus");
+      return { ok: true, value: validated };
+    } catch (error) {
+      return { ok: false, error: error as Error };
+    }
+  }
+
+  async compareAndSetStatus(
+    id: string,
+    tenantId: string,
+    expectedStatus: ExecutionRun["status"],
+    newStatus: ExecutionRun["status"],
+  ): Promise<{ ok: true; value: ExecutionRun } | { ok: false; error: Error }> {
+    try {
+      const [result] = await this.db.drizzle
+        .update(executionRuns)
+        .set({ status: newStatus })
+        .where(
+          and(
+            eq(executionRuns.id, id),
+            eq(executionRuns.tenantId, tenantId),
+            eq(executionRuns.status, expectedStatus),
+          ),
+        )
+        .returning();
+      if (!result) {
+        return {
+          ok: false,
+          error: new Error("Run not found or status mismatch (concurrent modification)"),
+        };
+      }
+      const validated = validateOrThrow(
+        ExecutionRunSchema,
+        result,
+        "ExecutionRun.compareAndSetStatus",
+      );
+      return { ok: true, value: validated };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -96,7 +147,10 @@ export class PostgresExecutionRunRepository implements ExecutionRunRepository {
         .limit(limit)
         .offset(offset)
         .orderBy(executionRuns.createdAt);
-      return { ok: true, value: results as unknown as ExecutionRun[] };
+      const validated = results.map((r) =>
+        validateOrThrow(ExecutionRunSchema, r, "ExecutionRun.list"),
+      );
+      return { ok: true, value: validated };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -110,11 +164,17 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
     step: ExecutionStep,
   ): Promise<{ ok: true; value: ExecutionStep } | { ok: false; error: Error }> {
     try {
+      const validated = validateOrThrow(ExecutionStepSchema, step, "ExecutionStep.create");
       const [result] = await this.db.drizzle
         .insert(executionSteps)
-        .values(step as any)
+        .values(validated as typeof executionSteps.$inferInsert)
         .returning();
-      return { ok: true, value: result as unknown as ExecutionStep };
+      const validatedResult = validateOrThrow(
+        ExecutionStepSchema,
+        result,
+        "ExecutionStep.create.result",
+      );
+      return { ok: true, value: validatedResult };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -122,14 +182,19 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
 
   async findById(
     id: string,
-    _tenantId: string,
+    tenantId: string,
   ): Promise<{ ok: true; value: ExecutionStep | null } | { ok: false; error: Error }> {
     try {
       const [result] = await this.db.drizzle
-        .select()
+        .select({ step: executionSteps })
         .from(executionSteps)
-        .where(eq(executionSteps.id, id));
-      return { ok: true, value: (result ?? null) as unknown as ExecutionStep | null };
+        .innerJoin(executionRuns, eq(executionRuns.id, executionSteps.runId))
+        .where(and(eq(executionSteps.id, id), eq(executionRuns.tenantId, tenantId)));
+      if (!result?.step) {
+        return { ok: true, value: null };
+      }
+      const validated = validateOrThrow(ExecutionStepSchema, result.step, "ExecutionStep.findById");
+      return { ok: true, value: validated };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -137,14 +202,18 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
 
   async findByRunId(
     runId: string,
-    _tenantId: string,
+    tenantId: string,
   ): Promise<{ ok: true; value: ExecutionStep[] } | { ok: false; error: Error }> {
     try {
       const results = await this.db.drizzle
-        .select()
+        .select({ step: executionSteps })
         .from(executionSteps)
-        .where(eq(executionSteps.runId, runId));
-      return { ok: true, value: results as unknown as ExecutionStep[] };
+        .innerJoin(executionRuns, eq(executionRuns.id, executionSteps.runId))
+        .where(and(eq(executionSteps.runId, runId), eq(executionRuns.tenantId, tenantId)));
+      const validated = results.map((r) =>
+        validateOrThrow(ExecutionStepSchema, r.step, "ExecutionStep.findByRunId"),
+      );
+      return { ok: true, value: validated };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -152,12 +221,22 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
 
   async updateStatus(
     id: string,
-    _tenantId: string,
+    tenantId: string,
     status: ExecutionStep["status"],
     output?: Record<string, unknown>,
     error?: string,
   ): Promise<{ ok: true; value: ExecutionStep } | { ok: false; error: Error }> {
     try {
+      const [existing] = await this.db.drizzle
+        .select({ step: executionSteps })
+        .from(executionSteps)
+        .innerJoin(executionRuns, eq(executionRuns.id, executionSteps.runId))
+        .where(and(eq(executionSteps.id, id), eq(executionRuns.tenantId, tenantId)));
+
+      if (!existing) {
+        return { ok: false, error: new Error("Step not found") };
+      }
+
       const updateData: Record<string, unknown> = { status };
       if (output) updateData.output = output;
       if (error) updateData.error = error;
@@ -167,13 +246,14 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
 
       const [result] = await this.db.drizzle
         .update(executionSteps)
-        .set(updateData as any)
+        .set(updateData)
         .where(eq(executionSteps.id, id))
         .returning();
       if (!result) {
         return { ok: false, error: new Error("Step not found") };
       }
-      return { ok: true, value: result as unknown as ExecutionStep };
+      const validated = validateOrThrow(ExecutionStepSchema, result, "ExecutionStep.updateStatus");
+      return { ok: true, value: validated };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -181,15 +261,34 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
 
   async compareAndSetStatus(
     id: string,
-    _tenantId: string,
+    tenantId: string,
     expectedStatus: ExecutionStep["status"],
     newStatus: ExecutionStep["status"],
   ): Promise<{ ok: true; value: ExecutionStep } | { ok: false; error: Error }> {
     try {
+      const [existing] = await this.db.drizzle
+        .select({ step: executionSteps })
+        .from(executionSteps)
+        .innerJoin(executionRuns, eq(executionRuns.id, executionSteps.runId))
+        .where(
+          and(
+            eq(executionSteps.id, id),
+            eq(executionRuns.tenantId, tenantId),
+            eq(executionSteps.status, expectedStatus),
+          ),
+        );
+
+      if (!existing) {
+        return {
+          ok: false,
+          error: new Error("Step not found or status mismatch (concurrent modification)"),
+        };
+      }
+
       const [result] = await this.db.drizzle
         .update(executionSteps)
-        .set({ status: newStatus as any })
-        .where(and(eq(executionSteps.id, id), eq(executionSteps.status, expectedStatus as any)))
+        .set({ status: newStatus })
+        .where(and(eq(executionSteps.id, id), eq(executionSteps.status, expectedStatus)))
         .returning();
       if (!result) {
         return {
@@ -197,7 +296,12 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
           error: new Error("Step not found or status mismatch (concurrent modification)"),
         };
       }
-      return { ok: true, value: result as unknown as ExecutionStep };
+      const validated = validateOrThrow(
+        ExecutionStepSchema,
+        result,
+        "ExecutionStep.compareAndSetStatus",
+      );
+      return { ok: true, value: validated };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -208,7 +312,7 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
     dependsOnStepId: string;
   }): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
     try {
-      await this.db.drizzle.insert(executionStepDependencies).values(dependency as any);
+      await this.db.drizzle.insert(executionStepDependencies).values(dependency);
       return { ok: true, value: undefined };
     } catch (error) {
       return { ok: false, error: error as Error };
