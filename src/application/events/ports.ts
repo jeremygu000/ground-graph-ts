@@ -24,10 +24,21 @@ export interface OutboxEvent {
 export interface OutboxRepository {
   create(event: OutboxEvent): Promise<Result<OutboxEvent>>;
   findPending(tenantId: string, limit: number): Promise<Result<OutboxEvent[]>>;
-  claim(ids: string[], workerId: string, leaseDurationMs: number): Promise<Result<OutboxEvent[]>>;
-  complete(id: string, token: string): Promise<Result<void>>;
-  fail(id: string, token: string, error: string): Promise<Result<void>>;
-  deadLetter(id: string, token: string, error: string): Promise<Result<void>>;
+  claim(
+    ids: string[],
+    workerId: string,
+    leaseDurationMs: number,
+    tenantId: string,
+  ): Promise<Result<OutboxEvent[]>>;
+  complete(id: string, token: string, tenantId: string): Promise<Result<void>>;
+  fail(
+    id: string,
+    token: string,
+    error: string,
+    maxAttempts?: number,
+    tenantId?: string,
+  ): Promise<Result<void>>;
+  deadLetter(id: string, token: string, error: string, tenantId: string): Promise<Result<void>>;
   findById(id: string, tenantId: string): Promise<Result<OutboxEvent | null>>;
 }
 

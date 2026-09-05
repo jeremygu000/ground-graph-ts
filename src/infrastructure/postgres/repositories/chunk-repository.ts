@@ -3,6 +3,7 @@ import type { Database } from "../client";
 import { chunks } from "../schema";
 import type { ChunkRepository } from "../../../application/ingestion/ports";
 import type { Chunk } from "../../../domain/documents/types";
+import { mapToChunk } from "../../../application/validation";
 
 export class PostgresChunkRepository implements ChunkRepository {
   constructor(private db: Database) {}
@@ -15,11 +16,17 @@ export class PostgresChunkRepository implements ChunkRepository {
       const [result] = await this.db.drizzle
         .insert(chunks)
         .values({
-          ...chunk,
+          documentVersionId: chunk.documentVersionId,
           tenantId,
-        } as any)
+          sequenceNumber: chunk.sequenceNumber,
+          content: chunk.content,
+          contentHash: chunk.contentHash,
+          locator: chunk.locator,
+          metadata: chunk.metadata,
+        })
         .returning();
-      return { ok: true, value: result as unknown as Chunk };
+      const mapped = mapToChunk(result as Record<string, unknown>);
+      return { ok: true, value: mapped as Chunk };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -32,9 +39,20 @@ export class PostgresChunkRepository implements ChunkRepository {
     try {
       const results = await this.db.drizzle
         .insert(chunks)
-        .values(chunksToCreate.map((c) => ({ ...c, tenantId })) as any)
+        .values(
+          chunksToCreate.map((c) => ({
+            documentVersionId: c.documentVersionId,
+            tenantId,
+            sequenceNumber: c.sequenceNumber,
+            content: c.content,
+            contentHash: c.contentHash,
+            locator: c.locator,
+            metadata: c.metadata,
+          })),
+        )
         .returning();
-      return { ok: true, value: results as unknown as Chunk[] };
+      const mapped = results.map((r) => mapToChunk(r as Record<string, unknown>));
+      return { ok: true, value: mapped as Chunk[] };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -49,7 +67,9 @@ export class PostgresChunkRepository implements ChunkRepository {
         .select()
         .from(chunks)
         .where(and(eq(chunks.id, id), eq(chunks.tenantId, tenantId)));
-      return { ok: true, value: (result ?? null) as unknown as Chunk | null };
+      if (!result) return { ok: true, value: null };
+      const mapped = mapToChunk(result as Record<string, unknown>);
+      return { ok: true, value: mapped as Chunk };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -65,7 +85,8 @@ export class PostgresChunkRepository implements ChunkRepository {
         .from(chunks)
         .where(and(eq(chunks.documentVersionId, documentVersionId), eq(chunks.tenantId, tenantId)))
         .orderBy(chunks.sequenceNumber);
-      return { ok: true, value: results as unknown as Chunk[] };
+      const mapped = results.map((r) => mapToChunk(r as Record<string, unknown>));
+      return { ok: true, value: mapped as Chunk[] };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -80,7 +101,8 @@ export class PostgresChunkRepository implements ChunkRepository {
         .select()
         .from(chunks)
         .where(and(inArray(chunks.id, ids), eq(chunks.tenantId, tenantId)));
-      return { ok: true, value: results as unknown as Chunk[] };
+      const mapped = results.map((r) => mapToChunk(r as Record<string, unknown>));
+      return { ok: true, value: mapped as Chunk[] };
     } catch (error) {
       return { ok: false, error: error as Error };
     }

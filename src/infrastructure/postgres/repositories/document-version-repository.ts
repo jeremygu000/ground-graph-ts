@@ -6,6 +6,7 @@ import type {
   DocumentVersion,
   CreateDocumentVersionInput,
 } from "../../../application/ingestion/ports";
+import { mapToDocumentVersion } from "../../../application/validation";
 
 export class PostgresDocumentVersionRepository implements DocumentVersionRepository {
   constructor(private db: Database) {}
@@ -33,7 +34,8 @@ export class PostgresDocumentVersionRepository implements DocumentVersionReposit
         .insert(documentVersions)
         .values(insertData)
         .returning();
-      return { ok: true, value: result as unknown as DocumentVersion };
+      const mapped = mapToDocumentVersion(result as Record<string, unknown>);
+      return { ok: true, value: mapped as DocumentVersion };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -48,7 +50,9 @@ export class PostgresDocumentVersionRepository implements DocumentVersionReposit
         .select()
         .from(documentVersions)
         .where(and(eq(documentVersions.id, id), eq(documentVersions.tenantId, tenantId)));
-      return { ok: true, value: (result ?? null) as unknown as DocumentVersion | null };
+      if (!result) return { ok: true, value: null };
+      const mapped = mapToDocumentVersion(result as Record<string, unknown>);
+      return { ok: true, value: mapped as DocumentVersion };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -71,7 +75,9 @@ export class PostgresDocumentVersionRepository implements DocumentVersionReposit
         )
         .orderBy(desc(documentVersions.versionNumber))
         .limit(1);
-      return { ok: true, value: (result ?? null) as unknown as DocumentVersion | null };
+      if (!result) return { ok: true, value: null };
+      const mapped = mapToDocumentVersion(result as Record<string, unknown>);
+      return { ok: true, value: mapped as DocumentVersion };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -89,7 +95,8 @@ export class PostgresDocumentVersionRepository implements DocumentVersionReposit
           and(eq(documentVersions.documentId, documentId), eq(documentVersions.tenantId, tenantId)),
         )
         .orderBy(desc(documentVersions.versionNumber));
-      return { ok: true, value: results as unknown as DocumentVersion[] };
+      const mapped = results.map((r) => mapToDocumentVersion(r as Record<string, unknown>));
+      return { ok: true, value: mapped as DocumentVersion[] };
     } catch (error) {
       return { ok: false, error: error as Error };
     }

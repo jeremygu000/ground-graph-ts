@@ -57,7 +57,7 @@ export class PostgresOutboxRepository implements OutboxRepository {
             )`,
           ),
         )
-        .orderBy(asc(outboxEvents.availableAt))
+        .orderBy(asc(outboxEvents.availableAt), asc(outboxEvents.id))
         .limit(limit);
       const mapped = results.map((r) => mapToOutboxEvent(r as Record<string, unknown>));
       return { ok: true, value: mapped as OutboxEvent[] };
@@ -70,41 +70,42 @@ export class PostgresOutboxRepository implements OutboxRepository {
     ids: string[],
     workerId: string,
     leaseDurationMs: number,
+    tenantId: string,
   ): Promise<{ ok: true; value: OutboxEvent[] } | { ok: false; error: Error }> {
     try {
       const leaseToken = `${workerId}-${Date.now()}-${crypto.randomUUID()}`;
+      const claimTime = new Date();
       const claimUntil = new Date(Date.now() + leaseDurationMs);
+      const idArray = ids;
 
-      const results = await this.db.drizzle.transaction(async (tx) => {
-        const rowsToClaim = await tx
-          .select()
-          .from(outboxEvents)
-          .where(
-            sql`${outboxEvents.id} = ANY(${ids}) AND (${outboxEvents.status} = 'pending' OR (${outboxEvents.status} = 'claimed' AND ${outboxEvents.availableAt} < NOW()))`,
+      const rows = await this.db.drizzle.transaction(async (tx) => {
+        const cte = sql`
+          WITH selected AS (
+            SELECT id
+            FROM outbox_events
+            WHERE ${outboxEvents.id} = ANY(${idArray})
+              AND ${outboxEvents.tenantId} = ${tenantId}
+              AND (${outboxEvents.status} = 'pending' OR (${outboxEvents.status} = 'claimed' AND ${outboxEvents.availableAt} < NOW()))
+              FOR UPDATE SKIP LOCKED
+            ORDER BY ${outboxEvents.availableAt} ASC, ${outboxEvents.id} ASC
           )
-          .for("update", { skipLocked: true });
-
-        if (!rowsToClaim || rowsToClaim.length === 0) {
-          return [];
-        }
-
-        const updated = await tx
-          .update(outboxEvents)
-          .set({
-            status: "claimed",
-            claimedAt: claimUntil,
-            claimedBy: workerId,
-            leaseToken,
-            attempts: sql`${outboxEvents.attempts} + 1`,
-            availableAt: claimUntil,
-          })
-          .where(sql`${outboxEvents.id} = ANY(${ids})`)
-          .returning();
-
-        return updated;
+          UPDATE outbox_events
+          SET
+            status = 'claimed',
+            claimed_at = ${claimTime},
+            claimed_by = ${workerId},
+            lease_token = ${leaseToken},
+            attempts = ${outboxEvents.attempts} + 1,
+            available_at = ${claimUntil}
+          FROM selected
+          WHERE selected.id = outbox_events.id
+          RETURNING outbox_events.*
+        `;
+        const result = await tx.execute(cte);
+        return result;
       });
 
-      const mapped = results.map((r) => mapToOutboxEvent(r as Record<string, unknown>));
+      const mapped = (rows as Record<string, unknown>[]).map((r) => mapToOutboxEvent(r));
       return { ok: true, value: mapped as OutboxEvent[] };
     } catch (error) {
       return { ok: false, error: error as Error };
@@ -114,6 +115,7 @@ export class PostgresOutboxRepository implements OutboxRepository {
   async complete(
     id: string,
     token: string,
+    tenantId: string,
   ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
     try {
       const [result] = await this.db.drizzle
@@ -125,6 +127,7 @@ export class PostgresOutboxRepository implements OutboxRepository {
         .where(
           and(
             eq(outboxEvents.id, id),
+            eq(outboxEvents.tenantId, tenantId),
             eq(outboxEvents.leaseToken, token),
             eq(outboxEvents.status, "claimed"),
             sql`${outboxEvents.availableAt} >= NOW()`,
@@ -148,26 +151,23 @@ export class PostgresOutboxRepository implements OutboxRepository {
     id: string,
     token: string,
     errorMessage: string,
+    maxAttempts?: number,
+    tenantId?: string,
   ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
     try {
       const [result] = await this.db.drizzle
-        .update(outboxEvents)
-        .set({
-          status: "pending",
-          leaseToken: null,
-          claimedBy: null,
-          claimedAt: null,
-          error: errorMessage.substring(0, 500),
-        })
+        .select()
+        .from(outboxEvents)
         .where(
           and(
             eq(outboxEvents.id, id),
+            tenantId ? eq(outboxEvents.tenantId, tenantId) : undefined,
             eq(outboxEvents.leaseToken, token),
             eq(outboxEvents.status, "claimed"),
             sql`${outboxEvents.availableAt} >= NOW()`,
           ),
         )
-        .returning({ id: outboxEvents.id });
+        .for("update");
 
       if (!result) {
         return {
@@ -175,6 +175,45 @@ export class PostgresOutboxRepository implements OutboxRepository {
           error: new Error("Event not found, not claimed, lease expired, or token mismatch"),
         };
       }
+
+      const attempts = Number(result.attempts) + 1;
+      const shouldDeadLetter = maxAttempts !== undefined && attempts >= maxAttempts;
+
+      if (shouldDeadLetter) {
+        const [dl] = await this.db.drizzle
+          .update(outboxEvents)
+          .set({
+            status: "dead_letter",
+            deadLetteredAt: new Date(),
+            error: errorMessage.substring(0, 500),
+          })
+          .where(eq(outboxEvents.id, id))
+          .returning({ id: outboxEvents.id });
+        if (!dl) {
+          return { ok: false, error: new Error("Failed to dead-letter event") };
+        }
+      } else {
+        const backoffMs = Math.pow(2, attempts) * 1000;
+        const nextAvailableAt = new Date(Date.now() + backoffMs);
+
+        const [updated] = await this.db.drizzle
+          .update(outboxEvents)
+          .set({
+            status: "pending",
+            leaseToken: null,
+            claimedBy: null,
+            claimedAt: null,
+            availableAt: nextAvailableAt,
+            attempts,
+            error: errorMessage.substring(0, 500),
+          })
+          .where(eq(outboxEvents.id, id))
+          .returning({ id: outboxEvents.id });
+        if (!updated) {
+          return { ok: false, error: new Error("Failed to reset event") };
+        }
+      }
+
       return { ok: true, value: undefined };
     } catch (error) {
       return { ok: false, error: error as Error };
@@ -185,6 +224,7 @@ export class PostgresOutboxRepository implements OutboxRepository {
     id: string,
     token: string,
     errorMessage: string,
+    tenantId: string,
   ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
     try {
       const [result] = await this.db.drizzle
@@ -197,6 +237,7 @@ export class PostgresOutboxRepository implements OutboxRepository {
         .where(
           and(
             eq(outboxEvents.id, id),
+            eq(outboxEvents.tenantId, tenantId),
             eq(outboxEvents.leaseToken, token),
             eq(outboxEvents.status, "claimed"),
             sql`${outboxEvents.availableAt} >= NOW()`,

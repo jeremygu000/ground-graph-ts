@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { validateOrThrow } from "../domain/validation";
 
 function toISOString(val: unknown): string {
   if (val instanceof Date) return val.toISOString();
@@ -93,6 +94,12 @@ export const ChunkSchema = z.object({
   sequenceNumber: z.number().int().nonnegative(),
   content: z.string(),
   contentHash: z.string(),
+  locator: z.object({
+    type: z.enum(["line", "heading", "page", "section"]),
+    path: z.string(),
+    startLine: z.number().int().nonnegative().optional(),
+    endLine: z.number().int().nonnegative().optional(),
+  }),
   metadata: z.record(z.string(), z.unknown()).optional(),
   createdAt: z.string(),
 });
@@ -105,6 +112,7 @@ export function mapToChunk(row: Record<string, unknown>): z.infer<typeof ChunkSc
     sequenceNumber: Number(row.sequenceNumber),
     content: String(row.content),
     contentHash: String(row.contentHash),
+    locator: row.locator as z.infer<typeof ChunkSchema>["locator"],
     metadata: row.metadata as Record<string, unknown> | undefined,
     createdAt: toISOString(row.createdAt),
   };
@@ -156,5 +164,5 @@ export function mapToOutboxEvent(row: Record<string, unknown>): OutboxEventInput
   if (row.deadLetteredAt != null) result.deadLetteredAt = toISOString(row.deadLetteredAt);
   if (row.error != null) result.error = String(row.error);
 
-  return result as OutboxEventInput;
+  return validateOrThrow(OutboxEventSchema, result, "OutboxEvent");
 }

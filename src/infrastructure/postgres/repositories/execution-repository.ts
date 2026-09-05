@@ -306,12 +306,10 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
     tenantId: string,
   ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
     try {
-      // Self-dependency check
       if (stepId === dependsOnStepId) {
         return { ok: false, error: new Error("Step cannot depend on itself") };
       }
 
-      // Validate both steps exist and belong to same run and tenant
       const [step] = await this.db.drizzle
         .select({ runId: executionSteps.runId })
         .from(executionSteps)
@@ -330,6 +328,22 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
 
       if (step.runId !== dependsOn.runId) {
         return { ok: false, error: new Error("Cannot create cross-run dependency") };
+      }
+
+      const cycleCheck = await this.db.drizzle.execute(sql`
+        WITH RECURSIVE cycle_check AS (
+          SELECT ${dependsOnStepId} AS step_id, ARRAY[${dependsOnStepId}] AS path
+          UNION ALL
+          SELECT sd.depends_on_step_id, cc.path || sd.depends_on_step_id
+          FROM execution_step_dependencies sd
+          JOIN cycle_check cc ON sd.step_id = cc.step_id
+          WHERE NOT (sd.depends_on_step_id = ANY(cc.path))
+        )
+        SELECT 1 FROM cycle_check WHERE step_id = ${stepId} LIMIT 1
+      `);
+
+      if ((cycleCheck as unknown[]).length > 0) {
+        return { ok: false, error: new Error("Dependency would create a cycle") };
       }
 
       await this.db.drizzle.insert(executionStepDependencies).values({

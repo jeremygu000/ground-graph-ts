@@ -11,8 +11,15 @@ import {
   index,
   uniqueIndex,
   check,
+  customType,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+
+const EMBEDDING_DIMENSION = 1536;
+
+const vectorType = customType<{ data: number[]; driverData: string }>({
+  dataType: () => `vector(${EMBEDDING_DIMENSION})`,
+});
 
 export const sources = pgTable(
   "sources",
@@ -160,9 +167,7 @@ export const chunkEmbeddings = pgTable(
       .notNull()
       .references(() => indexVersions.id, { onDelete: "cascade" }),
     tenantId: uuid("tenant_id").notNull(),
-    // pgvector VECTOR(1536) stored as serialized array string
-    // Drizzle limitation: no native pgvector type; use text and serialize as "[0.1,0.2,...]"
-    embedding: text("embedding"),
+    embedding: vectorType("embedding").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
