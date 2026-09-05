@@ -1,46 +1,69 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  PostgresHealthChecker,
-  Neo4jHealthChecker,
   MinioHealthChecker,
+  Neo4jHealthChecker,
+  PostgresHealthChecker,
 } from "../../../src/infrastructure/health";
-import type { Database } from "../../../src/infrastructure/postgres/client";
-import type { Neo4jClient } from "../../../src/infrastructure/neo4j/client";
-import type { ObjectStorageClient } from "../../../src/infrastructure/object-storage/client";
 
-describe("infrastructure health checkers", () => {
-  it("reports postgres healthy when select 1 returns 1", async () => {
-    const db = {
-      client: Object.assign(
-        vi.fn(async () => [{ health: 1 }]),
-        { unsafe: vi.fn() },
-      ),
-    } as unknown as Database;
-    const checker = new PostgresHealthChecker(db);
+describe("health checkers", () => {
+  it("checks postgres health from tagged query results", async () => {
+    const client = vi.fn().mockResolvedValue([{ health: 1 }]);
+    const checker = new PostgresHealthChecker({ client } as never);
 
     const result = await checker.check();
-
     expect(result.healthy).toBe(true);
-    expect(result.latencyMs).toBeGreaterThanOrEqual(0);
+    expect(client).toHaveBeenCalledTimes(1);
   });
 
-  it("reports neo4j unhealthy when connectivity fails", async () => {
-    const client = { verifyConnectivity: vi.fn(async () => false) } as unknown as Neo4jClient;
-    const checker = new Neo4jHealthChecker(client);
+  it("returns unhealthy postgres results and error messages", async () => {
+    const badResultClient = vi.fn().mockResolvedValue([{ health: 0 }]);
+    const badResultChecker = new PostgresHealthChecker({ client: badResultClient } as never);
+    await expect(badResultChecker.check()).resolves.toMatchObject({
+      healthy: false,
+      message: "Unexpected response",
+    });
+
+    const client = vi.fn().mockRejectedValue(new Error("boom"));
+    const checker = new PostgresHealthChecker({ client } as never);
 
     const result = await checker.check();
-
     expect(result.healthy).toBe(false);
-    expect(result.message).toBe("Connectivity verification failed");
+    expect(result.error).toBe("boom");
   });
 
-  it("reports minio unhealthy when health check file is missing", async () => {
-    const client = { exists: vi.fn(async () => false) } as unknown as ObjectStorageClient;
-    const checker = new MinioHealthChecker(client);
+  it("checks neo4j and minio health", async () => {
+    const neo4jChecker = new Neo4jHealthChecker({
+      verifyConnectivity: vi.fn().mockResolvedValue(true),
+    } as never);
+    await expect(neo4jChecker.check()).resolves.toMatchObject({ healthy: true });
 
-    const result = await checker.check();
+    await expect(
+      new Neo4jHealthChecker({
+        verifyConnectivity: vi.fn().mockResolvedValue(false),
+      } as never).check(),
+    ).resolves.toMatchObject({ healthy: false, message: "Connectivity verification failed" });
 
-    expect(result.healthy).toBe(false);
-    expect(result.error).toBe("Health check file not found");
+    await expect(
+      new Neo4jHealthChecker({
+        verifyConnectivity: vi.fn().mockRejectedValue(new Error("neo4j boom")),
+      } as never).check(),
+    ).resolves.toMatchObject({ healthy: false, error: "neo4j boom" });
+
+    const minioChecker = new MinioHealthChecker({
+      exists: vi.fn().mockResolvedValue(true),
+    } as never);
+    await expect(minioChecker.check()).resolves.toMatchObject({ healthy: true });
+
+    await expect(
+      new MinioHealthChecker({
+        exists: vi.fn().mockResolvedValue(false),
+      } as never).check(),
+    ).resolves.toMatchObject({ healthy: false, error: "Health check file not found" });
+
+    await expect(
+      new MinioHealthChecker({
+        exists: vi.fn().mockRejectedValue(new Error("minio boom")),
+      } as never).check(),
+    ).resolves.toMatchObject({ healthy: false, error: "minio boom" });
   });
 });

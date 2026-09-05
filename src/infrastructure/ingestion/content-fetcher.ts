@@ -15,14 +15,14 @@ export class FileContentFetcher implements ContentFetcher {
 }
 
 export class S3ContentFetcher implements ContentFetcher {
-  constructor(private keyPrefix: string = "raw") {}
+  constructor(private keyPrefix: "raw" | "processed" = "raw") {}
 
   async fetch(uri: string): Promise<Buffer> {
     if (!uri.startsWith("s3://")) {
       throw new Error(`S3ContentFetcher only supports s3:// URIs, got: ${uri}`);
     }
     const key = uri.replace("s3://", "");
-    const { getGlobalObjectStorageClient } = require("../object-storage/client");
+    const { getGlobalObjectStorageClient } = await import("../object-storage/client");
     const client = getGlobalObjectStorageClient();
     return client.download(key, this.keyPrefix);
   }

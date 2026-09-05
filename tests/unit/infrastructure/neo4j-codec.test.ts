@@ -30,6 +30,21 @@ describe("neo4j codec", () => {
     expect(() => decodeNeo4jJsonValue(unsafe)).toThrow("safe range");
   });
 
+  it("rejects unsupported json values and handles date inputs", () => {
+    expect(() => encodeNeo4jDateTime("not-a-date")).toThrow("Invalid ISO datetime value");
+    expect(() => encodeNeo4jJsonValue(Infinity)).toThrow("non-finite number");
+    expect(() => decodeNeo4jJsonValue(Infinity)).toThrow("non-finite number");
+
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    expect(() => encodeNeo4jJsonValue(cyclic)).toThrow("cycle detected");
+
+    expect(() => decodeNeo4jJsonProperty("not-json")).toThrow();
+    expect(decodeNeo4jDateTime(new Date("2024-01-15T10:30:00.000Z"))).toBe(
+      "2024-01-15T10:30:00.000Z",
+    );
+  });
+
   it("round-trips datetime values", () => {
     const encoded = encodeNeo4jDateTime("2024-01-15T10:30:00.000Z");
     expect(decodeNeo4jDateTime(encoded)).toBe("2024-01-15T10:30:00.000Z");

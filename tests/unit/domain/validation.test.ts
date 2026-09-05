@@ -18,7 +18,9 @@ import {
 describe("domain validation", () => {
   it("validates and parses JSON values", () => {
     expect(isJSONValue({ nested: [1, true, null] })).toBe(true);
+    expect(isJSONValue(Infinity)).toBe(false);
     expect(isJSONObject({ nested: { ok: true } })).toBe(true);
+    expect(isJSONObject([])).toBe(false);
     expect(() => assertJSONValue(new Date())).toThrow("Invalid JSON value");
     expect(() => assertJSONObject([])).toThrow("Invalid JSON object");
     expect(JSON_VALUE_SCHEMA.safeParse({ ok: true }).success).toBe(true);
@@ -38,6 +40,7 @@ describe("domain validation", () => {
     expect(isValidSchema(schema, { ok: true })).toBe(true);
     expect(isValidSchema(schema, { ok: "nope" })).toBe(false);
     expect(parseJson(schema, '{"ok":true}', "ctx")).toEqual({ ok: true });
+    expect(() => parseJson(schema, '{"ok":false}', "ctx")).not.toThrow();
     expect(() => parseJson(schema, "not-json", "ctx")).toThrow("Invalid JSON in ctx");
     expect(() => parseJson(schema, "not-json")).toThrow("Invalid JSON");
   });
