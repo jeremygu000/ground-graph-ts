@@ -4,7 +4,11 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { ZodError } from "zod";
 import type { HealthChecker } from "@/application/health";
-import { PostgresHealthChecker, Neo4jHealthChecker, MinioHealthChecker } from "@/infrastructure/health";
+import {
+  PostgresHealthChecker,
+  Neo4jHealthChecker,
+  MinioHealthChecker,
+} from "@/infrastructure/health";
 import { Database, setGlobalDatabase } from "@/infrastructure/postgres/client";
 import { Neo4jClient } from "@/infrastructure/neo4j/client";
 import { ObjectStorageClient } from "@/infrastructure/object-storage/client";
@@ -90,7 +94,9 @@ export async function buildApp(healthCheckers: HealthChecker[] = []) {
 const PORT = parseInt(process.env.PORT ?? "8080", 10);
 const HOST = process.env.HOST ?? "0.0.0.0";
 
-const db = new Database({ url: process.env.DATABASE_URL ?? "postgresql://localhost:5432/groundgraph" });
+const db = new Database({
+  url: process.env.DATABASE_URL ?? "postgresql://localhost:5432/groundgraph",
+});
 setGlobalDatabase(db);
 
 const neo4j = new Neo4jClient({

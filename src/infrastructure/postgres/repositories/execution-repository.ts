@@ -323,10 +323,7 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
         .innerJoin(executionSteps, eq(executionSteps.id, executionStepDependencies.dependsOnStepId))
         .innerJoin(executionRuns, eq(executionRuns.id, executionSteps.runId))
         .where(
-          and(
-            eq(executionStepDependencies.stepId, stepId),
-            eq(executionRuns.tenantId, tenantId),
-          ),
+          and(eq(executionStepDependencies.stepId, stepId), eq(executionRuns.tenantId, tenantId)),
         );
 
       const steps = dependencies.map((d) =>

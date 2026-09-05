@@ -141,7 +141,10 @@ export class PostgresOutboxRepository implements OutboxRepository {
         .returning({ id: outboxEvents.id });
 
       if (!result) {
-        return { ok: false, error: new Error("Event not found, not claimed, lease expired, or token mismatch") };
+        return {
+          ok: false,
+          error: new Error("Event not found, not claimed, lease expired, or token mismatch"),
+        };
       }
       return { ok: true, value: undefined };
     } catch (error) {
@@ -173,7 +176,10 @@ export class PostgresOutboxRepository implements OutboxRepository {
         .returning({ id: outboxEvents.id });
 
       if (!result) {
-        return { ok: false, error: new Error("Event not found, not claimed, lease expired, or token mismatch") };
+        return {
+          ok: false,
+          error: new Error("Event not found, not claimed, lease expired, or token mismatch"),
+        };
       }
       return { ok: true, value: undefined };
     } catch (error) {
