@@ -226,8 +226,7 @@ export class PostgresOutboxRepository implements OutboxRepository {
         if (!row) return null;
 
         const attempts = Number(row.attempts);
-        const nextAttempts = attempts + 1;
-        const shouldDeadLetter = maxAttempts !== undefined && nextAttempts >= maxAttempts;
+        const shouldDeadLetter = maxAttempts !== undefined && attempts >= maxAttempts;
 
         if (shouldDeadLetter) {
           const [dl] = await tx
@@ -236,7 +235,7 @@ export class PostgresOutboxRepository implements OutboxRepository {
               status: "dead_letter",
               deadLetteredAt: new Date(),
               error: errorMessage.substring(0, 500),
-              attempts: nextAttempts,
+              attempts,
             })
             .where(
               and(
@@ -250,7 +249,7 @@ export class PostgresOutboxRepository implements OutboxRepository {
           return true;
         }
 
-        const backoffMs = Math.pow(2, Math.max(0, nextAttempts - 1)) * 1000;
+        const backoffMs = Math.pow(2, Math.max(0, attempts - 1)) * 1000;
         const nextAvailableAt = new Date(Date.now() + backoffMs);
 
         const [updated] = await tx
@@ -261,7 +260,7 @@ export class PostgresOutboxRepository implements OutboxRepository {
             claimedBy: null,
             claimedAt: null,
             availableAt: nextAvailableAt,
-            attempts: nextAttempts,
+            attempts,
             error: errorMessage.substring(0, 500),
           })
           .where(

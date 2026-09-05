@@ -99,7 +99,13 @@ describe("PostgresExecutionStepRepository", () => {
       stepRepo.compareAndSetStatus(created.value.id, tenantId, "pending", "running"),
     ]);
 
-    expect(first.ok || second.ok).toBe(true);
+    expect(Number(first.ok) + Number(second.ok)).toBe(1);
+    expect([first.ok, second.ok].sort()).toEqual([false, true]);
+
+    const loaded = await stepRepo.findById(created.value.id, tenantId);
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) throw loaded.error;
+    expect(loaded.value?.status).toBe("running");
   });
 
   it("rejects cross-run dependency cycles", async () => {
@@ -203,7 +209,23 @@ describe("PostgresExecutionStepRepository", () => {
       stepRepo.addDependency(createdB.value.id, createdA.value.id, tenantId),
     ]);
 
-    expect(first.ok || second.ok).toBe(true);
+    expect(Number(first.ok) + Number(second.ok)).toBe(1);
+    expect([first.ok, second.ok].sort()).toEqual([false, true]);
+
+    const dependenciesA = await stepRepo.getDependencies(createdA.value.id, tenantId);
+    const dependenciesB = await stepRepo.getDependencies(createdB.value.id, tenantId);
+    expect(dependenciesA.ok).toBe(true);
+    expect(dependenciesB.ok).toBe(true);
+    if (!dependenciesA.ok) throw dependenciesA.error;
+    if (!dependenciesB.ok) throw dependenciesB.error;
+
+    const graph = [
+      { stepId: createdA.value.id, deps: dependenciesA.value.map((d) => d.id) },
+      { stepId: createdB.value.id, deps: dependenciesB.value.map((d) => d.id) },
+    ];
+    expect(
+      graph.some((entry) => entry.deps.includes(createdA.value.id) && entry.deps.includes(createdB.value.id)),
+    ).toBe(false);
   });
 
   it("rejects self dependency", async () => {

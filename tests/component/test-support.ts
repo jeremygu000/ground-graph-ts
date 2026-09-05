@@ -14,6 +14,7 @@ export interface ComponentDb {
 }
 
 let sharedContext: Promise<ComponentDb> | undefined;
+let processCleanupRegistered = false;
 
 async function bootstrapSchema(db: Database): Promise<void> {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -43,11 +44,7 @@ async function createComponentDb(): Promise<ComponentDb> {
   return {
     container,
     db,
-    close: async () => {
-      await db.close();
-      await container.stop();
-      sharedContext = undefined;
-    },
+    close: async () => {},
     reset: async () => {
       await db.client.unsafe(
         "TRUNCATE TABLE execution_step_dependencies, execution_steps, execution_runs, outbox_events, sources RESTART IDENTITY CASCADE",
@@ -83,6 +80,17 @@ export async function startComponentDatabase(): Promise<ComponentDb> {
   }
 
   sharedContext = createComponentDb();
+
+  if (!processCleanupRegistered) {
+    processCleanupRegistered = true;
+    process.once("beforeExit", async () => {
+      if (!sharedContext) return;
+      const ctx = await sharedContext;
+      await ctx.db.close();
+      await ctx.container.stop();
+      sharedContext = undefined;
+    });
+  }
 
   return sharedContext;
 }

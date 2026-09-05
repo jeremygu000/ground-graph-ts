@@ -80,8 +80,13 @@ describe("PostgresOutboxRepository", () => {
       repo.claim([eventId], "worker-b", 30_000, tenantId),
     ]);
 
-    const claimedCount = (first.ok ? first.value.length : 0) + (second.ok ? second.value.length : 0);
-    expect(claimedCount).toBe(1);
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    if (!first.ok) throw first.error;
+    if (!second.ok) throw second.error;
+
+    const lengths = [first.value.length, second.value.length].sort();
+    expect(lengths).toEqual([0, 1]);
 
     const [stored] = await ctx.db.drizzle
       .select()
@@ -89,7 +94,8 @@ describe("PostgresOutboxRepository", () => {
       .where(eq(outboxEvents.id, eventId));
     if (!stored) throw new Error("expected stored row");
     expect(stored.status).toBe("claimed");
-    expect(stored.claimedBy === "worker-a" || stored.claimedBy === "worker-b").toBe(true);
+    expect(stored.attempts).toBe(1);
+    expect(stored.claimedBy).toBe(first.value.length === 1 ? "worker-a" : "worker-b");
   });
 
   it("rejects stale complete tokens after the lease expires", async () => {
@@ -156,7 +162,6 @@ describe("PostgresOutboxRepository", () => {
 
   it("applies deterministic backoff on fail", async () => {
     const eventId = crypto.randomUUID();
-    const availableAt = new Date(Date.now() + 60_000).toISOString();
     await ctx.db.drizzle.insert(outboxEvents).values({
       id: eventId,
       tenantId,
@@ -165,15 +170,18 @@ describe("PostgresOutboxRepository", () => {
       eventType: "source.created",
       payload: { hello: "world" },
       idempotencyKey: `key-${Date.now()}`,
-      status: "claimed",
-      attempts: 2,
-      availableAt: new Date(availableAt),
-      claimedAt: new Date(),
-      claimedBy: "worker-a",
-      leaseToken: "token-a",
+      status: "pending",
+      attempts: 0,
+      availableAt: new Date(Date.now() - 1_000),
     });
 
-    const result = await repo.fail(eventId, "token-a", "boom", tenantId, 10);
+    const claimed = await repo.claim([eventId], "worker-a", 30_000, tenantId);
+    expect(claimed.ok).toBe(true);
+    if (!claimed.ok) throw claimed.error;
+    const leaseToken = claimed.value[0]?.leaseToken;
+    if (!leaseToken) throw new Error("expected lease token");
+
+    const result = await repo.fail(eventId, leaseToken, "boom", tenantId, 10);
 
     expect(result.ok, result.ok ? undefined : result.error.message).toBe(true);
 
@@ -183,7 +191,7 @@ describe("PostgresOutboxRepository", () => {
       .where(eq(outboxEvents.id, eventId));
     if (!stored) throw new Error("expected stored row");
     expect(stored.status).toBe("pending");
-    expect(stored.attempts).toBe(3);
+    expect(stored.attempts).toBe(1);
     expect(new Date(stored.availableAt).getTime()).toBeGreaterThan(Date.now());
     expect(stored.error).toContain("boom");
   });
