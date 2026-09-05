@@ -51,7 +51,7 @@ Change `[ ]` to `[x]` only after all acceptance criteria pass.
 - [x] M0 — Repository and TypeScript engineering baseline
 - [x] M1 — Local infrastructure and telemetry foundation
 - [x] M2 — Domain contracts and persistence model
-- [x] M3 — Document ingestion and versioning
+- [ ] M3 — Document ingestion and versioning
 - [ ] M4 — Vector RAG baseline
 - [ ] M5 — Knowledge graph construction
 - [ ] M6 — Hybrid GraphRAG retrieval
@@ -120,26 +120,26 @@ The system answers questions such as:
 
 ### 2.1 Stack
 
-| Concern | Decision |
-|---|---|
-| Runtime | Repository-pinned active Node.js LTS |
-| Language | Strict TypeScript |
-| Package manager | pnpm + committed lockfile |
-| API | Fastify |
-| Runtime validation | Zod |
-| PostgreSQL | `pg` + Drizzle ORM stable line |
-| Migration | Drizzle Kit generated/reviewed SQL + custom SQL |
-| Vector search | pgvector with dimensioned Drizzle `vector` columns |
-| Knowledge graph | Official `neo4j-driver` + parameterized Cypher |
-| Workflow | `@langchain/langgraph` behind an internal adapter |
-| Model/embedding | Vercel AI SDK `ai` + `@ai-sdk/openai` behind ports |
-| Object storage | AWS S3 SDK; MinIO locally |
-| Telemetry | OpenTelemetry/OTLP + Phoenix |
-| Metrics | Prometheus + Grafana |
-| Tests | Vitest + Testcontainers Node |
-| Evaluation | Deterministic/custom TS evaluators; optional external evaluators behind an adapter |
-| Format/lint/type | Prettier + Oxlint + `tsc --noEmit` |
-| UI | Next.js after core API/evals stabilize |
+| Concern            | Decision                                                                           |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| Runtime            | Repository-pinned active Node.js LTS                                               |
+| Language           | Strict TypeScript                                                                  |
+| Package manager    | pnpm + committed lockfile                                                          |
+| API                | Fastify                                                                            |
+| Runtime validation | Zod                                                                                |
+| PostgreSQL         | `pg` + Drizzle ORM stable line                                                     |
+| Migration          | Drizzle Kit generated/reviewed SQL + custom SQL                                    |
+| Vector search      | pgvector with dimensioned Drizzle `vector` columns                                 |
+| Knowledge graph    | Official `neo4j-driver` + parameterized Cypher                                     |
+| Workflow           | `@langchain/langgraph` behind an internal adapter                                  |
+| Model/embedding    | Vercel AI SDK `ai` + `@ai-sdk/openai` behind ports                                 |
+| Object storage     | AWS S3 SDK; MinIO locally                                                          |
+| Telemetry          | OpenTelemetry/OTLP + Phoenix                                                       |
+| Metrics            | Prometheus + Grafana                                                               |
+| Tests              | Vitest + Testcontainers Node                                                       |
+| Evaluation         | Deterministic/custom TS evaluators; optional external evaluators behind an adapter |
+| Format/lint/type   | Prettier + Oxlint + `tsc --noEmit`                                                 |
+| UI                 | Next.js after core API/evals stabilize                                             |
 
 Use stable packages only; do not use Drizzle release candidates. Pin the resolved versions in `pnpm-lock.yaml`.
 

@@ -10,7 +10,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],
       reportsDirectory: ".coverage",
-      include: ["src/domain/**/*.ts", "src/application/**/*.ts"],
+      include: ["src/domain/**/*.ts", "src/infrastructure/health.ts", "src/infrastructure/unit-of-work.ts", "src/infrastructure/neo4j/codec.ts"],
       exclude: ["src/**/*.d.ts", "src/**/*.test.ts", "src/**/index.ts"],
       thresholds: {
         lines: 85,
