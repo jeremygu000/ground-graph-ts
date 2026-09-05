@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+function toISOString(val: unknown): string {
+  if (val instanceof Date) return val.toISOString();
+  if (typeof val === "string") return val;
+  if (val === null || val === undefined) return "";
+  return String(val);
+}
+
+function nullableString(val: unknown): string | null | undefined {
+  if (val === null) return null;
+  if (val === undefined) return undefined;
+  return toISOString(val);
+}
+
 export const SourceSchema = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid(),
@@ -8,12 +21,27 @@ export const SourceSchema = z.object({
   mimeType: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   isActive: z.boolean(),
-  lastSyncedAt: z.string().datetime().optional(),
+  lastSyncedAt: z.string().optional().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
 
 export type SourceInput = z.infer<typeof SourceSchema>;
+
+export function mapToSource(row: Record<string, unknown>): SourceInput {
+  return {
+    id: String(row.id),
+    tenantId: String(row.tenantId),
+    type: row.type as "file" | "url" | "git" | "api",
+    uri: String(row.uri),
+    mimeType: row.mimeType as string | undefined,
+    metadata: row.metadata as Record<string, unknown> | undefined,
+    isActive: Boolean(row.isActive),
+    lastSyncedAt: nullableString(row.lastSyncedAt) ?? undefined,
+    createdAt: toISOString(row.createdAt),
+    updatedAt: toISOString(row.updatedAt),
+  };
+}
 
 export const DocumentSchema = z.object({
   id: z.string().uuid(),
@@ -22,8 +50,8 @@ export const DocumentSchema = z.object({
   title: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   isActive: z.boolean(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
 });
 
 export const DocumentVersionSchema = z.object({
@@ -36,9 +64,27 @@ export const DocumentVersionSchema = z.object({
   sizeBytes: z.number().int().nonnegative(),
   parsedDocument: z.unknown().optional(),
   isActive: z.boolean(),
-  createdAt: z.string().datetime(),
+  createdAt: z.string(),
   createdBy: z.string().uuid().optional(),
 });
+
+export function mapToDocumentVersion(
+  row: Record<string, unknown>,
+): z.infer<typeof DocumentVersionSchema> {
+  return {
+    id: String(row.id),
+    documentId: String(row.documentId),
+    tenantId: String(row.tenantId),
+    versionNumber: Number(row.versionNumber),
+    contentHash: String(row.contentHash),
+    checksum: String(row.checksum),
+    sizeBytes: Number(row.sizeBytes),
+    parsedDocument: row.parsedDocument as z.infer<typeof DocumentVersionSchema>["parsedDocument"],
+    isActive: Boolean(row.isActive),
+    createdAt: toISOString(row.createdAt),
+    createdBy: row.createdBy ? String(row.createdBy) : undefined,
+  };
+}
 
 export const ChunkSchema = z.object({
   id: z.string().uuid(),
@@ -48,5 +94,18 @@ export const ChunkSchema = z.object({
   content: z.string(),
   contentHash: z.string(),
   metadata: z.record(z.string(), z.unknown()).optional(),
-  createdAt: z.string().datetime(),
+  createdAt: z.string(),
 });
+
+export function mapToChunk(row: Record<string, unknown>): z.infer<typeof ChunkSchema> {
+  return {
+    id: String(row.id),
+    documentVersionId: String(row.documentVersionId),
+    tenantId: String(row.tenantId),
+    sequenceNumber: Number(row.sequenceNumber),
+    content: String(row.content),
+    contentHash: String(row.contentHash),
+    metadata: row.metadata as Record<string, unknown> | undefined,
+    createdAt: toISOString(row.createdAt),
+  };
+}

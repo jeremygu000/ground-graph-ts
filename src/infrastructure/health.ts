@@ -56,8 +56,11 @@ export class MinioHealthChecker implements HealthChecker {
   async check(): Promise<HealthResult> {
     const start = Date.now();
     try {
-      await this.client.exists(".health-check", "raw");
+      const exists = await this.client.exists(".health-check", "raw");
       const latencyMs = Date.now() - start;
+      if (!exists) {
+        return { healthy: false, error: "Health check file not found", latencyMs };
+      }
       return { healthy: true, latencyMs };
     } catch (error) {
       return {

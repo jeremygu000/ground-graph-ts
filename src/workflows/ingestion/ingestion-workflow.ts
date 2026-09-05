@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import type { UnitOfWorkFactory } from "../../application/unit-of-work";
 import type { DocumentParser, ParsedContent } from "../../application/ingestion/parser-port";
 import type {
@@ -210,13 +211,7 @@ export class IngestionWorkflow {
   }
 
   private hashContent(content: string): string {
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString(16).padStart(16, "0");
+    return createHash("sha256").update(content, "utf8").digest("hex");
   }
 
   private computeChecksum(content: string): string {

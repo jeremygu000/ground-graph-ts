@@ -4,7 +4,7 @@ import { sources } from "../schema";
 import type { SourceRepository } from "../../../application/ingestion/ports";
 import type { Source } from "../../../application/ingestion/ports";
 import type { SourceDescriptor } from "../../../domain/documents/types";
-import { SourceSchema } from "../../../application/validation";
+import { SourceSchema, mapToSource } from "../../../application/validation";
 import { validateOrThrow } from "../../../domain/validation";
 
 export class PostgresSourceRepository implements SourceRepository {
@@ -26,7 +26,8 @@ export class PostgresSourceRepository implements SourceRepository {
           isActive: true,
         })
         .returning();
-      const validated = validateOrThrow(SourceSchema, result, "Source.create") as unknown as Source;
+      const mapped = mapToSource(result as Record<string, unknown>);
+      const validated = validateOrThrow(SourceSchema, mapped, "Source.create") as unknown as Source;
       return { ok: true, value: validated };
     } catch (error) {
       return { ok: false, error: error as Error };
@@ -43,11 +44,12 @@ export class PostgresSourceRepository implements SourceRepository {
         .from(sources)
         .where(and(eq(sources.id, id), eq(sources.tenantId, tenantId)));
       if (!result) return { ok: true, value: null };
+      const mapped = mapToSource(result as Record<string, unknown>);
       const validated = validateOrThrow(
         SourceSchema,
-        result,
+        mapped,
         "Source.findById",
-      ) as unknown as Source | null;
+      ) as unknown as Source;
       return { ok: true, value: validated };
     } catch (error) {
       return { ok: false, error: error as Error };
@@ -64,11 +66,12 @@ export class PostgresSourceRepository implements SourceRepository {
         .from(sources)
         .where(and(eq(sources.uri, uri), eq(sources.tenantId, tenantId)));
       if (!result) return { ok: true, value: null };
+      const mapped = mapToSource(result as Record<string, unknown>);
       const validated = validateOrThrow(
         SourceSchema,
-        result,
+        mapped,
         "Source.findByUri",
-      ) as unknown as Source | null;
+      ) as unknown as Source;
       return { ok: true, value: validated };
     } catch (error) {
       return { ok: false, error: error as Error };
@@ -83,13 +86,14 @@ export class PostgresSourceRepository implements SourceRepository {
     try {
       const [result] = await this.db.drizzle
         .update(sources)
-        .set(updates as Partial<Source>)
+        .set(updates as Record<string, unknown>)
         .where(and(eq(sources.id, id), eq(sources.tenantId, tenantId)))
         .returning();
       if (!result) {
         return { ok: false, error: new Error("Source not found") };
       }
-      const validated = validateOrThrow(SourceSchema, result, "Source.update") as unknown as Source;
+      const mapped = mapToSource(result as Record<string, unknown>);
+      const validated = validateOrThrow(SourceSchema, mapped, "Source.update") as unknown as Source;
       return { ok: true, value: validated };
     } catch (error) {
       return { ok: false, error: error as Error };
@@ -125,7 +129,12 @@ export class PostgresSourceRepository implements SourceRepository {
         .offset(offset)
         .orderBy(desc(sources.createdAt));
       const validated = results.map(
-        (r) => validateOrThrow(SourceSchema, r, "Source.list") as unknown as Source,
+        (r) =>
+          validateOrThrow(
+            SourceSchema,
+            mapToSource(r as Record<string, unknown>),
+            "Source.list",
+          ) as unknown as Source,
       );
       return { ok: true, value: validated };
     } catch (error) {
