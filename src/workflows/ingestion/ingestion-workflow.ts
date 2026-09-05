@@ -4,11 +4,12 @@ import type {
   Chunker,
   ChunkableContent,
   ChunkingOptions,
+  ChunkFragment,
 } from "../../application/ingestion/chunker-port";
 import type { IngestionQualityReport } from "../../application/ingestion/types";
 import type { Document, Source } from "../../application/ingestion/ports";
 import type { ContentFetcher } from "../../application/ingestion/content-fetcher-port";
-import type { Chunk } from "../../application/ingestion/ports";
+import type { TracerPort } from "../../application/observability/tracer-port";
 import { computeContentHash } from "../../application/ingestion/hash";
 
 export interface IngestionWorkflowInput {
@@ -17,6 +18,7 @@ export interface IngestionWorkflowInput {
   mimeType?: string;
   metadata?: Record<string, unknown>;
   tenantId: string;
+  principalId: string;
   userId?: string;
   chunkingStrategy?: "heading" | "recursive" | "page" | "semantic";
   maxChunkSize?: number;
@@ -38,16 +40,112 @@ export class IngestionWorkflow {
     private parser: DocumentParser,
     private chunker: Chunker,
     private contentFetcher: ContentFetcher,
+    private tracer: TracerPort,
   ) {}
 
   async execute(input: IngestionWorkflowInput): Promise<IngestionWorkflowResult> {
-    return await this.uowFactory.transaction(async (uow) => {
-      const existingSource = await uow.sourceRepository.findByUri(input.sourceUri, input.tenantId);
-      let source: Source;
+    return await this.tracer.startActiveSpan("ingestion.workflow", async (rootSpan) => {
+      try {
+        return await this.uowFactory.transaction(async (uow) => {
+          return await this.tracer.startActiveSpan("ingestion.transaction", async (txSpan) => {
+            try {
+              const source = await this.upsertSource(uow, input);
+              txSpan.setAttribute("source.id", source.id);
 
-      if (existingSource.ok && existingSource.value) {
-        source = existingSource.value;
-      } else {
+              const parsed = await this.runParser(input, source);
+              txSpan.setAttribute("document.title", parsed.title ?? "(none)");
+
+              const { document, version, versionNumber } = await this.upsertDocumentAndVersion(
+                uow,
+                input,
+                source,
+                parsed,
+              );
+              txSpan.setAttribute("document.id", document.id);
+              txSpan.setAttribute("document.version_id", version.id);
+
+              if (versionNumber === 1) {
+                await uow.sourceRepository.update(source.id, input.tenantId, {
+                  lastSyncedAt: new Date().toISOString(),
+                });
+              }
+
+              const rawChunks = await this.runChunker(input, version.id, parsed);
+              txSpan.setAttribute("chunk.count", rawChunks.length);
+
+              await this.deactivateStaleVersions(uow, document.id, version.id, input.tenantId);
+
+              if (rawChunks.length > 0) {
+                const chunksForStorage = rawChunks.map((c) => ({
+                  ...c,
+                  documentVersionId: version.id,
+                  principalId: input.principalId,
+                }));
+                const chunkResult = await uow.chunkRepository.createMany(
+                  chunksForStorage,
+                  input.tenantId,
+                );
+                if (!chunkResult.ok) {
+                  throw new Error(`Failed to create chunks: ${chunkResult.error.message}`);
+                }
+              }
+
+              const qualityReport = this.generateQualityReport(
+                document.id,
+                version.id,
+                input.sourceUri,
+                rawChunks,
+                input.principalId,
+              );
+
+              txSpan.setStatus("OK");
+              return {
+                documentId: document.id,
+                versionId: version.id,
+                versionNumber,
+                status: versionNumber === 1 ? ("created" as const) : ("unchanged" as const),
+                chunksCreated: rawChunks.length,
+                qualityReport,
+              };
+            } catch (err) {
+              txSpan.setStatus("ERROR", err instanceof Error ? err.message : String(err));
+              throw err;
+            } finally {
+              txSpan.end();
+            }
+          });
+        });
+      } catch (err) {
+        rootSpan.setStatus("ERROR", err instanceof Error ? err.message : String(err));
+        throw err;
+      } finally {
+        rootSpan.end();
+      }
+    });
+  }
+
+  private async upsertSource(
+    uow: Parameters<Parameters<UnitOfWorkFactory["transaction"]>[0]>[0],
+    input: IngestionWorkflowInput,
+  ): Promise<Source> {
+    return await this.tracer.startActiveSpan("ingestion.upsertSource", async (span) => {
+      try {
+        span.setAttribute("source.uri", input.sourceUri);
+        span.setAttribute("principal.id", input.principalId);
+
+        const existingSource = await uow.sourceRepository.findByUri(
+          input.sourceUri,
+          input.tenantId,
+        );
+
+        if (existingSource.ok && existingSource.value) {
+          const src = existingSource.value;
+          span.setAttribute("source.id", src.id);
+          span.setAttribute("source.action", "found_existing");
+          return src;
+        }
+
+        span.setAttribute("source.action", "create");
         const sourceResult = await uow.sourceRepository.create(
           {
             type: input.sourceType,
@@ -56,192 +154,226 @@ export class IngestionWorkflow {
             ...(input.metadata !== undefined ? { metadata: input.metadata } : {}),
           },
           input.tenantId,
+          input.principalId,
         );
         if (!sourceResult.ok) {
           throw new Error(`Failed to create source: ${sourceResult.error.message}`);
         }
-        source = sourceResult.value;
+        span.setAttribute("source.id", sourceResult.value.id);
+        return sourceResult.value;
+      } finally {
+        span.end();
       }
-
-      const content = await this.contentFetcher.fetch(input.sourceUri);
-
-      const parsed = await this.parser.parse(content, {
-        type: input.sourceType,
-        uri: input.sourceUri,
-        mimeType: input.mimeType,
-      });
-
-      const existingDoc = await uow.documentRepository.findBySourceId(source.id, input.tenantId);
-      let document: Document;
-      let versionNumber = 1;
-      const newChecksum = this.computeChecksum(parsed.content);
-      const newContentHash = this.hashContent(parsed.content);
-
-      if (existingDoc.ok && existingDoc.value) {
-        document = existingDoc.value;
-        const latestVersion = await uow.documentVersionRepository.findLatest(
-          document.id,
-          input.tenantId,
-        );
-        if (latestVersion.ok && latestVersion.value) {
-          // Idempotency: if content hasn't changed, return existing version
-          if (latestVersion.value.checksum === newChecksum) {
-            return {
-              documentId: document.id,
-              versionId: latestVersion.value.id,
-              versionNumber: latestVersion.value.versionNumber,
-              status: "unchanged" as const,
-              chunksCreated: 0,
-              qualityReport: {
-                documentId: document.id,
-                versionId: latestVersion.value.id,
-                sourceUri: input.sourceUri,
-                qualityMetrics: {
-                  totalChunks: 0,
-                  avgChunkSize: 0,
-                  minChunkSize: 0,
-                  maxChunkSize: 0,
-                  emptyChunks: 0,
-                  duplicateChunks: 0,
-                  parsingErrors: 0,
-                },
-                ingestedAt: new Date().toISOString(),
-                ingestedBy: input.userId ?? "system",
-              },
-            };
-          }
-          versionNumber = latestVersion.value.versionNumber + 1;
-        }
-      } else {
-        const docResult = await uow.documentRepository.create(
-          {
-            sourceId: source.id,
-            ...(parsed.title !== undefined ? { title: parsed.title } : {}),
-            ...(input.metadata !== undefined ? { metadata: input.metadata } : {}),
-          },
-          input.tenantId,
-        );
-        if (!docResult.ok) {
-          throw new Error(`Failed to create document: ${docResult.error.message}`);
-        }
-        document = docResult.value;
-      }
-
-      const versionId = crypto.randomUUID();
-
-      const versionResult = await uow.documentVersionRepository.create(document.id, {
-        id: versionId,
-        tenantId: input.tenantId,
-        versionNumber,
-        contentHash: newContentHash,
-        checksum: newChecksum,
-        sizeBytes: Buffer.byteLength(parsed.content, "utf-8"),
-        parsedDocument: {
-          sourceId: source.id,
-          versionId,
-          ...(parsed.title !== undefined ? { title: parsed.title } : {}),
-          content: parsed.content,
-          metadata: parsed.metadata,
-          extractedAt: new Date().toISOString(),
-        },
-        isActive: true,
-        ...(input.userId !== undefined ? { createdBy: input.userId } : {}),
-      });
-
-      if (!versionResult.ok) {
-        throw new Error(`Failed to create document version: ${versionResult.error.message}`);
-      }
-
-      const version = versionResult.value;
-
-      const chunks = await this.createChunks(parsed, version.id, {
-        maxChunkSize: input.maxChunkSize ?? 1000,
-        overlapSize: input.chunkOverlap ?? 200,
-        strategy: input.chunkingStrategy ?? "heading",
-      });
-
-      if (chunks.length > 0) {
-        const chunkResult = await uow.chunkRepository.createMany(chunks, input.tenantId);
-        if (!chunkResult.ok) {
-          throw new Error(`Failed to create chunks: ${chunkResult.error.message}`);
-        }
-      }
-
-      const qualityReport = this.generateQualityReport(
-        document.id,
-        version.id,
-        input.sourceUri,
-        chunks,
-      );
-
-      return {
-        documentId: document.id,
-        versionId: version.id,
-        versionNumber: version.versionNumber,
-        status: "created" as const,
-        chunksCreated: chunks.length,
-        qualityReport,
-      };
     });
   }
 
-  private async createChunks(
-    parsed: ParsedContent,
-    documentVersionId: string,
-    options: ChunkingOptions,
-  ): Promise<Chunk[]> {
-    const chunkableContent: ChunkableContent = {
-      content: parsed.content,
-      ...(parsed.title !== undefined ? { title: parsed.title } : {}),
-      sections: parsed.sections.map((s) => ({
-        type: s.type as "heading" | "paragraph" | "code" | "table" | "list" | "other",
-        content: s.content,
-        ...(s.level !== undefined ? { level: s.level } : {}),
-        locators: s.locators,
-      })),
-    };
+  private async runParser(input: IngestionWorkflowInput, source: Source): Promise<ParsedContent> {
+    return await this.tracer.startActiveSpan("ingestion.parse", async (span) => {
+      try {
+        span.setAttribute("source.id", source.id);
+        span.setAttribute("mimeType", input.mimeType ?? source.mimeType ?? "unknown");
 
-    const chunks = await this.chunker.chunk(chunkableContent, options);
+        const content = await this.contentFetcher.fetch(input.sourceUri);
+        span.setAttribute("content.size_bytes", content.byteLength);
 
-    for (const chunk of chunks) {
-      chunk.documentVersionId = documentVersionId;
-    }
+        const parsed = await this.parser.parse(content, {
+          type: input.sourceType,
+          uri: input.sourceUri,
+          mimeType: input.mimeType,
+        });
 
-    return chunks;
+        span.setAttribute("parse.sections", parsed.sections.length);
+        span.setAttribute("parse.content_length", parsed.content.length);
+        return parsed;
+      } finally {
+        span.end();
+      }
+    });
   }
 
-  private hashContent(content: string): string {
-    return computeContentHash(content);
+  private async upsertDocumentAndVersion(
+    uow: Parameters<Parameters<UnitOfWorkFactory["transaction"]>[0]>[0],
+    input: IngestionWorkflowInput,
+    source: Source,
+    parsed: ParsedContent,
+  ): Promise<{
+    document: Document;
+    version: import("../../application/ingestion/ports").DocumentVersion;
+    versionNumber: number;
+  }> {
+    return await this.tracer.startActiveSpan("ingestion.upsertDocument", async (span) => {
+      try {
+        span.setAttribute("source.id", source.id);
+        span.setAttribute("principal.id", input.principalId);
+
+        const existingDoc = await uow.documentRepository.findBySourceId(source.id, input.tenantId);
+        let document: Document;
+        let versionNumber = 1;
+        const newChecksum = this.computeChecksum(parsed.content);
+        const newContentHash = computeContentHash(parsed.content);
+
+        if (existingDoc.ok && existingDoc.value) {
+          document = existingDoc.value;
+          const latestVersion = await uow.documentVersionRepository.findLatest(
+            document.id,
+            input.tenantId,
+          );
+          if (latestVersion.ok && latestVersion.value) {
+            if (latestVersion.value.checksum === newChecksum) {
+              span.setAttribute("document.action", "unchanged");
+              span.setStatus("OK");
+              return {
+                document,
+                version: latestVersion.value,
+                versionNumber: latestVersion.value.versionNumber,
+              };
+            }
+            versionNumber = latestVersion.value.versionNumber + 1;
+            span.setAttribute("document.action", "new_version");
+            span.setAttribute("document.version_number", versionNumber);
+          }
+        } else {
+          span.setAttribute("document.action", "create");
+          const docResult = await uow.documentRepository.create(
+            {
+              sourceId: source.id,
+              principalId: input.principalId,
+              ...(parsed.title !== undefined ? { title: parsed.title } : {}),
+              ...(input.metadata !== undefined ? { metadata: input.metadata } : {}),
+            },
+            input.tenantId,
+            input.principalId,
+          );
+          if (!docResult.ok) {
+            throw new Error(`Failed to create document: ${docResult.error.message}`);
+          }
+          document = docResult.value;
+        }
+
+        const versionId = crypto.randomUUID();
+
+        const versionResult = await uow.documentVersionRepository.create(document.id, {
+          id: versionId,
+          tenantId: input.tenantId,
+          principalId: input.principalId,
+          versionNumber,
+          contentHash: newContentHash,
+          checksum: newChecksum,
+          sizeBytes: Buffer.byteLength(parsed.content, "utf-8"),
+          parsedDocument: {
+            sourceId: source.id,
+            versionId,
+            ...(parsed.title !== undefined ? { title: parsed.title } : {}),
+            content: parsed.content,
+            metadata: parsed.metadata,
+            extractedAt: new Date().toISOString(),
+          },
+          isActive: true,
+          ...(input.userId !== undefined ? { createdBy: input.userId } : {}),
+        });
+
+        if (!versionResult.ok) {
+          throw new Error(`Failed to create document version: ${versionResult.error.message}`);
+        }
+
+        return { document, version: versionResult.value, versionNumber };
+      } finally {
+        span.end();
+      }
+    });
+  }
+
+  private async runChunker(
+    input: IngestionWorkflowInput,
+    documentVersionId: string,
+    parsed: ParsedContent,
+  ): Promise<ChunkFragment[]> {
+    return await this.tracer.startActiveSpan("ingestion.chunk", async (span) => {
+      try {
+        span.setAttribute("document_version.id", documentVersionId);
+        span.setAttribute("chunking.strategy", input.chunkingStrategy ?? "heading");
+
+        const chunkableContent: ChunkableContent = {
+          content: parsed.content,
+          ...(parsed.title !== undefined ? { title: parsed.title } : {}),
+          sections: parsed.sections.map((s) => ({
+            type: s.type as "heading" | "paragraph" | "code" | "table" | "list" | "other",
+            content: s.content,
+            ...(s.level !== undefined ? { level: s.level } : {}),
+            locators: s.locators,
+          })),
+        };
+
+        const options: ChunkingOptions = {
+          maxChunkSize: input.maxChunkSize ?? 1000,
+          overlapSize: input.chunkOverlap ?? 200,
+          strategy: input.chunkingStrategy ?? "heading",
+        };
+
+        const chunks = await this.chunker.chunk(chunkableContent, options);
+
+        span.setAttribute("chunk.count", chunks.length);
+        return chunks;
+      } finally {
+        span.end();
+      }
+    });
+  }
+
+  private async deactivateStaleVersions(
+    uow: Parameters<Parameters<UnitOfWorkFactory["transaction"]>[0]>[0],
+    documentId: string,
+    currentVersionId: string,
+    tenantId: string,
+  ): Promise<void> {
+    return await this.tracer.startActiveSpan("ingestion.deactivateStaleVersions", async (span) => {
+      try {
+        const versions = await uow.documentVersionRepository.listByDocument(documentId, tenantId);
+        if (!versions.ok || versions.value.length === 0) {
+          return;
+        }
+
+        const toDeactivate = versions.value.filter((v) => v.isActive && v.id !== currentVersionId);
+        span.setAttribute("deactivated.count", toDeactivate.length);
+
+        for (const version of toDeactivate) {
+          await uow.documentVersionRepository.deactivate(version.id, tenantId);
+        }
+      } finally {
+        span.end();
+      }
+    });
   }
 
   private computeChecksum(content: string): string {
-    return this.hashContent(content);
+    return computeContentHash(content);
   }
 
   private generateQualityReport(
     documentId: string,
     versionId: string,
     sourceUri: string,
-    chunks: Chunk[],
+    rawChunks: ChunkFragment[],
+    principalId: string,
   ): IngestionQualityReport {
-    const sizes = chunks.map((c) => c.content.length);
-    const uniqueHashes = new Set(chunks.map((c) => c.contentHash));
+    const sizes = rawChunks.map((c) => c.content.length);
+    const uniqueHashes = new Set(rawChunks.map((c) => c.contentHash));
 
     return {
       documentId,
       versionId,
       sourceUri,
       qualityMetrics: {
-        totalChunks: chunks.length,
+        totalChunks: rawChunks.length,
         avgChunkSize: sizes.length > 0 ? sizes.reduce((a, b) => a + b, 0) / sizes.length : 0,
         minChunkSize: sizes.length > 0 ? Math.min(...sizes) : 0,
         maxChunkSize: sizes.length > 0 ? Math.max(...sizes) : 0,
-        emptyChunks: chunks.filter((c) => c.content.trim().length === 0).length,
-        duplicateChunks: chunks.length - uniqueHashes.size,
+        emptyChunks: rawChunks.filter((c) => c.content.trim().length === 0).length,
+        duplicateChunks: rawChunks.length - uniqueHashes.size,
         parsingErrors: 0,
       },
       ingestedAt: new Date().toISOString(),
-      ingestedBy: "system",
+      ingestedBy: principalId,
     };
   }
 }

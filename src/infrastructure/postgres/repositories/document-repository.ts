@@ -13,17 +13,19 @@ export class PostgresDocumentRepository implements DocumentRepository {
   async create(
     document: CreateDocumentInput,
     tenantId: string,
+    principalId: string,
   ): Promise<{ ok: true; value: Document } | { ok: false; error: Error }> {
     try {
       const [result] = await this.db.drizzle
         .insert(documents)
         .values({
           tenantId,
+          principalId,
           sourceId: document.sourceId,
           title: document.title,
           metadata: document.metadata,
           isActive: true,
-        } as any)
+        })
         .returning();
       return { ok: true, value: result as unknown as Document };
     } catch (error) {

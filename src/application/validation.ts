@@ -23,6 +23,7 @@ function undefinedIfNull<T>(value: T | null | undefined): T | undefined {
 export const SourceSchema = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid(),
+  principalId: z.string().uuid(),
   type: z.enum(["file", "url", "git", "api"]),
   uri: z.string().url(),
   mimeType: z.string().optional(),
@@ -39,6 +40,7 @@ export function mapToSource(row: Record<string, unknown>): SourceInput {
   return {
     id: String(row.id),
     tenantId: String(row.tenantId),
+    principalId: String(row.principalId),
     type: row.type as "file" | "url" | "git" | "api",
     uri: String(row.uri),
     mimeType: undefinedIfNull(row.mimeType as string | null | undefined),
@@ -53,6 +55,7 @@ export function mapToSource(row: Record<string, unknown>): SourceInput {
 export const DocumentSchema = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid(),
+  principalId: z.string().uuid(),
   sourceId: z.string().uuid(),
   title: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
@@ -65,6 +68,7 @@ export const DocumentVersionSchema = z.object({
   id: z.string().uuid(),
   documentId: z.string().uuid(),
   tenantId: z.string().uuid(),
+  principalId: z.string().uuid(),
   versionNumber: z.number().int().positive(),
   contentHash: z.string(),
   checksum: z.string(),
@@ -80,6 +84,7 @@ export function mapToDocumentVersion(row: Record<string, unknown>): DocumentVers
     id: String(row.id),
     documentId: String(row.documentId),
     tenantId: String(row.tenantId),
+    principalId: String(row.principalId),
     versionNumber: Number(row.versionNumber),
     contentHash: String(row.contentHash),
     checksum: String(row.checksum),
@@ -103,7 +108,7 @@ export function mapToDocumentVersion(row: Record<string, unknown>): DocumentVers
 export const ChunkSchema = z.object({
   id: z.string().uuid(),
   documentVersionId: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  principalId: z.string().uuid(),
   sequenceNumber: z.number().int().nonnegative(),
   content: z.string(),
   contentHash: z.string(),
@@ -121,6 +126,7 @@ export function mapToChunk(row: Record<string, unknown>) {
   const result = {
     id: String(row.id),
     documentVersionId: String(row.documentVersionId),
+    principalId: String(row.principalId),
     tenantId: String(row.tenantId),
     sequenceNumber: Number(row.sequenceNumber),
     content: String(row.content),

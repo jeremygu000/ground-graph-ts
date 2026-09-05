@@ -17,6 +17,7 @@ export class PostgresChunkRepository implements ChunkRepository {
         .insert(chunks)
         .values({
           documentVersionId: chunk.documentVersionId,
+          principalId: chunk.principalId,
           tenantId,
           sequenceNumber: chunk.sequenceNumber,
           content: chunk.content,
@@ -41,6 +42,7 @@ export class PostgresChunkRepository implements ChunkRepository {
         .values(
           chunksToCreate.map((c) => ({
             documentVersionId: c.documentVersionId,
+            principalId: c.principalId,
             tenantId,
             sequenceNumber: c.sequenceNumber,
             content: c.content,

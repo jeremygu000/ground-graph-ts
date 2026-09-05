@@ -14,6 +14,7 @@ export function createUTCDateString(date: Date = new Date()): string {
 }
 
 export type TenantId = string & { readonly __brand: unique symbol };
+export type PrincipalId = string & { readonly __brand: unique symbol };
 export type UserId = string & { readonly __brand: unique symbol };
 export type SourceId = string & { readonly __brand: unique symbol };
 export type DocumentId = string & { readonly __brand: unique symbol };
@@ -32,6 +33,13 @@ export function createTenantId(value: string): TenantId {
     throw new Error("TenantId cannot be empty");
   }
   return value as TenantId;
+}
+
+export function createPrincipalId(value: string): PrincipalId {
+  if (!value || value.length === 0) {
+    throw new Error("PrincipalId cannot be empty");
+  }
+  return value as PrincipalId;
 }
 
 export function createUserId(value: string): UserId {

@@ -1,7 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { mkdtemp } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { assertContainerRuntime, startRawComponentDatabase } from "./test-support";
 
@@ -10,7 +7,7 @@ await assertContainerRuntime();
 async function runCommand(command: string, args: string[], env: NodeJS.ProcessEnv): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const child = spawn(command, args, {
-      env,
+      env: { ...env, PATH: process.env.PATH },
       stdio: "inherit",
     });
 
@@ -54,11 +51,9 @@ async function appliedMigrationCount(
 
 describe("Database migrations", () => {
   let ctx: Awaited<ReturnType<typeof startRawComponentDatabase>>;
-  let tempDir: string;
 
   beforeAll(async () => {
     ctx = await startRawComponentDatabase();
-    tempDir = await mkdtemp(join(tmpdir(), "ground-graph-migrate-"));
   }, 120_000);
 
   afterAll(async () => {
@@ -69,7 +64,6 @@ describe("Database migrations", () => {
     await runCommand("pnpm", ["db:migrate"], {
       ...process.env,
       DATABASE_URL: ctx.connectionString,
-      HOME: tempDir,
     });
 
     expect(await relationExists(ctx, "__drizzle_migrations", "drizzle")).toBe(true);
@@ -80,7 +74,6 @@ describe("Database migrations", () => {
     await runCommand("pnpm", ["db:migrate"], {
       ...process.env,
       DATABASE_URL: ctx.connectionString,
-      HOME: tempDir,
     });
 
     expect(await relationExists(ctx, "__drizzle_migrations", "drizzle")).toBe(true);

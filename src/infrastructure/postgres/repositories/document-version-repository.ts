@@ -19,6 +19,7 @@ export class PostgresDocumentVersionRepository implements DocumentVersionReposit
       const insertData: typeof documentVersions.$inferInsert = {
         documentId,
         tenantId: version.tenantId,
+        principalId: version.principalId,
         versionNumber: version.versionNumber,
         contentHash: version.contentHash,
         checksum: version.checksum,

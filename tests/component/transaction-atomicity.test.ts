@@ -9,6 +9,7 @@ describe("TransactionalUnitOfWork", () => {
   let ctx: Awaited<ReturnType<typeof startComponentDatabase>>;
   let uowFactory: DefaultUnitOfWorkFactory;
   const tenantId = crypto.randomUUID();
+  const principalId = crypto.randomUUID();
 
   beforeAll(async () => {
     ctx = await startComponentDatabase();
@@ -30,7 +31,11 @@ describe("TransactionalUnitOfWork", () => {
 
     await expect(
       uowFactory.transaction(async (uow) => {
-        const sourceResult = await uow.sourceRepository.create({ type: "url", uri }, tenantId);
+        const sourceResult = await uow.sourceRepository.create(
+          { type: "url", uri },
+          tenantId,
+          principalId,
+        );
         expect(sourceResult.ok, sourceResult.ok ? undefined : sourceResult.error.message).toBe(
           true,
         );
@@ -69,7 +74,11 @@ describe("TransactionalUnitOfWork", () => {
     const uri = `https://example.com/${crypto.randomUUID()}`;
 
     const result = await uowFactory.transaction(async (uow) => {
-      const sourceResult = await uow.sourceRepository.create({ type: "url", uri }, tenantId);
+      const sourceResult = await uow.sourceRepository.create(
+        { type: "url", uri },
+        tenantId,
+        principalId,
+      );
       expect(sourceResult.ok, sourceResult.ok ? undefined : sourceResult.error.message).toBe(true);
       if (!sourceResult.ok) throw sourceResult.error;
 

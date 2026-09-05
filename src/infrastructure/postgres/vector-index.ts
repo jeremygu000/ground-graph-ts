@@ -34,27 +34,29 @@ export class PostgresVectorIndexAdapter implements VectorIndexPort {
       "vector.createIndexVersion",
       async () => {
         try {
-          await this.db.drizzle
-            .update(indexVersions)
-            .set({ isActive: false })
-            .where(
-              and(
-                eq(indexVersions.tenantId, info.tenantId),
-                eq(indexVersions.indexType, "vector"),
-                eq(indexVersions.isActive, true),
-              ),
-            );
-          const [row] = await this.db.drizzle
-            .insert(indexVersions)
-            .values({
-              tenantId: info.tenantId,
-              indexType: "vector",
-              versionNumber: info.versionNumber,
-              embeddingModel: info.embeddingModel,
-              embeddingDimension: info.embeddingDimension,
-              isActive: info.isActive,
-            })
-            .returning();
+          const [row] = await this.db.drizzle.transaction(async (tx) => {
+            await tx
+              .update(indexVersions)
+              .set({ isActive: false })
+              .where(
+                and(
+                  eq(indexVersions.tenantId, info.tenantId),
+                  eq(indexVersions.indexType, "vector"),
+                  eq(indexVersions.isActive, true),
+                ),
+              );
+            return tx
+              .insert(indexVersions)
+              .values({
+                tenantId: info.tenantId,
+                indexType: "vector",
+                versionNumber: info.versionNumber,
+                embeddingModel: info.embeddingModel,
+                embeddingDimension: info.embeddingDimension,
+                isActive: info.isActive,
+              })
+              .returning();
+          });
           if (!row) {
             return failure(new DatabaseError("Index version row not returned after insert"));
           }
@@ -140,6 +142,7 @@ export class PostgresVectorIndexAdapter implements VectorIndexPort {
             chunkId: chunk.id,
             indexVersionId,
             tenantId,
+            principalId: chunk.principalId,
             embedding: embeddings[i] ?? [],
           }));
           const result = await this.db.drizzle
@@ -199,6 +202,9 @@ export class PostgresVectorIndexAdapter implements VectorIndexPort {
           }
           if (options.filter?.chunkIds && options.filter.chunkIds.length > 0) {
             conditions.push(inArray(chunks.id, options.filter.chunkIds));
+          }
+          if (options.filter?.principalId && options.filter.principalId.length > 0) {
+            conditions.push(inArray(chunks.principalId, options.filter.principalId));
           }
           const distance = sql<number>`${chunkEmbeddings.embedding} <=> ${toPgVectorLiteral(queryEmbedding)}::vector`;
           const score = sql<number>`1 - ${distance}`;

@@ -80,6 +80,7 @@ export interface RerankPort {
 }
 
 export interface GenerationConfig {
+  provider?: GeneratorProvider;
   model: string;
   temperature?: number;
   maxTokens?: number;
@@ -217,6 +218,7 @@ export interface VectorSearchOptions {
   filter?: {
     documentIds?: string[];
     chunkIds?: string[];
+    principalId?: string[];
   };
   includeEmbeddings?: boolean;
 }
@@ -251,6 +253,7 @@ export interface FullTextSearchOptions {
   filter?: {
     documentIds?: string[];
     chunkIds?: string[];
+    principalId?: string[];
   };
   language?: string;
   useWebSearch?: boolean;
@@ -305,6 +308,7 @@ export interface RetrievalExecutionResult {
   strategy: RetrievalStrategy;
   results: RetrievalResult[];
   citations: CitationOutput[];
+  generatedAnswer?: StructuredAnswer;
   fusionTrace: FusionTrace[];
   timing: {
     embeddingMs: number;
@@ -324,6 +328,7 @@ export interface VectorPipelineConfig {
   maxCandidates: number;
   enableFullText: boolean;
   enableRerank: boolean;
+  enableGeneration: boolean;
   fusionWeights: Partial<Record<RetrievalStrategy, number>>;
   refusalMinCitations: number;
   refusalMinConfidence: number;

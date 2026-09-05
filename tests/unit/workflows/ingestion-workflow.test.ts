@@ -4,7 +4,28 @@ import type { Chunker } from "../../../src/application/ingestion/chunker-port";
 import type { ContentFetcher } from "../../../src/application/ingestion/content-fetcher-port";
 import type { DocumentParser, ParsedContent } from "../../../src/application/ingestion/parser-port";
 import type { UnitOfWorkFactory } from "../../../src/application/unit-of-work";
+import type { TracerPort } from "../../../src/application/observability/tracer-port";
 import { IngestionWorkflow } from "../../../src/workflows/ingestion/ingestion-workflow";
+
+function createMockTracer(): TracerPort {
+  return {
+    startActiveSpan: async <T>(_name: string, fn: (span: any) => Promise<T>) => {
+      const span = {
+        setAttribute: vi.fn(),
+        setStatus: vi.fn(),
+        end: vi.fn(),
+        recordException: vi.fn(),
+      };
+      return fn(span);
+    },
+    startSpan: (_name: string) => ({
+      setAttribute: vi.fn(),
+      setStatus: vi.fn(),
+      end: vi.fn(),
+      recordException: vi.fn(),
+    }),
+  };
+}
 
 type UnitOfWorkOverrides = {
   sourceRepository?: Record<string, unknown>;
@@ -35,7 +56,7 @@ function createUnitOfWork(overrides: UnitOfWorkOverrides = {}): any {
     create: vi.fn(),
     findById: vi.fn(),
     findLatest: vi.fn(),
-    listByDocument: vi.fn(),
+    listByDocument: vi.fn().mockResolvedValue({ ok: true, value: [] }),
     deactivate: vi.fn(),
     ...overrides.documentVersionRepository,
   };
@@ -160,12 +181,19 @@ describe("IngestionWorkflow", () => {
       fetch: vi.fn().mockResolvedValue(Buffer.from("# Doc\n\nHello", "utf8")),
     };
 
-    const workflow = new IngestionWorkflow(uowFactory, parser, chunker, fetcher);
+    const workflow = new IngestionWorkflow(
+      uowFactory,
+      parser,
+      chunker,
+      fetcher,
+      createMockTracer(),
+    );
     const result = await workflow.execute({
       sourceUri: "https://example.com/doc.md",
       sourceType: "url",
       mimeType: "text/markdown",
       tenantId: "22222222-2222-4222-8222-222222222222",
+      principalId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
       userId: "66666666-6666-4666-8666-666666666666",
       chunkingStrategy: "heading",
       maxChunkSize: 100,
@@ -200,6 +228,7 @@ describe("IngestionWorkflow", () => {
           value: {
             id: "33333333-3333-4333-8333-333333333333",
             tenantId: "22222222-2222-4222-8222-222222222222",
+            principalId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
             sourceId: "11111111-1111-4111-8111-111111111111",
             isActive: true,
             createdAt: "2024-01-15T10:30:00.000Z",
@@ -214,7 +243,8 @@ describe("IngestionWorkflow", () => {
             id: "44444444-4444-4444-8444-444444444444",
             documentId: "33333333-3333-4333-8333-333333333333",
             tenantId: "22222222-2222-4222-8222-222222222222",
-            versionNumber: 1,
+            principalId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+            versionNumber: 2,
             contentHash: "hash",
             checksum: createHash("sha256").update("# Doc\n\nHello", "utf8").digest("hex"),
             sizeBytes: 12,
@@ -238,18 +268,25 @@ describe("IngestionWorkflow", () => {
       } satisfies ParsedContent),
     };
     const chunker: Chunker = {
-      chunk: vi.fn(),
+      chunk: vi.fn().mockResolvedValue([]),
     };
     const fetcher: ContentFetcher = {
       fetch: vi.fn().mockResolvedValue(Buffer.from("# Doc\n\nHello", "utf8")),
     };
 
-    const workflow = new IngestionWorkflow(uowFactory, parser, chunker, fetcher);
+    const workflow = new IngestionWorkflow(
+      uowFactory,
+      parser,
+      chunker,
+      fetcher,
+      createMockTracer(),
+    );
     const result = await workflow.execute({
       sourceUri: "https://example.com/doc.md",
       sourceType: "url",
       mimeType: "text/markdown",
       tenantId: "22222222-2222-4222-8222-222222222222",
+      principalId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     });
 
     expect(result.status).toBe("unchanged");

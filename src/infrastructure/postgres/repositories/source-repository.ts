@@ -13,6 +13,7 @@ export class PostgresSourceRepository implements SourceRepository {
   async create(
     descriptor: SourceDescriptor,
     tenantId: string,
+    principalId: string,
   ): Promise<{ ok: true; value: Source } | { ok: false; error: Error }> {
     try {
       const [result] = await this.db.drizzle
@@ -20,6 +21,7 @@ export class PostgresSourceRepository implements SourceRepository {
         .values({
           id: crypto.randomUUID(),
           tenantId,
+          principalId,
           type: descriptor.type,
           uri: descriptor.uri,
           mimeType: descriptor.mimeType,

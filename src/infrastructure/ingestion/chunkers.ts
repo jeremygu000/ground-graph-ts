@@ -2,13 +2,13 @@ import type {
   Chunker,
   ChunkableContent,
   ChunkingOptions,
+  ChunkFragment,
   ContentSection,
 } from "../../application/ingestion/chunker-port";
-import type { Chunk } from "../../domain/documents/types";
 
 export class HeadingChunker implements Chunker {
-  async chunk(content: ChunkableContent, options: ChunkingOptions): Promise<Chunk[]> {
-    const chunks: Chunk[] = [];
+  async chunk(content: ChunkableContent, options: ChunkingOptions): Promise<ChunkFragment[]> {
+    const chunks: ChunkFragment[] = [];
     let sequenceNumber = 0;
     let currentContent = "";
     let currentLocators: ContentSection["locators"] = [];
@@ -60,10 +60,8 @@ export class HeadingChunker implements Chunker {
     content: string,
     sequenceNumber: number,
     locators: ContentSection["locators"],
-  ): Chunk {
+  ): ChunkFragment {
     return {
-      id: crypto.randomUUID(),
-      documentVersionId: "",
       sequenceNumber,
       content,
       contentHash: this.hashContent(content),
@@ -84,8 +82,8 @@ export class HeadingChunker implements Chunker {
 }
 
 export class RecursiveChunker implements Chunker {
-  async chunk(content: ChunkableContent, options: ChunkingOptions): Promise<Chunk[]> {
-    const chunks: Chunk[] = [];
+  async chunk(content: ChunkableContent, options: ChunkingOptions): Promise<ChunkFragment[]> {
+    const chunks: ChunkFragment[] = [];
     const text = content.content;
     let start = 0;
     let sequenceNumber = 0;
@@ -108,8 +106,6 @@ export class RecursiveChunker implements Chunker {
       const chunkContent = text.substring(start, end).trim();
       if (chunkContent) {
         chunks.push({
-          id: crypto.randomUUID(),
-          documentVersionId: "",
           sequenceNumber: sequenceNumber++,
           content: chunkContent,
           contentHash: this.hashContent(chunkContent),
@@ -171,7 +167,7 @@ export class RecursiveChunker implements Chunker {
 export class CompositeChunker implements Chunker {
   constructor(private chunkers: Chunker[]) {}
 
-  async chunk(content: ChunkableContent, options: ChunkingOptions): Promise<Chunk[]> {
+  async chunk(content: ChunkableContent, options: ChunkingOptions): Promise<ChunkFragment[]> {
     for (const chunker of this.chunkers) {
       if (chunker instanceof HeadingChunker && options.strategy === "heading") {
         return chunker.chunk(content, options);

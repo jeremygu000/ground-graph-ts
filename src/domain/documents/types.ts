@@ -23,6 +23,7 @@ export type ParsedDocument = z.infer<typeof ParsedDocumentSchema>;
 export const ChunkSchema = z.object({
   id: z.string().uuid(),
   documentVersionId: z.string().uuid(),
+  principalId: z.string().uuid(),
   sequenceNumber: z.number().int().nonnegative(),
   content: z.string(),
   contentHash: z.string(),

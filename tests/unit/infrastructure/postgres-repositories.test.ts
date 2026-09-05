@@ -47,6 +47,7 @@ function createDbMock(queues: QueueMap = {}) {
 const sourceRow = {
   id: "11111111-1111-4111-8111-111111111111",
   tenantId: "22222222-2222-4222-8222-222222222222",
+  principalId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
   type: "url",
   uri: "https://example.com/doc.md",
   mimeType: "text/markdown",
@@ -60,6 +61,7 @@ const sourceRow = {
 const documentRow = {
   id: "33333333-3333-4333-8333-333333333333",
   tenantId: "22222222-2222-4222-8222-222222222222",
+  principalId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
   sourceId: sourceRow.id,
   title: "Doc",
   metadata: { kind: "guide" },
@@ -72,6 +74,7 @@ const versionRow = {
   id: "44444444-4444-4444-8444-444444444444",
   documentId: documentRow.id,
   tenantId: documentRow.tenantId,
+  principalId: documentRow.principalId,
   versionNumber: 1,
   contentHash: "hash",
   checksum: "checksum",
@@ -86,6 +89,7 @@ const chunkRow = {
   id: "55555555-5555-4555-8555-555555555555",
   documentVersionId: versionRow.id,
   tenantId: versionRow.tenantId,
+  principalId: versionRow.principalId,
   sequenceNumber: 0,
   content: "Hello",
   contentHash: "hash",
@@ -146,6 +150,7 @@ describe("postgres repositories", () => {
           metadata: sourceRow.metadata,
         },
         sourceRow.tenantId,
+        sourceRow.principalId,
       ),
     ).resolves.toMatchObject({ ok: true });
     await expect(repo.findById(sourceRow.id, sourceRow.tenantId)).resolves.toMatchObject({
@@ -174,8 +179,14 @@ describe("postgres repositories", () => {
 
     await expect(
       repo.create(
-        { sourceId: sourceRow.id, title: documentRow.title, metadata: documentRow.metadata },
+        {
+          sourceId: sourceRow.id,
+          principalId: documentRow.principalId,
+          title: documentRow.title,
+          metadata: documentRow.metadata,
+        },
         documentRow.tenantId,
+        documentRow.principalId,
       ),
     ).resolves.toMatchObject({ ok: true });
     await expect(repo.findById(documentRow.id, documentRow.tenantId)).resolves.toMatchObject({
@@ -203,6 +214,7 @@ describe("postgres repositories", () => {
       versionRepo.create(documentRow.id, {
         id: versionRow.id,
         tenantId: versionRow.tenantId,
+        principalId: versionRow.principalId,
         versionNumber: versionRow.versionNumber,
         contentHash: versionRow.contentHash,
         checksum: versionRow.checksum,
@@ -318,7 +330,11 @@ describe("postgres repositories", () => {
       },
     } as never);
     await expect(
-      sourceRepo.create({ type: "url", uri: sourceRow.uri }, sourceRow.tenantId),
+      sourceRepo.create(
+        { type: "url", uri: sourceRow.uri },
+        sourceRow.tenantId,
+        sourceRow.principalId,
+      ),
     ).resolves.toMatchObject({ ok: false });
     await expect(sourceRepo.findById(sourceRow.id, sourceRow.tenantId)).resolves.toMatchObject({
       ok: true,
@@ -356,6 +372,7 @@ describe("postgres repositories", () => {
       versionRepo.create(documentRow.id, {
         id: versionRow.id,
         tenantId: versionRow.tenantId,
+        principalId: versionRow.principalId,
         versionNumber: versionRow.versionNumber,
         contentHash: versionRow.contentHash,
         checksum: versionRow.checksum,
@@ -497,6 +514,7 @@ describe("postgres repositories", () => {
           uri: sourceRow.uri,
         },
         sourceRow.tenantId,
+        sourceRow.principalId,
       ),
     ).resolves.toMatchObject({ ok: false });
 
@@ -511,8 +529,10 @@ describe("postgres repositories", () => {
       documentRepo.create(
         {
           sourceId: sourceRow.id,
+          principalId: documentRow.principalId,
         },
         documentRow.tenantId,
+        documentRow.principalId,
       ),
     ).resolves.toMatchObject({ ok: false });
 
@@ -527,6 +547,7 @@ describe("postgres repositories", () => {
       versionRepo.create(documentRow.id, {
         id: versionRow.id,
         tenantId: versionRow.tenantId,
+        principalId: versionRow.principalId,
         versionNumber: versionRow.versionNumber,
         contentHash: versionRow.contentHash,
         checksum: versionRow.checksum,

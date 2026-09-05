@@ -77,13 +77,14 @@ export class DefaultVectorQueryService implements VectorQueryService {
         const embeddingMs = elapsed(startedAt, this.deps.clock);
 
         const resultsByStrategy = new Map<RetrievalStrategy, RetrievalResult[]>();
-        const filter = query.filters?.documentIds
-          ? { documentIds: query.filters.documentIds }
-          : undefined;
+        const filter = {
+          ...(query.filters?.documentIds ? { documentIds: query.filters.documentIds } : {}),
+          ...(query.principalId ? { principalId: [query.principalId] } : {}),
+        };
         const vectorResult = await this.deps.vector.search(queryEmbedding, query.tenantId, {
           indexVersionId: indexVersion.indexVersionId,
           limit: query.maxResults,
-          ...(filter !== undefined ? { filter } : {}),
+          ...(Object.keys(filter).length > 0 ? { filter } : {}),
         });
         if (!vectorResult.ok) return vectorResult;
         resultsByStrategy.set("vector", toRetrievalResults(vectorResult.value, "vector"));
@@ -93,7 +94,7 @@ export class DefaultVectorQueryService implements VectorQueryService {
         if (this.deps.fulltext && this.deps.config.enableFullText) {
           const ftResult = await this.deps.fulltext.search(query.question, query.tenantId, {
             limit: query.maxResults,
-            ...(filter !== undefined ? { filter } : {}),
+            ...(Object.keys(filter).length > 0 ? { filter } : {}),
           });
           if (!ftResult.ok) return ftResult;
           resultsByStrategy.set("fulltext", toRetrievalResults(ftResult.value, "fulltext"));
@@ -132,6 +133,29 @@ export class DefaultVectorQueryService implements VectorQueryService {
           weights: this.deps.config.fusionWeights,
         });
 
+        let generatedAnswer;
+        if (this.deps.config.enableGeneration) {
+          const genRequest = this.buildGenerationRequest(query, {
+            queryId: this.deps.idGen(),
+            strategy: query.strategy,
+            results: candidates,
+            citations,
+            fusionTrace,
+            timing: {
+              embeddingMs,
+              vectorSearchMs,
+              fullTextSearchMs,
+              fusionMs,
+              rerankMs,
+              totalMs: 0,
+            },
+            indexVersion,
+          });
+          const genResult = await this.deps.generator.generateStructured(genRequest);
+          if (!genResult.ok) return failure(genResult.error);
+          generatedAnswer = genResult.value.structured;
+        }
+
         const totalMs = elapsed(startedAt, this.deps.clock);
         recordMetric("vector.query.totalMs", totalMs);
         recordMetric("vector.query.candidates", candidates.length);
@@ -141,6 +165,7 @@ export class DefaultVectorQueryService implements VectorQueryService {
           strategy: query.strategy,
           results: candidates,
           citations,
+          ...(generatedAnswer ? { generatedAnswer } : {}),
           fusionTrace,
           timing: {
             embeddingMs,

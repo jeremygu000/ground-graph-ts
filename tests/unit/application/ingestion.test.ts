@@ -9,6 +9,8 @@ describe("application ingestion types", () => {
     const request = IngestDocumentRequestSchema.parse({
       sourceUri: "https://example.com/doc",
       sourceType: "url",
+      tenantId: crypto.randomUUID(),
+      principalId: crypto.randomUUID(),
       metadata: { nested: { ok: true } },
     });
 

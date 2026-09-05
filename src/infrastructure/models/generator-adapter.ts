@@ -7,6 +7,7 @@ import type {
   GenerationResult,
   GeneratorPort,
   StructuredAnswer,
+  GeneratorProvider,
 } from "../../application/models/ports";
 import { success, type Result } from "../../domain/result";
 import { InternalError, NetworkError, ValidationError } from "../../domain/errors";
@@ -17,6 +18,7 @@ const DEFAULT_MAX_RETRIES = 2;
 const DEFAULT_TIMEOUT_MS = 60_000;
 
 export interface OpenAIGeneratorConfig {
+  provider?: GeneratorProvider;
   model: string;
   apiKey?: string;
   baseUrl?: string;
@@ -42,6 +44,17 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
 
   getModel(): string {
     return this.config.model;
+  }
+
+  private resolveModel() {
+    const provider = this.config.provider ?? "openai";
+    if (provider !== "openai") {
+      throw new ValidationError(
+        `Provider "${provider}" is not supported by OpenAIGeneratorAdapter. Only "openai" is supported.`,
+        { provider },
+      );
+    }
+    return openai(this.config.model);
   }
 
   async generateStructured(request: GenerationRequest): Promise<Result<GenerationResult>> {
@@ -87,7 +100,7 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
       const timer = setTimeout(() => controller.abort(), this.resolvedTimeoutMs);
       try {
         const result = await generateObject({
-          model: openai(this.config.model),
+          model: this.resolveModel(),
           system: prompt.system,
           prompt: prompt.user,
           schema,
@@ -95,7 +108,13 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
           maxOutputTokens: this.config.defaultGeneration?.maxTokens ?? 1024,
         });
         clearTimeout(timer);
-        const parsed = parser.parse(result.object);
+        const rawText = JSON.stringify(result.object);
+        let repairAttempted = false;
+        let parsed = parser.parse(result.object);
+        if (!parsed.ok) {
+          repairAttempted = true;
+          parsed = parser.parseWithRepair(result.object, rawText);
+        }
         if (!parsed.ok) {
           lastError = parsed.error;
           continue;
@@ -112,7 +131,7 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
           completionTokens: usage.outputTokens ?? 0,
           totalTokens: usage.totalTokens ?? 0,
           finishReason: "stop",
-          repairAttempts: 0,
+          repairAttempts: repairAttempted ? 1 : 0,
         });
       } catch (err) {
         clearTimeout(timer);
@@ -153,7 +172,7 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
     const timer = setTimeout(() => controller.abort(), this.resolvedTimeoutMs);
     try {
       const result = await generateText({
-        model: openai(this.config.model),
+        model: this.resolveModel(),
         system: systemPrompt,
         prompt: userPrompt,
         temperature: overrides?.temperature ?? 0,

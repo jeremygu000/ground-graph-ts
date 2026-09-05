@@ -1,7 +1,9 @@
 import type { Chunk } from "../../domain/documents/types";
 
+export type ChunkFragment = Omit<Chunk, "id" | "documentVersionId" | "principalId">;
+
 export interface Chunker {
-  chunk(content: ChunkableContent, options: ChunkingOptions): Promise<Chunk[]>;
+  chunk(content: ChunkableContent, options: ChunkingOptions): Promise<ChunkFragment[]>;
 }
 
 export interface ChunkableContent {

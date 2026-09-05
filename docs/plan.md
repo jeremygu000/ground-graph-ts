@@ -51,7 +51,7 @@ Change `[ ]` to `[x]` only after all acceptance criteria pass.
 - [x] M0 — Repository and TypeScript engineering baseline
 - [x] M1 — Local infrastructure and telemetry foundation
 - [x] M2 — Domain contracts and persistence model
-- [ ] M3 — Document ingestion and versioning
+- [x] M3 — Document ingestion and versioning
 - [x] M4 — Vector RAG baseline
 - [ ] M5 — Knowledge graph construction
 - [ ] M6 — Hybrid GraphRAG retrieval

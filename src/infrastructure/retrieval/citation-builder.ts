@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type {
   CitationBuilderPort,
   CitationOutput,
@@ -36,7 +37,7 @@ export class CitationBuilder implements CitationBuilderPort {
       const locatorPath = locator?.path ?? "";
       const startChar = r.content.length > 0 ? 0 : 0;
       const endChar = r.content.length;
-      const citationId = `CIT-${i + 1}-${chunkId.slice(0, 8)}`;
+      const citationId = randomUUID();
       citations.push({
         citationId,
         evidenceId,

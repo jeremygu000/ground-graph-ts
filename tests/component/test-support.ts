@@ -26,12 +26,17 @@ let sharedContextRefs = 0;
 
 async function bootstrapSchema(db: Database): Promise<void> {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  const migrationPath = path.resolve(
-    currentDir,
-    "../../drizzle/migrations/0001_initial_schema.sql",
-  );
-  const migrationSql = await fs.readFile(migrationPath, "utf8");
-  await db.client.unsafe(migrationSql);
+  const migrationsDir = path.resolve(currentDir, "../../drizzle/migrations");
+  const migrationFiles = [
+    "0001_initial_schema.sql",
+    "0002_fulltext_and_vector_indexes.sql",
+    "0003_principal_id_columns.sql",
+  ];
+  for (const file of migrationFiles) {
+    const migrationPath = path.join(migrationsDir, file);
+    const migrationSql = await fs.readFile(migrationPath, "utf8");
+    await db.client.unsafe(migrationSql);
+  }
 }
 
 async function createComponentDb(bootstrap = true, managed = true): Promise<ComponentDb> {

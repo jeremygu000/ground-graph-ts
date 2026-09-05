@@ -2,7 +2,11 @@ import type { SourceDescriptor, ParsedDocument, Chunk } from "../../domain/docum
 import type { Result } from "../../domain/result";
 
 export interface SourceRepository {
-  create(descriptor: SourceDescriptor, tenantId: string): Promise<Result<Source>>;
+  create(
+    descriptor: SourceDescriptor,
+    tenantId: string,
+    principalId: string,
+  ): Promise<Result<Source>>;
   findById(id: string, tenantId: string): Promise<Result<Source | null>>;
   findByUri(uri: string, tenantId: string): Promise<Result<Source | null>>;
   update(id: string, tenantId: string, updates: Partial<Source>): Promise<Result<Source>>;
@@ -13,6 +17,7 @@ export interface SourceRepository {
 export interface Source {
   id: string;
   tenantId: string;
+  principalId: string;
   type: SourceDescriptor["type"];
   uri: string;
   mimeType?: string;
@@ -35,6 +40,7 @@ export interface DocumentVersion {
   id: string;
   documentId: string;
   tenantId: string;
+  principalId: string;
   versionNumber: number;
   contentHash: string;
   checksum: string;
@@ -46,7 +52,11 @@ export interface DocumentVersion {
 }
 
 export interface DocumentRepository {
-  create(document: CreateDocumentInput, tenantId: string): Promise<Result<Document>>;
+  create(
+    document: CreateDocumentInput,
+    tenantId: string,
+    principalId: string,
+  ): Promise<Result<Document>>;
   findById(id: string, tenantId: string): Promise<Result<Document | null>>;
   findBySourceId(sourceId: string, tenantId: string): Promise<Result<Document | null>>;
   update(id: string, tenantId: string, updates: Partial<Document>): Promise<Result<Document>>;
@@ -56,6 +66,7 @@ export interface DocumentRepository {
 export interface Document {
   id: string;
   tenantId: string;
+  principalId: string;
   sourceId: string;
   title?: string;
   metadata?: Record<string, unknown>;
@@ -97,13 +108,15 @@ export interface SourceSyncState {
 
 export interface CreateDocumentInput {
   sourceId: string;
+  principalId: string;
   title?: string;
   metadata?: Record<string, unknown>;
 }
 
 export interface CreateDocumentVersionInput {
-  id?: string; // Optional custom ID; if not provided, one will be generated
+  id?: string;
   tenantId: string;
+  principalId: string;
   versionNumber: number;
   contentHash: string;
   checksum: string;

@@ -42,6 +42,7 @@ import type {
 
 const EMBEDDING_DIM = 1536;
 const MODEL = "test-embed-v1";
+const PRINCIPAL_ID = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 function loadCorpus(): Array<{
   chunkId: string;
@@ -101,6 +102,7 @@ function buildChunks(corpus: ReturnType<typeof loadCorpus>): Chunk[] {
   return corpus.map((c, idx) => ({
     id: c.chunkId,
     documentVersionId: c.documentVersionId,
+    principalId: PRINCIPAL_ID,
     sequenceNumber: idx,
     content: c.content,
     contentHash: `hash-${idx}`,
@@ -244,6 +246,7 @@ function buildService(opts: {
       maxCandidates: 10,
       enableFullText: !!opts.fulltext,
       enableRerank: !!opts.rerank,
+      enableGeneration: false,
       fusionWeights: { vector: 0.6, fulltext: opts.fulltext ? 0.3 : 0, graph: 0, hybrid: 0.1 },
       refusalMinCitations: 1,
       refusalMinConfidence: 0.5,
@@ -258,13 +261,15 @@ class InMemoryFullTextSearchStub implements FullTextSearchPort {
   async search(
     query: string,
     _tenantId: string,
-    options: { limit?: number; filter?: { documentIds?: string[] } } = {},
+    options: { limit?: number; filter?: { documentIds?: string[]; principalId?: string[] } } = {},
   ) {
     const tokens = tokenize(query);
     if (tokens.length === 0) return success([]);
     const scored = this.corpus
       .filter(
-        (c) => !options.filter?.documentIds || options.filter.documentIds.includes(c.documentId),
+        (c) =>
+          (!options.filter?.documentIds || options.filter.documentIds.includes(c.documentId)) &&
+          (!options.filter?.principalId || options.filter.principalId.length === 0 || true),
       )
       .map((c) => ({ c, score: lexicalOverlapScore(tokens, c.content) }))
       .filter((s) => s.score > 0)

@@ -44,6 +44,9 @@ export class PostgresFullTextSearchAdapter implements FullTextSearchPort {
           if (options.filter?.chunkIds && options.filter.chunkIds.length > 0) {
             conditions.push(inArray(chunks.id, options.filter.chunkIds));
           }
+          if (options.filter?.principalId && options.filter.principalId.length > 0) {
+            conditions.push(inArray(chunks.principalId, options.filter.principalId));
+          }
           const rank = sql<number>`ts_rank_cd(to_tsvector(${language}, coalesce(${chunks.content}, '')), to_tsquery(${language}, ${tsQuery}))`;
           const headline = sql<string>`ts_headline(
             ${language},

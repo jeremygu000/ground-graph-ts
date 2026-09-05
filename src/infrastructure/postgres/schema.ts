@@ -26,6 +26,7 @@ export const sources = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     tenantId: uuid("tenant_id").notNull(),
+    principalId: uuid("principal_id").notNull(),
     type: varchar("type", { length: 50 }).notNull(),
     uri: text("uri").notNull(),
     mimeType: varchar("mime_type", { length: 255 }),
@@ -37,6 +38,7 @@ export const sources = pgTable(
   },
   (table) => [
     index("idx_sources_tenant_id").on(table.tenantId),
+    index("idx_sources_principal_id").on(table.principalId),
     index("idx_sources_uri").on(table.uri),
     uniqueIndex("uq_sources_tenant_uri").on(table.tenantId, table.uri),
   ],
@@ -69,6 +71,7 @@ export const documents = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     tenantId: uuid("tenant_id").notNull(),
+    principalId: uuid("principal_id").notNull(),
     sourceId: uuid("source_id")
       .notNull()
       .references(() => sources.id, { onDelete: "cascade" }),
@@ -80,6 +83,7 @@ export const documents = pgTable(
   },
   (table) => [
     index("idx_documents_tenant_id").on(table.tenantId),
+    index("idx_documents_principal_id").on(table.principalId),
     index("idx_documents_source_id").on(table.sourceId),
     uniqueIndex("uq_documents_tenant_source").on(table.tenantId, table.sourceId),
   ],
@@ -93,6 +97,7 @@ export const documentVersions = pgTable(
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),
     tenantId: uuid("tenant_id").notNull(),
+    principalId: uuid("principal_id").notNull(),
     versionNumber: integer("version_number").notNull(),
     contentHash: varchar("content_hash", { length: 64 }).notNull(),
     checksum: varchar("checksum", { length: 64 }).notNull(),
@@ -105,6 +110,7 @@ export const documentVersions = pgTable(
   (table) => [
     index("idx_document_versions_document_id").on(table.documentId),
     index("idx_document_versions_tenant_id").on(table.tenantId),
+    index("idx_document_versions_principal_id").on(table.principalId),
     uniqueIndex("uq_document_versions_document_version").on(table.documentId, table.versionNumber),
     check("chk_version_number_positive", sql`${table.versionNumber} > 0`),
   ],
@@ -118,6 +124,7 @@ export const chunks = pgTable(
       .notNull()
       .references(() => documentVersions.id, { onDelete: "cascade" }),
     tenantId: uuid("tenant_id").notNull(),
+    principalId: uuid("principal_id").notNull(),
     sequenceNumber: integer("sequence_number").notNull(),
     content: text("content").notNull(),
     contentHash: varchar("content_hash", { length: 64 }).notNull(),
@@ -128,6 +135,7 @@ export const chunks = pgTable(
   (table) => [
     index("idx_chunks_document_version_id").on(table.documentVersionId),
     index("idx_chunks_tenant_id").on(table.tenantId),
+    index("idx_chunks_principal_id").on(table.principalId),
     uniqueIndex("uq_chunks_document_sequence").on(table.documentVersionId, table.sequenceNumber),
     check("chk_sequence_nonnegative", sql`${table.sequenceNumber} >= 0`),
   ],
@@ -167,12 +175,14 @@ export const chunkEmbeddings = pgTable(
       .notNull()
       .references(() => indexVersions.id, { onDelete: "cascade" }),
     tenantId: uuid("tenant_id").notNull(),
+    principalId: uuid("principal_id").notNull(),
     embedding: vectorType("embedding").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index("idx_chunk_embeddings_chunk_id").on(table.chunkId),
     index("idx_chunk_embeddings_index_version_id").on(table.indexVersionId),
+    index("idx_chunk_embeddings_principal_id").on(table.principalId),
     uniqueIndex("uq_chunk_embeddings_chunk_index").on(table.chunkId, table.indexVersionId),
   ],
 );

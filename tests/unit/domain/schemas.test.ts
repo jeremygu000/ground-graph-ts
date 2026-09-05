@@ -63,6 +63,7 @@ describe("domain schemas", () => {
       DocumentChunkSchema.parse({
         id: crypto.randomUUID(),
         documentVersionId: crypto.randomUUID(),
+        principalId: crypto.randomUUID(),
         sequenceNumber: 0,
         content: "chunk",
         contentHash: "hash",

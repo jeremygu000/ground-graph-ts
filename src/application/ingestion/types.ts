@@ -8,6 +8,8 @@ export const IngestDocumentRequestSchema = z.object({
   chunkingStrategy: z.enum(["heading", "recursive", "page", "semantic"]).default("heading"),
   maxChunkSize: z.number().int().positive().default(1000),
   chunkOverlap: z.number().int().nonnegative().default(200),
+  principalId: z.string().uuid(),
+  tenantId: z.string().uuid(),
 });
 
 export type IngestDocumentRequest = z.infer<typeof IngestDocumentRequestSchema>;
