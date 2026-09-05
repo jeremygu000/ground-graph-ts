@@ -2,6 +2,7 @@ import { eq, and, asc, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { outboxEvents } from "../schema";
 import type { OutboxEvent, OutboxRepository } from "../../../application/events/ports";
+import { mapToOutboxEvent } from "../../../application/validation";
 
 export class PostgresOutboxRepository implements OutboxRepository {
   constructor(private db: Database) {}
@@ -12,9 +13,27 @@ export class PostgresOutboxRepository implements OutboxRepository {
     try {
       const [result] = await this.db.drizzle
         .insert(outboxEvents)
-        .values(event as any)
+        .values({
+          id: event.id,
+          tenantId: event.tenantId,
+          aggregateType: event.aggregateType,
+          aggregateId: event.aggregateId,
+          eventType: event.eventType,
+          payload: event.payload,
+          idempotencyKey: event.idempotencyKey,
+          status: event.status,
+          attempts: event.attempts,
+          availableAt: new Date(event.availableAt),
+          claimedAt: event.claimedAt ? new Date(event.claimedAt) : undefined,
+          claimedBy: event.claimedBy,
+          leaseToken: event.leaseToken,
+          completedAt: event.completedAt ? new Date(event.completedAt) : undefined,
+          deadLetteredAt: event.deadLetteredAt ? new Date(event.deadLetteredAt) : undefined,
+          error: event.error,
+        })
         .returning();
-      return { ok: true, value: result as unknown as OutboxEvent };
+      const mapped = mapToOutboxEvent(result as Record<string, unknown>);
+      return { ok: true, value: mapped as OutboxEvent };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -40,7 +59,8 @@ export class PostgresOutboxRepository implements OutboxRepository {
         )
         .orderBy(asc(outboxEvents.availableAt))
         .limit(limit);
-      return { ok: true, value: results as unknown as OutboxEvent[] };
+      const mapped = results.map((r) => mapToOutboxEvent(r as Record<string, unknown>));
+      return { ok: true, value: mapped as OutboxEvent[] };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -52,31 +72,40 @@ export class PostgresOutboxRepository implements OutboxRepository {
     leaseDurationMs: number,
   ): Promise<{ ok: true; value: OutboxEvent[] } | { ok: false; error: Error }> {
     try {
-      const leaseToken = `${workerId}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-      const claimUntil = new Date(Date.now() + leaseDurationMs).toISOString();
-      const results = await this.db.drizzle
-        .update(outboxEvents)
-        .set({
-          status: "claimed",
-          claimedAt: new Date(),
-          claimedBy: workerId,
-          leaseToken,
-          attempts: sql`${outboxEvents.attempts} + 1`,
-          availableAt: claimUntil,
-        } as any)
-        .where(
-          and(
-            sql`${outboxEvents.id} = ANY(${ids})`,
-            sql`(
-              (${outboxEvents.status} = 'pending')
-              OR
-              (${outboxEvents.status} = 'claimed' AND ${outboxEvents.availableAt} < NOW())
-            )`,
-          ),
-        )
-        .returning();
+      const leaseToken = `${workerId}-${Date.now()}-${crypto.randomUUID()}`;
+      const claimUntil = new Date(Date.now() + leaseDurationMs);
 
-      return { ok: true, value: results as unknown as OutboxEvent[] };
+      const results = await this.db.drizzle.transaction(async (tx) => {
+        const rowsToClaim = await tx
+          .select()
+          .from(outboxEvents)
+          .where(
+            sql`${outboxEvents.id} = ANY(${ids}) AND (${outboxEvents.status} = 'pending' OR (${outboxEvents.status} = 'claimed' AND ${outboxEvents.availableAt} < NOW()))`,
+          )
+          .for("update", { skipLocked: true });
+
+        if (!rowsToClaim || rowsToClaim.length === 0) {
+          return [];
+        }
+
+        const updated = await tx
+          .update(outboxEvents)
+          .set({
+            status: "claimed",
+            claimedAt: claimUntil,
+            claimedBy: workerId,
+            leaseToken,
+            attempts: sql`${outboxEvents.attempts} + 1`,
+            availableAt: claimUntil,
+          })
+          .where(sql`${outboxEvents.id} = ANY(${ids})`)
+          .returning();
+
+        return updated;
+      });
+
+      const mapped = results.map((r) => mapToOutboxEvent(r as Record<string, unknown>));
+      return { ok: true, value: mapped as OutboxEvent[] };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -118,7 +147,7 @@ export class PostgresOutboxRepository implements OutboxRepository {
   async fail(
     id: string,
     token: string,
-    error: string,
+    errorMessage: string,
   ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
     try {
       const [result] = await this.db.drizzle
@@ -128,7 +157,7 @@ export class PostgresOutboxRepository implements OutboxRepository {
           leaseToken: null,
           claimedBy: null,
           claimedAt: null,
-          error: error.substring(0, 500),
+          error: errorMessage.substring(0, 500),
         })
         .where(
           and(
@@ -155,7 +184,7 @@ export class PostgresOutboxRepository implements OutboxRepository {
   async deadLetter(
     id: string,
     token: string,
-    error: string,
+    errorMessage: string,
   ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
     try {
       const [result] = await this.db.drizzle
@@ -163,7 +192,7 @@ export class PostgresOutboxRepository implements OutboxRepository {
         .set({
           status: "dead_letter",
           deadLetteredAt: new Date(),
-          error: error.substring(0, 500),
+          error: errorMessage.substring(0, 500),
         })
         .where(
           and(
@@ -196,7 +225,9 @@ export class PostgresOutboxRepository implements OutboxRepository {
         .select()
         .from(outboxEvents)
         .where(and(eq(outboxEvents.id, id), eq(outboxEvents.tenantId, tenantId)));
-      return { ok: true, value: (result ?? null) as unknown as OutboxEvent | null };
+      if (!result) return { ok: true, value: null };
+      const mapped = mapToOutboxEvent(result as Record<string, unknown>);
+      return { ok: true, value: mapped as OutboxEvent };
     } catch (error) {
       return { ok: false, error: error as Error };
     }

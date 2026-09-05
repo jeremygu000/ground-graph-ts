@@ -1,8 +1,4 @@
-import type {
-  ExecutionRun,
-  ExecutionStep,
-  ExecutionStepDependency,
-} from "../../domain/execution/types";
+import type { ExecutionRun, ExecutionStep } from "../../domain/execution/types";
 import type { Result } from "../../domain/result";
 
 export interface ExecutionRunRepository {
@@ -42,7 +38,7 @@ export interface ExecutionStepRepository {
     expectedStatus: ExecutionStep["status"],
     newStatus: ExecutionStep["status"],
   ): Promise<Result<ExecutionStep>>;
-  addDependency(dependency: ExecutionStepDependency): Promise<Result<void>>;
+  addDependency(stepId: string, dependsOnStepId: string, tenantId: string): Promise<Result<void>>;
   getDependencies(stepId: string, tenantId: string): Promise<Result<ExecutionStep[]>>;
 }
 

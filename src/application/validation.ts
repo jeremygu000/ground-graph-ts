@@ -109,3 +109,52 @@ export function mapToChunk(row: Record<string, unknown>): z.infer<typeof ChunkSc
     createdAt: toISOString(row.createdAt),
   };
 }
+
+export const OutboxEventSchema = z.object({
+  id: z.string().uuid(),
+  tenantId: z.string().uuid(),
+  aggregateType: z.string(),
+  aggregateId: z.string().uuid(),
+  eventType: z.string(),
+  payload: z.record(z.string(), z.unknown()),
+  idempotencyKey: z.string(),
+  status: z.enum(["pending", "claimed", "completed", "dead_letter"]),
+  attempts: z.number().int().nonnegative(),
+  availableAt: z.string(),
+  claimedAt: z.string().optional(),
+  claimedBy: z.string().optional(),
+  leaseToken: z.string().optional(),
+  completedAt: z.string().optional(),
+  deadLetteredAt: z.string().optional(),
+  error: z.string().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export type OutboxEventInput = z.infer<typeof OutboxEventSchema>;
+
+export function mapToOutboxEvent(row: Record<string, unknown>): OutboxEventInput {
+  const result: Record<string, unknown> = {
+    id: String(row.id),
+    tenantId: String(row.tenantId),
+    aggregateType: String(row.aggregateType),
+    aggregateId: String(row.aggregateId),
+    eventType: String(row.eventType),
+    payload: row.payload as Record<string, unknown>,
+    idempotencyKey: String(row.idempotencyKey),
+    status: String(row.status) as "pending" | "claimed" | "completed" | "dead_letter",
+    attempts: Number(row.attempts),
+    availableAt: toISOString(row.availableAt),
+    createdAt: toISOString(row.createdAt),
+    updatedAt: toISOString(row.updatedAt),
+  };
+
+  if (row.claimedAt != null) result.claimedAt = toISOString(row.claimedAt);
+  if (row.claimedBy != null) result.claimedBy = String(row.claimedBy);
+  if (row.leaseToken != null) result.leaseToken = String(row.leaseToken);
+  if (row.completedAt != null) result.completedAt = toISOString(row.completedAt);
+  if (row.deadLetteredAt != null) result.deadLetteredAt = toISOString(row.deadLetteredAt);
+  if (row.error != null) result.error = String(row.error);
+
+  return result as OutboxEventInput;
+}

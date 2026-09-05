@@ -300,12 +300,42 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
     }
   }
 
-  async addDependency(dependency: {
-    stepId: string;
-    dependsOnStepId: string;
-  }): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
+  async addDependency(
+    stepId: string,
+    dependsOnStepId: string,
+    tenantId: string,
+  ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
     try {
-      await this.db.drizzle.insert(executionStepDependencies).values(dependency);
+      // Self-dependency check
+      if (stepId === dependsOnStepId) {
+        return { ok: false, error: new Error("Step cannot depend on itself") };
+      }
+
+      // Validate both steps exist and belong to same run and tenant
+      const [step] = await this.db.drizzle
+        .select({ runId: executionSteps.runId })
+        .from(executionSteps)
+        .innerJoin(executionRuns, eq(executionRuns.id, executionSteps.runId))
+        .where(and(eq(executionSteps.id, stepId), eq(executionRuns.tenantId, tenantId)));
+
+      const [dependsOn] = await this.db.drizzle
+        .select({ runId: executionSteps.runId })
+        .from(executionSteps)
+        .innerJoin(executionRuns, eq(executionRuns.id, executionSteps.runId))
+        .where(and(eq(executionSteps.id, dependsOnStepId), eq(executionRuns.tenantId, tenantId)));
+
+      if (!step || !dependsOn) {
+        return { ok: false, error: new Error("Step not found or tenant mismatch") };
+      }
+
+      if (step.runId !== dependsOn.runId) {
+        return { ok: false, error: new Error("Cannot create cross-run dependency") };
+      }
+
+      await this.db.drizzle.insert(executionStepDependencies).values({
+        stepId,
+        dependsOnStepId,
+      });
       return { ok: true, value: undefined };
     } catch (error) {
       return { ok: false, error: error as Error };
