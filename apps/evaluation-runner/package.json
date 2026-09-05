@@ -1,0 +1,16 @@
+{
+  "name": "ground-graph-evaluation-runner",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/runner.ts",
+    "build": "tsc",
+    "start": "node dist/runner.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "7.0.2"
+  }
+}

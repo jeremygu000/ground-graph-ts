@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Architecture Rules",
+  "description": "Architecture boundary rules for ground-graph-ts following clean architecture principles",
+  "rules": [
+    {
+      "id": "DOMAIN_INDESTRUCTIBLE",
+      "description": "Domain layer may only import standard APIs and Zod",
+      "from": "domain",
+      "canImport": ["zod", "standard built-in Node.js APIs"],
+      "cannotImport": [
+        "fastify",
+        "drizzle-orm",
+        "postgres",
+        "neo4j-driver",
+        "@ai-sdk",
+        "ai",
+        "@aws-sdk",
+        "@opentelemetry",
+        "pg",
+        "pgvector"
+      ]
+    },
+    {
+      "id": "APPLICATION_INDESTRUCTIBLE",
+      "description": "Application layer defines ports, use cases, errors, and transaction boundaries",
+      "from": "application",
+      "canImport": ["domain", "zod", "standard built-in Node.js APIs"],
+      "cannotImport": [
+        "infrastructure/*",
+        "fastify",
+        "drizzle-orm",
+        "postgres",
+        "neo4j-driver",
+        "@ai-sdk",
+        "ai",
+        "@aws-sdk"
+      ]
+    },
+    {
+      "id": "WORKFLOWS_APPLICATION_ONLY",
+      "description": "Workflows may only import from application layer",
+      "from": "workflows",
+      "canImport": ["application"],
+      "cannotImport": ["domain", "infrastructure", "fastify", "drizzle-orm", "postgres", "neo4j-driver"]
+    },
+    {
+      "id": "INFRASTRUCTURE_ADAPTERS_ONLY",
+      "description": "Infrastructure implements application ports, never imports domain/application logic",
+      "from": "infrastructure",
+      "canImport": ["application", "zod", "standard built-in Node.js APIs"],
+      "cannotImport": ["workflows"]
+    },
+    {
+      "id": "NO_CROSS_INFRASTRUCTURE",
+      "description": "Infrastructure packages cannot import each other directly",
+      "from": "infrastructure/postgres",
+      "cannotImport": ["infrastructure/neo4j", "infrastructure/models", "infrastructure/object-storage"],
+      "exception": "Shared infrastructure utilities"
+    },
+    {
+      "id": "NO_ORM_IN_DOMAIN",
+      "description": "Domain entities must not be ORM model classes",
+      "rule": "Domain entities are plain TypeScript objects with Zod schemas for validation"
+    },
+    {
+      "id": "NO_LOGIC_IN_PORTS",
+      "description": "Ports (interfaces) define contracts, not implementation",
+      "rule": "Application port interfaces must not contain business logic"
+    },
+    {
+      "id": "NO_LANGGRAPH_IN_APPLICATION",
+      "description": "Application layer must not import LangGraph types directly",
+      "rule": "LangGraph is used behind an internal adapter in workflows"
+    }
+  ]
+}
