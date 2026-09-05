@@ -40,7 +40,9 @@ async function relationExists(
   return row?.exists ?? false;
 }
 
-async function appliedMigrationCount(ctx: Awaited<ReturnType<typeof startRawComponentDatabase>>): Promise<number> {
+async function appliedMigrationCount(
+  ctx: Awaited<ReturnType<typeof startRawComponentDatabase>>,
+): Promise<number> {
   const [row] = await ctx.db.client.unsafe<{ count: string }[]>(`
     SELECT COUNT(*)::text AS count
     FROM drizzle.__drizzle_migrations

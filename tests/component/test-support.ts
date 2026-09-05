@@ -21,7 +21,10 @@ let sharedContextRefs = 0;
 
 async function bootstrapSchema(db: Database): Promise<void> {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  const migrationPath = path.resolve(currentDir, "../../drizzle/migrations/0001_initial_schema.sql");
+  const migrationPath = path.resolve(
+    currentDir,
+    "../../drizzle/migrations/0001_initial_schema.sql",
+  );
   const migrationSql = await fs.readFile(migrationPath, "utf8");
   await db.client.unsafe(migrationSql);
 }
@@ -41,10 +44,6 @@ async function createComponentDb(bootstrap = true, managed = true): Promise<Comp
   const host = container.getHost();
   const connectionString = `postgres://test:test@${host}:${port}/test`;
   const db = new Database({ url: connectionString, maxConnections: 4 });
-  await waitForDatabase(db);
-  if (bootstrap) {
-    await bootstrapSchema(db);
-  }
 
   const close = async (): Promise<void> => {
     if (!managed) {
@@ -63,19 +62,28 @@ async function createComponentDb(bootstrap = true, managed = true): Promise<Comp
     await container.stop();
   };
 
-  const context: ComponentDb = {
-    container,
-    db,
-    connectionString,
-    close,
-    reset: async () => {
-      await db.client.unsafe(
-        "TRUNCATE TABLE execution_step_dependencies, execution_steps, execution_runs, outbox_events, sources RESTART IDENTITY CASCADE",
-      );
-    },
-  };
+  try {
+    await waitForDatabase(db);
+    if (bootstrap) {
+      await bootstrapSchema(db);
+    }
 
-  return context;
+    return {
+      container,
+      db,
+      connectionString,
+      close,
+      reset: async () => {
+        await db.client.unsafe(
+          "TRUNCATE TABLE execution_step_dependencies, execution_steps, execution_runs, outbox_events, sources RESTART IDENTITY CASCADE",
+        );
+      },
+    };
+  } catch (error) {
+    await db.close().catch(() => undefined);
+    await container.stop().catch(() => undefined);
+    throw error;
+  }
 }
 
 async function waitForDatabase(db: Database): Promise<void> {

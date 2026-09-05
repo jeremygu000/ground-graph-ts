@@ -20,8 +20,14 @@ function mapExecutionRunRow(row: Record<string, unknown>): ExecutionRun {
   const error = undefinedIfNull(row.error as string | null | undefined);
   const traceId = undefinedIfNull(row.traceId as string | null | undefined);
   const spanId = undefinedIfNull(row.spanId as string | null | undefined);
-  const startedAt = row.startedAt instanceof Date ? row.startedAt.toISOString() : undefinedIfNull(row.startedAt as string | null | undefined);
-  const completedAt = row.completedAt instanceof Date ? row.completedAt.toISOString() : undefinedIfNull(row.completedAt as string | null | undefined);
+  const startedAt =
+    row.startedAt instanceof Date
+      ? row.startedAt.toISOString()
+      : undefinedIfNull(row.startedAt as string | null | undefined);
+  const completedAt =
+    row.completedAt instanceof Date
+      ? row.completedAt.toISOString()
+      : undefinedIfNull(row.completedAt as string | null | undefined);
   const metadata = undefinedIfNull(row.metadata as Record<string, unknown> | null | undefined);
 
   return validateOrThrow(
@@ -46,8 +52,14 @@ function mapExecutionStepRow(row: Record<string, unknown>): ExecutionStep {
   const input = undefinedIfNull(row.input as Record<string, unknown> | null | undefined);
   const output = undefinedIfNull(row.output as Record<string, unknown> | null | undefined);
   const error = undefinedIfNull(row.error as string | null | undefined);
-  const startedAt = row.startedAt instanceof Date ? row.startedAt.toISOString() : undefinedIfNull(row.startedAt as string | null | undefined);
-  const completedAt = row.completedAt instanceof Date ? row.completedAt.toISOString() : undefinedIfNull(row.completedAt as string | null | undefined);
+  const startedAt =
+    row.startedAt instanceof Date
+      ? row.startedAt.toISOString()
+      : undefinedIfNull(row.startedAt as string | null | undefined);
+  const completedAt =
+    row.completedAt instanceof Date
+      ? row.completedAt.toISOString()
+      : undefinedIfNull(row.completedAt as string | null | undefined);
   const metadata = undefinedIfNull(row.metadata as Record<string, unknown> | null | undefined);
 
   return validateOrThrow(

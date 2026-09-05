@@ -225,14 +225,15 @@ describe("PostgresExecutionStepRepository", () => {
     if (!dependenciesA.ok) throw dependenciesA.error;
     if (!dependenciesB.ok) throw dependenciesB.error;
 
-    const graph = [
-      { stepId: createdA.value.id, deps: dependenciesA.value.map((d) => d.id) },
-      { stepId: createdB.value.id, deps: dependenciesB.value.map((d) => d.id) },
-    ];
-    expect(graph).toEqual([
-      { stepId: createdA.value.id, deps: [createdB.value.id] },
-      { stepId: createdB.value.id, deps: [] },
+    const winner = first.ok
+      ? { from: createdA.value.id, to: createdB.value.id }
+      : { from: createdB.value.id, to: createdA.value.id };
+    const graph = new Map([
+      [createdA.value.id, dependenciesA.value.map((d) => d.id)],
+      [createdB.value.id, dependenciesB.value.map((d) => d.id)],
     ]);
+    expect(graph.get(winner.from)).toEqual([winner.to]);
+    expect(graph.get(winner.to)).toEqual([]);
   });
 
   it("rejects self dependency", async () => {

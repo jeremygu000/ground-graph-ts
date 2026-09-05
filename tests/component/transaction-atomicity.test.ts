@@ -29,7 +29,9 @@ describe("TransactionalUnitOfWork", () => {
     await expect(
       uowFactory.transaction(async (uow) => {
         const sourceResult = await uow.sourceRepository.create({ type: "url", uri }, tenantId);
-        expect(sourceResult.ok, sourceResult.ok ? undefined : sourceResult.error.message).toBe(true);
+        expect(sourceResult.ok, sourceResult.ok ? undefined : sourceResult.error.message).toBe(
+          true,
+        );
         if (!sourceResult.ok) throw sourceResult.error;
 
         const outboxResult = await uow.outboxRepository.create({
@@ -46,7 +48,9 @@ describe("TransactionalUnitOfWork", () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
-        expect(outboxResult.ok, outboxResult.ok ? undefined : outboxResult.error.message).toBe(true);
+        expect(outboxResult.ok, outboxResult.ok ? undefined : outboxResult.error.message).toBe(
+          true,
+        );
         if (!outboxResult.ok) throw outboxResult.error;
 
         throw new Error("forced rollback");

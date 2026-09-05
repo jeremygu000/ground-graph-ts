@@ -259,7 +259,10 @@ describe("PostgresOutboxRepository", () => {
     const result = await repo.fail(eventId, leaseToken, "boom", tenantId, 1);
     expect(result.ok).toBe(true);
 
-    const [stored] = await ctx.db.drizzle.select().from(outboxEvents).where(eq(outboxEvents.id, eventId));
+    const [stored] = await ctx.db.drizzle
+      .select()
+      .from(outboxEvents)
+      .where(eq(outboxEvents.id, eventId));
     if (!stored) throw new Error("expected stored row");
     expect(stored.status).toBe("dead_letter");
     expect(stored.deadLetteredAt).not.toBeNull();

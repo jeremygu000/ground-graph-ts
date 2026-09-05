@@ -1,4 +1,5 @@
 import { Neo4jClient } from "./client";
+import { KnowledgeFactSchema } from "../../domain/knowledge/types";
 import type {
   GraphTraversalPort,
   TraversalParams,
@@ -10,6 +11,45 @@ import type {
 
 export class Neo4jGraphRepository implements GraphTraversalPort {
   constructor(private client: Neo4jClient) {}
+
+  private normalizeNodeId(value: unknown): string {
+    if (typeof value !== "string") {
+      throw new Error("Invalid Neo4j result: expected string id");
+    }
+    return value;
+  }
+
+  private normalizeNumber(value: unknown): number {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+    if (
+      value &&
+      typeof value === "object" &&
+      "toNumber" in value &&
+      typeof (value as { toNumber?: unknown }).toNumber === "function"
+    ) {
+      const converted = (value as { toNumber: () => number }).toNumber();
+      if (typeof converted === "number" && Number.isFinite(converted)) {
+        return converted;
+      }
+    }
+    throw new Error("Invalid Neo4j result: expected finite number");
+  }
+
+  private normalizeArray<T>(value: unknown): T[] {
+    if (!Array.isArray(value)) {
+      throw new Error("Invalid Neo4j result: expected array");
+    }
+    return value;
+  }
+
+  private normalizeObject<T extends object>(value: unknown): T {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      throw new Error("Invalid Neo4j result: expected object");
+    }
+    return value as T;
+  }
 
   async traverse(
     params: TraversalParams,
@@ -36,13 +76,18 @@ export class Neo4jGraphRepository implements GraphTraversalPort {
           const records = result.records;
           for (const record of records) {
             allResults.push({
-              entityId: record.get("entityId"),
-              path: (record.get("rels") as any[]).map((rel: any) => ({
-                fromId: rel.start,
-                predicate: rel.type,
-                toId: rel.end,
-              })),
-              depth: record.get("depth"),
+              entityId: this.normalizeNodeId(record.get("entityId")),
+              path: this.normalizeArray<{ start: unknown; type: unknown; end: unknown }>(
+                record.get("rels"),
+              ).map((rel) => {
+                const segment = rel as { start: unknown; type: unknown; end: unknown };
+                return {
+                  fromId: this.normalizeNodeId(segment.start),
+                  predicate: String(segment.type),
+                  toId: this.normalizeNodeId(segment.end),
+                };
+              }),
+              depth: this.normalizeNumber(record.get("depth")),
             });
           }
         }
@@ -75,15 +120,23 @@ export class Neo4jGraphRepository implements GraphTraversalPort {
           tenantId,
         });
         return result.records.map((record) => {
-          const path = record.get("path") as any;
+          const path = this.normalizeObject<{
+            segments?: Array<{
+              start?: { properties?: Record<string, unknown> };
+              relationship?: { type?: unknown; properties?: Record<string, unknown> };
+              end?: { properties?: Record<string, unknown> };
+            }>;
+          }>(record.get("path"));
           return {
-            path: path.segments.map((seg: any) => ({
-              fromId: seg.start?.properties?.id,
-              predicate: seg.relationship?.type,
-              toId: seg.end?.properties?.id,
-              factId: seg.relationship?.properties?.factId,
+            path: (path.segments ?? []).map((seg) => ({
+              fromId: this.normalizeNodeId(seg.start?.properties?.id),
+              predicate: String(seg.relationship?.type),
+              toId: this.normalizeNodeId(seg.end?.properties?.id),
+              ...(seg.relationship?.properties?.factId
+                ? { factId: this.normalizeNodeId(seg.relationship.properties.factId) }
+                : {}),
             })),
-            totalHops: record.get("hops"),
+            totalHops: this.normalizeNumber(record.get("hops")),
           };
         });
       });
@@ -102,19 +155,19 @@ export class Neo4jGraphRepository implements GraphTraversalPort {
     try {
       const query = `
         MATCH (e:Entity {id: $entityId, tenantId: $tenantId})
-        MATCH (e)-[:SUBJECT_OF|OBJECT*1..${depth}]-(connected:Entity)
+        MATCH p = (e)-[:SUBJECT_OF|OBJECT*1..${depth}]-(connected:Entity)
         WHERE connected.tenantId = $tenantId
         RETURN DISTINCT connected.id AS entityId,
                'connected' AS relationship,
-               length((e)-[:SUBJECT_OF|OBJECT*1..${depth}]-(connected)) AS depth
+                length(p) AS depth
       `;
 
       const results = await this.client.executeRead(async (tx) => {
         const result = await tx.run(query, { entityId, tenantId });
         return result.records.map((record) => ({
-          entityId: record.get("entityId"),
-          relationship: record.get("relationship"),
-          depth: record.get("depth"),
+          entityId: this.normalizeNodeId(record.get("entityId")),
+          relationship: String(record.get("relationship")),
+          depth: this.normalizeNumber(record.get("depth")),
         }));
       });
 
@@ -133,10 +186,49 @@ export class Neo4jGraphRepository implements GraphTraversalPort {
     tenantId: string,
   ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
     try {
+      const fact = KnowledgeFactSchema.parse({
+        id: factId,
+        tenantId,
+        subjectId,
+        predicate: _predicate,
+        objectId: objectId ?? undefined,
+        objectValue: objectValue ?? undefined,
+        status: "candidate",
+        extractionMethod: "rule",
+        confidence: 1,
+        validFrom: new Date().toISOString(),
+        observedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        provenance: { sourceVersionId: factId },
+      });
+
+      const factProps = {
+        id: fact.id,
+        tenantId: fact.tenantId,
+        subjectId: fact.subjectId,
+        predicate: fact.predicate,
+        status: fact.status,
+        extractionMethod: fact.extractionMethod,
+        confidence: fact.confidence,
+        validFrom: fact.validFrom,
+        validTo: fact.validTo ?? null,
+        observedAt: fact.observedAt,
+        supersededBy: fact.supersededBy ?? null,
+        createdAt: fact.createdAt,
+        createdBy: fact.createdBy ?? null,
+        objectId: fact.objectId ?? null,
+        objectValue: fact.objectValue ?? null,
+        payloadJson: JSON.stringify(fact),
+      };
+
       const query = `
         MATCH (subject:Entity {id: $subjectId, tenantId: $tenantId})
         ${objectId ? "MATCH (object:Entity {id: $objectId, tenantId: $tenantId})" : ""}
-        CREATE (subject)-[:SUBJECT_OF]->(fact:Fact {id: $factId, tenantId: $tenantId})-[:OBJECT]->${objectId ? "(object)" : "(value:Value {text: $objectValue})"}
+        MERGE (fact:Fact {id: $factId, tenantId: $tenantId})
+        ON CREATE SET fact += $factProps
+        WITH subject, fact${objectId ? ", object" : ""}
+        MERGE (subject)-[subjectRel:SUBJECT_OF {factId: $factId, tenantId: $tenantId}]->(fact)
+        ${objectId ? "MERGE (fact)-[objectRel:OBJECT {factId: $factId, tenantId: $tenantId}]->(object)" : "MERGE (fact)-[objectRel:OBJECT {factId: $factId, tenantId: $tenantId}]->(value:Value {text: $objectValue, tenantId: $tenantId})"}
         RETURN fact.id AS factId
       `;
 
@@ -147,6 +239,7 @@ export class Neo4jGraphRepository implements GraphTraversalPort {
           objectValue,
           factId,
           tenantId,
+          factProps,
         });
       });
 
