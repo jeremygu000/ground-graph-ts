@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Coverage
+.coverage/
+htmlcov/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test
+*.test.js
+*.spec.js
+coverage/
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# Database
+*.db
+*.sqlite
+
+# Docker
+.docker/
+
+# Misc
+*.bak
+*.orig

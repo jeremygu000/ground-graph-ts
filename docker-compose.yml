@@ -1,0 +1,275 @@
+name: ground-graph-ts
+
+x-logging-default: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-restart-unless-stopped: &restart
+  restart: unless-stopped
+
+x-dev-mem-default: &dev_mem_default
+  mem_limit: 384m
+  mem_reservation: 128m
+x-dev-mem-lightweight: &dev_mem_lightweight
+  mem_limit: 256m
+  mem_reservation: 64m
+x-dev-mem-graph: &dev_mem_graph
+  mem_limit: 1536m
+  mem_reservation: 768m
+x-dev-mem-postgres: &dev_mem_postgres
+  mem_limit: 1024m
+  mem_reservation: 512m
+x-dev-mem-observability: &dev_mem_observability
+  mem_limit: 512m
+  mem_reservation: 256m
+
+x-pg-env: &pg-env
+  POSTGRES_USER: ${POSTGRES_USER:-groundgraph}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-only}
+  POSTGRES_DB: ${POSTGRES_DB:-groundgraph}
+
+x-s3-env: &s3-env
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY:-change-me-local-only}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:-change-me-local-only}
+  S3_BUCKET_RAW: ${S3_BUCKET_RAW:-groundgraph-raw}
+  S3_BUCKET_PROCESSED: ${S3_BUCKET_PROCESSED:-groundgraph-processed}
+
+x-neo4j-env: &neo4j-env
+  NEO4J_AUTH: "${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-change-me-local-only}"
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.6-pg16
+    <<: [*restart, *logging, *dev_mem_postgres]
+    environment:
+      <<: *pg-env
+      PHOENIX_DB: ${PHOENIX_DB:-phoenix}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - groundgraph-net
+
+  neo4j:
+    image: neo4j:5.26.10-community
+    <<: [*restart, *logging, *dev_mem_graph]
+    environment:
+      <<: *neo4j-env
+      NEO4J_PLUGINS: '[]'
+      NEO4J_dbms_security_procedures_unrestricted: ''
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          _auth="$${NEO4J_AUTH:-neo4j/change-me-local-only}"
+          _user="$${_auth%%/*}"
+          _pass="$${_auth##*/}"
+          cypher-shell -u "$$_user" -p "$$_pass" "RETURN 1;" || exit 1
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - groundgraph-net
+
+  minio:
+    image: minio/minio:RELEASE.2024-10-29T16-01-48Z
+    <<: [*restart, *logging, *dev_mem_default]
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-change-me-local-only}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-change-me-local-only}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "/usr/bin/mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - groundgraph-net
+
+  minio-init:
+    image: minio/mc:RELEASE.2024-10-29T15-34-59Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      <<: *s3-env
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        mc alias set local "http://minio:9000" "$$S3_ACCESS_KEY" "$$S3_SECRET_KEY"
+        mc mb --ignore-existing "local/$$S3_BUCKET_RAW"
+        mc mb --ignore-existing "local/$$S3_BUCKET_PROCESSED"
+        mc anonymous set none "local/$$S3_BUCKET_RAW"
+        mc anonymous set none "local/$$S3_BUCKET_PROCESSED"
+    restart: "no"
+    networks:
+      - groundgraph-net
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    <<: [*restart, *logging, *dev_mem_observability]
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./deploy/docker/otel/collector-config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:13133:13133"
+      - "127.0.0.1:8888:8888"
+      - "127.0.0.1:8889:8889"
+    depends_on:
+      phoenix:
+        condition: service_started
+    networks:
+      - groundgraph-net
+
+  otel-probe:
+    image: curlimages/curl:8.10.1
+    depends_on:
+      otel-collector:
+        condition: service_started
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        echo "Probing otel-collector health endpoint..."
+        ok=0
+        for i in $$(seq 1 20); do
+          if curl --connect-timeout 1 --max-time 2 -fsS \
+               http://otel-collector:13133/ >/dev/null 2>&1; then
+            echo "OK: otel-collector health endpoint reachable (attempt $$i)"
+            ok=1
+            break
+          fi
+          sleep 1
+        done
+        if [ "$$ok" -ne 1 ]; then
+          echo "FAIL: otel-collector health endpoint unreachable after 20s"
+          exit 1
+        fi
+    restart: "no"
+    networks:
+      - groundgraph-net
+
+  phoenix:
+    image: arizephoenix/phoenix:20.7.0
+    <<: [*restart, *logging, *dev_mem_default]
+    environment:
+      PHOENIX_POSTGRES_HOST: postgres
+      PHOENIX_POSTGRES_PORT: "5432"
+      PHOENIX_POSTGRES_USER: ${POSTGRES_USER:-groundgraph}
+      PHOENIX_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-only}
+      PHOENIX_POSTGRES_DB: ${PHOENIX_DB:-phoenix}
+      PHOENIX_ENABLE_AUTH: "false"
+      PHOENIX_GRPC_PORT: "4317"
+      PHOENIX_ENABLE_PROMETHEUS: "true"
+    ports:
+      - "127.0.0.1:6006:6006"
+      - "127.0.0.1:9091:9090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:6006/healthz', timeout=2).status==200 else 1)
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+    networks:
+      - groundgraph-net
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    <<: [*restart, *logging, *dev_mem_observability]
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      otel-probe:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/ready >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - groundgraph-net
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    <<: [*restart, *logging, *dev_mem_observability]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-change-me-local-only}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3001:3000"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - groundgraph-net
+
+networks:
+  groundgraph-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  neo4j-data:
+  neo4j-logs:
+  minio-data:
+  prometheus-data:
+  grafana-data:
