@@ -144,7 +144,7 @@ export const StructuredAnswerSchema: z.ZodType<StructuredAnswer> = z.object({
 
 export interface GenerationRequest {
   question: string;
-  evidence: RetrievalResult[];
+  evidence: CitationOutput[];
   systemPrompt?: string;
   config?: Partial<GenerationConfig>;
   schema: z.ZodType<StructuredAnswer>;

@@ -34,29 +34,27 @@ export class PostgresVectorIndexAdapter implements VectorIndexPort {
       "vector.createIndexVersion",
       async () => {
         try {
-          const [row] = await this.db.drizzle.transaction(async (tx) => {
-            await tx
-              .update(indexVersions)
-              .set({ isActive: false })
-              .where(
-                and(
-                  eq(indexVersions.tenantId, info.tenantId),
-                  eq(indexVersions.indexType, "vector"),
-                  eq(indexVersions.isActive, true),
-                ),
-              );
-            return tx
-              .insert(indexVersions)
-              .values({
-                tenantId: info.tenantId,
-                indexType: "vector",
-                versionNumber: info.versionNumber,
-                embeddingModel: info.embeddingModel,
-                embeddingDimension: info.embeddingDimension,
-                isActive: info.isActive,
-              })
-              .returning();
-          });
+          await this.db.drizzle
+            .update(indexVersions)
+            .set({ isActive: false })
+            .where(
+              and(
+                eq(indexVersions.tenantId, info.tenantId),
+                eq(indexVersions.indexType, "vector"),
+                eq(indexVersions.isActive, true),
+              ),
+            );
+          const [row] = await this.db.drizzle
+            .insert(indexVersions)
+            .values({
+              tenantId: info.tenantId,
+              indexType: "vector",
+              versionNumber: info.versionNumber,
+              embeddingModel: info.embeddingModel,
+              embeddingDimension: info.embeddingDimension,
+              isActive: info.isActive,
+            })
+            .returning();
           if (!row) {
             return failure(new DatabaseError("Index version row not returned after insert"));
           }

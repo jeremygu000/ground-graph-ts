@@ -204,7 +204,7 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
     const allowedList = request.allowedCitationIds.map((id) => `- ${id}`).join("\n");
     const contextBlock = request.evidence
       .map((e) => {
-        return `[${e.id}]\n${e.content}\nscore=${e.score.toFixed(3)}`;
+        return `[${e.citationId}]\n${e.snippet}\nscore=${e.score.toFixed(3)}`;
       })
       .join("\n\n");
     const system =

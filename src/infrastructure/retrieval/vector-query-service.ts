@@ -221,7 +221,7 @@ export class DefaultVectorQueryService implements VectorQueryService {
   ): GenerationRequest {
     return {
       question: query.question,
-      evidence: execution.results,
+      evidence: execution.citations,
       allowedCitationIds: execution.citations.map((c) => c.citationId),
       tenantId: query.tenantId,
       schema: StructuredAnswerSchema,
