@@ -1,58 +1,54 @@
-import type {
-  RetrievalQuery,
-  RetrievalResult,
-  RetrievalStrategy,
-} from "../../domain/retrieval/types";
 import type { Result } from "../../domain/result";
 import type { Chunk } from "../../domain/documents/types";
+import type {
+  CitationOutput,
+  FullTextSearchOptions,
+  FullTextSearchPort,
+  FullTextSearchResultRow,
+  FusionOptions,
+  FusionTrace,
+  IndexVersionInfo,
+  RetrievalExecutionResult,
+  RetrievalFusionPort,
+  VectorIndexPort,
+  VectorSearchOptions,
+  VectorSearchResultRow,
+} from "../models/ports";
 
-export interface VectorIndexPort {
-  upsert_embeddings(
-    chunks: Chunk[],
-    embeddings: number[][],
-    tenantId: string,
-  ): Promise<Result<void>>;
-  search(
-    queryEmbedding: number[],
-    tenantId: string,
-    options?: SearchOptions,
-  ): Promise<Result<RetrievalResult[]>>;
-  deleteByDocumentVersion(documentVersionId: string, tenantId: string): Promise<Result<void>>;
-  getIndexVersion(tenantId: string): Promise<Result<string>>;
+export type {
+  CitationOutput,
+  FullTextSearchOptions,
+  FullTextSearchPort,
+  FullTextSearchResultRow,
+  FusionOptions,
+  FusionTrace,
+  IndexVersionInfo,
+  RetrievalExecutionResult,
+  RetrievalFusionPort,
+  VectorIndexPort,
+  VectorSearchOptions,
+  VectorSearchResultRow,
+};
+
+export interface ChunksWithEmbeddings {
+  chunk: Chunk;
+  embedding: number[];
 }
 
-export interface SearchOptions {
-  limit?: number;
-  filter?: {
-    documentIds?: string[];
-    minScore?: number;
-  };
-  includeVector?: boolean;
-}
-
-export interface FullTextSearchPort {
-  search(
-    query: string,
-    tenantId: string,
-    options?: FullTextSearchOptions,
-  ): Promise<Result<RetrievalResult[]>>;
-}
-
-export interface FullTextSearchOptions {
-  limit?: number;
-  filter?: {
-    documentIds?: string[];
-  };
+export interface IndexBuildResult {
+  indexVersionId: string;
+  upserted: number;
+  durationMs: number;
 }
 
 export interface GraphTraversalPort {
-  traverse(params: TraversalParams, tenantId: string): Promise<Result<TraversalResult[]>>;
-  findPaths(params: PathFindingParams, tenantId: string): Promise<Result<PathResult[]>>;
+  traverse(params: TraversalParams, tenantId: string): Promise<Result<unknown[]>>;
+  findPaths(params: PathFindingParams, tenantId: string): Promise<Result<unknown[]>>;
   findConnectedEntities(
     entityId: string,
     depth: number,
     tenantId: string,
-  ): Promise<Result<ConnectedEntity[]>>;
+  ): Promise<Result<unknown[]>>;
 }
 
 export interface TraversalParams {
@@ -95,44 +91,4 @@ export interface ConnectedEntity {
   entityId: string;
   relationship: string;
   depth: number;
-}
-
-export interface RetrievalFusionPort {
-  fuse(
-    results: Map<RetrievalStrategy, RetrievalResult[]>,
-    options?: FusionOptions,
-  ): Promise<Result<RetrievalResult[]>>;
-}
-
-export interface FusionOptions {
-  ratio?: number;
-  maxResults?: number;
-  diversityThreshold?: number;
-}
-
-export interface RetrievalPlanPort {
-  createPlan(query: RetrievalQuery): Promise<Result<RetrievalPlan>>;
-  estimateCost(plan: RetrievalPlan): Promise<Result<CostEstimate>>;
-}
-
-export interface RetrievalPlan {
-  strategies: Array<{
-    type: RetrievalStrategy;
-    budget: number;
-    steps: RetrievalPlanStep[];
-  }>;
-  totalEstimatedMs: number;
-}
-
-export interface RetrievalPlanStep {
-  stepNumber: number;
-  action: string;
-  repository: string;
-  parameters: Record<string, unknown>;
-}
-
-export interface CostEstimate {
-  estimatedTokens: number;
-  estimatedLatencyMs: number;
-  estimatedCostUSD: number;
 }
