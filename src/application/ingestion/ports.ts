@@ -102,6 +102,7 @@ export interface CreateDocumentInput {
 }
 
 export interface CreateDocumentVersionInput {
+  id?: string; // Optional custom ID; if not provided, one will be generated
   tenantId: string;
   versionNumber: number;
   contentHash: string;

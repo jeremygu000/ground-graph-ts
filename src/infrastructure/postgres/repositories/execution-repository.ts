@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { executionRuns, executionSteps, executionStepDependencies } from "../schema";
 import type {
@@ -266,36 +266,29 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
     newStatus: ExecutionStep["status"],
   ): Promise<{ ok: true; value: ExecutionStep } | { ok: false; error: Error }> {
     try {
-      const [existing] = await this.db.drizzle
-        .select({ step: executionSteps })
-        .from(executionSteps)
-        .innerJoin(executionRuns, eq(executionRuns.id, executionSteps.runId))
-        .where(
-          and(
-            eq(executionSteps.id, id),
-            eq(executionRuns.tenantId, tenantId),
-            eq(executionSteps.status, expectedStatus),
-          ),
-        );
-
-      if (!existing) {
-        return {
-          ok: false,
-          error: new Error("Step not found or status mismatch (concurrent modification)"),
-        };
-      }
-
       const [result] = await this.db.drizzle
         .update(executionSteps)
         .set({ status: newStatus })
-        .where(and(eq(executionSteps.id, id), eq(executionSteps.status, expectedStatus)))
+        .where(
+          and(
+            eq(executionSteps.id, id),
+            eq(executionSteps.status, expectedStatus),
+            sql`EXISTS (
+              SELECT 1 FROM ${executionRuns}
+              WHERE ${executionRuns.id} = ${executionSteps.runId}
+              AND ${executionRuns.tenantId} = ${tenantId}
+            )`,
+          ),
+        )
         .returning();
+
       if (!result) {
         return {
           ok: false,
-          error: new Error("Step not found or status mismatch (concurrent modification)"),
+          error: new Error("Step not found, status mismatch, or tenant mismatch"),
         };
       }
+
       const validated = validateOrThrow(
         ExecutionStepSchema,
         result,
@@ -321,14 +314,25 @@ export class PostgresExecutionStepRepository implements ExecutionStepRepository 
 
   async getDependencies(
     stepId: string,
-    _tenantId: string,
+    tenantId: string,
   ): Promise<{ ok: true; value: ExecutionStep[] } | { ok: false; error: Error }> {
     try {
-      const results = await this.db.drizzle
-        .select()
+      const dependencies = await this.db.drizzle
+        .select({ step: executionSteps })
         .from(executionStepDependencies)
-        .where(eq(executionStepDependencies.stepId, stepId));
-      return { ok: true, value: results as unknown as ExecutionStep[] };
+        .innerJoin(executionSteps, eq(executionSteps.id, executionStepDependencies.dependsOnStepId))
+        .innerJoin(executionRuns, eq(executionRuns.id, executionSteps.runId))
+        .where(
+          and(
+            eq(executionStepDependencies.stepId, stepId),
+            eq(executionRuns.tenantId, tenantId),
+          ),
+        );
+
+      const steps = dependencies.map((d) =>
+        validateOrThrow(ExecutionStepSchema, d.step, "ExecutionStep.getDependencies"),
+      );
+      return { ok: true, value: steps };
     } catch (error) {
       return { ok: false, error: error as Error };
     }

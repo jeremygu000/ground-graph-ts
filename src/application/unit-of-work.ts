@@ -4,7 +4,7 @@ import type {
   DocumentVersionRepository,
   ChunkRepository,
 } from "./ingestion/ports";
-import type { EntityRepository, FactRepository, MentionRepository } from "./extraction/ports";
+import type { EntityRepository, FactRepository } from "./extraction/ports";
 import type { ExecutionRunRepository, ExecutionStepRepository } from "./execution/ports";
 import type { OutboxRepository } from "./events/ports";
 
@@ -15,16 +15,16 @@ export interface UnitOfWork {
   readonly chunkRepository: ChunkRepository;
   readonly entityRepository: EntityRepository;
   readonly factRepository: FactRepository;
-  readonly mentionRepository: MentionRepository;
+  readonly mentionRepository: unknown;
   readonly executionRunRepository: ExecutionRunRepository;
   readonly executionStepRepository: ExecutionStepRepository;
   readonly outboxRepository: OutboxRepository;
 
   commit(): Promise<void>;
   rollback(): Promise<void>;
-  transaction<T>(fn: (uow: UnitOfWork) => Promise<T>): Promise<T>;
 }
 
 export interface UnitOfWorkFactory {
-  create(neo4jSession?: unknown): Promise<UnitOfWork>;
+  create(): Promise<UnitOfWork>;
+  transaction<T>(fn: (uow: UnitOfWork) => Promise<T>): Promise<T>;
 }

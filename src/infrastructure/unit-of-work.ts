@@ -1,5 +1,5 @@
-import { Database } from "./postgres/client";
-import { Neo4jClient } from "./neo4j/client";
+import type { Database } from "./postgres/client";
+import type { Neo4jClient } from "./neo4j/client";
 import {
   PostgresSourceRepository,
   PostgresDocumentRepository,
@@ -20,25 +20,22 @@ export class DefaultUnitOfWork implements UnitOfWork {
   chunkRepository: PostgresChunkRepository;
   entityRepository: PostgresEntityRepository;
   factRepository: PostgresFactRepository;
-  mentionRepository: any;
+  mentionRepository: unknown;
   executionRunRepository: PostgresExecutionRunRepository;
   executionStepRepository: PostgresExecutionStepRepository;
   outboxRepository: PostgresOutboxRepository;
 
   private committed = false;
 
-  constructor(
-    private db: Database,
-    neo4j: Neo4jClient,
-  ) {
-    void neo4j;
+  constructor(db: Database, _neo4j: Neo4jClient) {
+    void _neo4j;
     this.sourceRepository = new PostgresSourceRepository(db);
     this.documentRepository = new PostgresDocumentRepository(db);
     this.documentVersionRepository = new PostgresDocumentVersionRepository(db);
     this.chunkRepository = new PostgresChunkRepository(db);
     this.entityRepository = new PostgresEntityRepository(db);
     this.factRepository = new PostgresFactRepository(db);
-    this.mentionRepository = {} as any;
+    this.mentionRepository = null;
     this.executionRunRepository = new PostgresExecutionRunRepository(db);
     this.executionStepRepository = new PostgresExecutionStepRepository(db);
     this.outboxRepository = new PostgresOutboxRepository(db);
@@ -49,20 +46,10 @@ export class DefaultUnitOfWork implements UnitOfWork {
       throw new Error("Transaction already committed");
     }
     this.committed = true;
-    await this.db.transaction(async () => {
-      // All changes are flushed automatically within the transaction
-    });
   }
 
   async rollback(): Promise<void> {
     this.committed = false;
-  }
-
-  async transaction<T>(fn: (uow: UnitOfWork) => Promise<T>): Promise<T> {
-    return await this.db.transaction(async () => {
-      const result = await fn(this);
-      return result;
-    });
   }
 }
 
@@ -74,5 +61,55 @@ export class DefaultUnitOfWorkFactory implements UnitOfWorkFactory {
 
   async create(): Promise<UnitOfWork> {
     return new DefaultUnitOfWork(this.db, this._neo4j);
+  }
+
+  async transaction<T>(fn: (uow: UnitOfWork) => Promise<T>): Promise<T> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return this.db.transaction(async (tx: any) => {
+      const uow = new TransactionalUnitOfWork(tx, this._neo4j);
+      return fn(uow);
+    });
+  }
+}
+
+class TransactionalUnitOfWork implements UnitOfWork {
+  sourceRepository: PostgresSourceRepository;
+  documentRepository: PostgresDocumentRepository;
+  documentVersionRepository: PostgresDocumentVersionRepository;
+  chunkRepository: PostgresChunkRepository;
+  entityRepository: PostgresEntityRepository;
+  factRepository: PostgresFactRepository;
+  mentionRepository: unknown;
+  executionRunRepository: PostgresExecutionRunRepository;
+  executionStepRepository: PostgresExecutionStepRepository;
+  outboxRepository: PostgresOutboxRepository;
+
+  constructor(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private tx: any,
+    _neo4j: Neo4jClient,
+  ) {
+    void _neo4j;
+    const txDb = {
+      drizzle: this.tx,
+    } as unknown as Database;
+    this.sourceRepository = new PostgresSourceRepository(txDb);
+    this.documentRepository = new PostgresDocumentRepository(txDb);
+    this.documentVersionRepository = new PostgresDocumentVersionRepository(txDb);
+    this.chunkRepository = new PostgresChunkRepository(txDb);
+    this.entityRepository = new PostgresEntityRepository(txDb);
+    this.factRepository = new PostgresFactRepository(txDb);
+    this.mentionRepository = null;
+    this.executionRunRepository = new PostgresExecutionRunRepository(txDb);
+    this.executionStepRepository = new PostgresExecutionStepRepository(txDb);
+    this.outboxRepository = new PostgresOutboxRepository(txDb);
+  }
+
+  async commit(): Promise<void> {
+    // Transaction auto-commits on success
+  }
+
+  async rollback(): Promise<void> {
+    // Drizzle transaction auto-rolls back on error
   }
 }

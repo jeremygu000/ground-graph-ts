@@ -9,7 +9,7 @@ export interface DatabaseConfig {
 
 export class Database {
   private pool: ReturnType<typeof postgres>;
-  private db: ReturnType<typeof drizzle>;
+  readonly drizzle: ReturnType<typeof drizzle>;
 
   constructor(config: DatabaseConfig) {
     this.pool = postgres(config.url, {
@@ -17,23 +17,20 @@ export class Database {
       idle_timeout: 20,
       connect_timeout: 10,
     });
-    this.db = drizzle(this.pool, { schema });
+    this.drizzle = drizzle(this.pool, { schema });
   }
 
   get client() {
     return this.pool;
   }
 
-  get drizzle() {
-    return this.db;
-  }
-
   async close(): Promise<void> {
     await this.pool.end();
   }
 
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    return this.db.transaction(fn);
+  async transaction<T>(fn: (tx: ReturnType<typeof drizzle>) => Promise<T>): Promise<T> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return this.drizzle.transaction(fn as any) as Promise<T>;
   }
 }
 

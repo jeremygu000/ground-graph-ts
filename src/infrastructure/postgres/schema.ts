@@ -160,7 +160,7 @@ export const chunkEmbeddings = pgTable(
       .notNull()
       .references(() => indexVersions.id, { onDelete: "cascade" }),
     tenantId: uuid("tenant_id").notNull(),
-    embedding: text("embedding"),
+    embedding: text("embedding"), // TODO: Use VECTOR type with pgvector Drizzle adapter when customType is available
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

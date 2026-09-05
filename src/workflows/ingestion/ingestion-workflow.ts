@@ -1,4 +1,4 @@
-import type { UnitOfWork } from "../../application/unit-of-work";
+import type { UnitOfWorkFactory } from "../../application/unit-of-work";
 import type { DocumentParser, ParsedContent } from "../../application/ingestion/parser-port";
 import type {
   Chunker,
@@ -25,21 +25,22 @@ export interface IngestionWorkflowInput {
 export interface IngestionWorkflowResult {
   documentId: string;
   versionId: string;
+  versionNumber: number;
+  status: "created" | "unchanged";
   chunksCreated: number;
   qualityReport: IngestionQualityReport;
 }
 
 export class IngestionWorkflow {
   constructor(
-    private uowFactory: () => Promise<UnitOfWork>,
+    private uowFactory: UnitOfWorkFactory,
     private parser: DocumentParser,
     private chunker: Chunker,
     private contentFetcher: ContentFetcher,
   ) {}
 
   async execute(input: IngestionWorkflowInput): Promise<IngestionWorkflowResult> {
-    const uow = await this.uowFactory();
-    return await uow.transaction(async (uow) => {
+    return await this.uowFactory.transaction(async (uow) => {
       const existingSource = await uow.sourceRepository.findByUri(input.sourceUri, input.tenantId);
       let source: Source;
 
@@ -72,6 +73,8 @@ export class IngestionWorkflow {
       const existingDoc = await uow.documentRepository.findBySourceId(source.id, input.tenantId);
       let document: Document;
       let versionNumber = 1;
+      const newChecksum = this.computeChecksum(parsed.content);
+      const newContentHash = this.hashContent(parsed.content);
 
       if (existingDoc.ok && existingDoc.value) {
         document = existingDoc.value;
@@ -80,6 +83,32 @@ export class IngestionWorkflow {
           input.tenantId,
         );
         if (latestVersion.ok && latestVersion.value) {
+          // Idempotency: if content hasn't changed, return existing version
+          if (latestVersion.value.checksum === newChecksum) {
+            return {
+              documentId: document.id,
+              versionId: latestVersion.value.id,
+              versionNumber: latestVersion.value.versionNumber,
+              status: "unchanged" as const,
+              chunksCreated: 0,
+              qualityReport: {
+                documentId: document.id,
+                versionId: latestVersion.value.id,
+                sourceUri: input.sourceUri,
+                qualityMetrics: {
+                  totalChunks: 0,
+                  avgChunkSize: 0,
+                  minChunkSize: 0,
+                  maxChunkSize: 0,
+                  emptyChunks: 0,
+                  duplicateChunks: 0,
+                  parsingErrors: 0,
+                },
+                ingestedAt: new Date().toISOString(),
+                ingestedBy: input.userId ?? "system",
+              },
+            };
+          }
           versionNumber = latestVersion.value.versionNumber + 1;
         }
       } else {
@@ -97,15 +126,18 @@ export class IngestionWorkflow {
         document = docResult.value;
       }
 
+      const versionId = crypto.randomUUID();
+
       const versionResult = await uow.documentVersionRepository.create(document.id, {
+        id: versionId,
         tenantId: input.tenantId,
         versionNumber,
-        contentHash: this.hashContent(parsed.content),
-        checksum: this.computeChecksum(parsed.content),
+        contentHash: newContentHash,
+        checksum: newChecksum,
         sizeBytes: Buffer.byteLength(parsed.content, "utf-8"),
         parsedDocument: {
           sourceId: source.id,
-          versionId: crypto.randomUUID(),
+          versionId,
           ...(parsed.title !== undefined ? { title: parsed.title } : {}),
           content: parsed.content,
           metadata: parsed.metadata,
@@ -120,6 +152,7 @@ export class IngestionWorkflow {
       }
 
       const version = versionResult.value;
+
       const chunks = await this.createChunks(parsed, version.id, {
         maxChunkSize: input.maxChunkSize ?? 1000,
         overlapSize: input.chunkOverlap ?? 200,
@@ -143,6 +176,8 @@ export class IngestionWorkflow {
       return {
         documentId: document.id,
         versionId: version.id,
+        versionNumber: version.versionNumber,
+        status: "created" as const,
         chunksCreated: chunks.length,
         qualityReport,
       };

@@ -4,6 +4,10 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { ZodError } from "zod";
 import type { HealthChecker } from "@/application/health";
+import { PostgresHealthChecker, Neo4jHealthChecker, MinioHealthChecker } from "@/infrastructure/health";
+import { Database, setGlobalDatabase } from "@/infrastructure/postgres/client";
+import { Neo4jClient } from "@/infrastructure/neo4j/client";
+import { ObjectStorageClient } from "@/infrastructure/object-storage/client";
 
 export async function buildApp(healthCheckers: HealthChecker[] = []) {
   const app = Fastify({
@@ -82,3 +86,35 @@ export async function buildApp(healthCheckers: HealthChecker[] = []) {
 
   return app;
 }
+
+const PORT = parseInt(process.env.PORT ?? "8080", 10);
+const HOST = process.env.HOST ?? "0.0.0.0";
+
+const db = new Database({ url: process.env.DATABASE_URL ?? "postgresql://localhost:5432/groundgraph" });
+setGlobalDatabase(db);
+
+const neo4j = new Neo4jClient({
+  uri: process.env.NEO4J_HOST ?? "bolt://localhost:7687",
+  user: process.env.NEO4J_USER ?? "neo4j",
+  password: process.env.NEO4J_PASSWORD ?? "",
+});
+
+const minio = new ObjectStorageClient({
+  accessKeyId: process.env.S3_ACCESS_KEY ?? "",
+  secretAccessKey: process.env.S3_SECRET_KEY ?? "",
+  endpoint: process.env.S3_ENDPOINT ?? "http://localhost:9000",
+  region: process.env.S3_REGION ?? "us-east-1",
+  bucketRaw: process.env.S3_BUCKET_RAW ?? "groundgraph-raw",
+  bucketProcessed: process.env.S3_BUCKET_PROCESSED ?? "groundgraph-processed",
+});
+
+const healthCheckers: HealthChecker[] = [
+  new PostgresHealthChecker(db),
+  new Neo4jHealthChecker(neo4j),
+  new MinioHealthChecker(minio),
+];
+
+const app = await buildApp(healthCheckers);
+
+await app.listen({ port: PORT, host: HOST });
+console.log(`Server listening on ${HOST}:${PORT}`);

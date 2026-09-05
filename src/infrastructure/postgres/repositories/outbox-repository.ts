@@ -31,8 +31,11 @@ export class PostgresOutboxRepository implements OutboxRepository {
         .where(
           and(
             eq(outboxEvents.tenantId, tenantId),
-            eq(outboxEvents.status, "pending"),
-            sql`${outboxEvents.availableAt} <= NOW()`,
+            sql`(
+              (${outboxEvents.status} = 'pending' AND ${outboxEvents.availableAt} <= NOW())
+              OR
+              (${outboxEvents.status} = 'claimed' AND ${outboxEvents.availableAt} < NOW())
+            )`,
           ),
         )
         .orderBy(asc(outboxEvents.availableAt))
@@ -61,7 +64,16 @@ export class PostgresOutboxRepository implements OutboxRepository {
           attempts: sql`${outboxEvents.attempts} + 1`,
           availableAt: claimUntil,
         } as any)
-        .where(and(sql`${outboxEvents.id} = ANY(${ids})`, eq(outboxEvents.status, "pending")))
+        .where(
+          and(
+            sql`${outboxEvents.id} = ANY(${ids})`,
+            sql`(
+              (${outboxEvents.status} = 'pending')
+              OR
+              (${outboxEvents.status} = 'claimed' AND ${outboxEvents.availableAt} < NOW())
+            )`,
+          ),
+        )
         .returning();
 
       return { ok: true, value: results as unknown as OutboxEvent[] };
@@ -81,13 +93,20 @@ export class PostgresOutboxRepository implements OutboxRepository {
           status: "completed",
           completedAt: new Date(),
         })
-        .where(and(eq(outboxEvents.id, id), eq(outboxEvents.leaseToken, token)))
+        .where(
+          and(
+            eq(outboxEvents.id, id),
+            eq(outboxEvents.leaseToken, token),
+            eq(outboxEvents.status, "claimed"),
+            sql`${outboxEvents.availableAt} >= NOW()`,
+          ),
+        )
         .returning({ id: outboxEvents.id });
 
       if (!result) {
         return {
           ok: false,
-          error: new Error("Event not found, already completed, or lease token mismatch"),
+          error: new Error("Event not found, not claimed, lease expired, or token mismatch"),
         };
       }
       return { ok: true, value: undefined };
@@ -111,11 +130,18 @@ export class PostgresOutboxRepository implements OutboxRepository {
           claimedAt: null,
           error: error.substring(0, 500),
         })
-        .where(and(eq(outboxEvents.id, id), eq(outboxEvents.leaseToken, token)))
+        .where(
+          and(
+            eq(outboxEvents.id, id),
+            eq(outboxEvents.leaseToken, token),
+            eq(outboxEvents.status, "claimed"),
+            sql`${outboxEvents.availableAt} >= NOW()`,
+          ),
+        )
         .returning({ id: outboxEvents.id });
 
       if (!result) {
-        return { ok: false, error: new Error("Event not found or lease token mismatch") };
+        return { ok: false, error: new Error("Event not found, not claimed, lease expired, or token mismatch") };
       }
       return { ok: true, value: undefined };
     } catch (error) {
@@ -136,11 +162,18 @@ export class PostgresOutboxRepository implements OutboxRepository {
           deadLetteredAt: new Date(),
           error: error.substring(0, 500),
         })
-        .where(and(eq(outboxEvents.id, id), eq(outboxEvents.leaseToken, token)))
+        .where(
+          and(
+            eq(outboxEvents.id, id),
+            eq(outboxEvents.leaseToken, token),
+            eq(outboxEvents.status, "claimed"),
+            sql`${outboxEvents.availableAt} >= NOW()`,
+          ),
+        )
         .returning({ id: outboxEvents.id });
 
       if (!result) {
-        return { ok: false, error: new Error("Event not found or lease token mismatch") };
+        return { ok: false, error: new Error("Event not found, not claimed, lease expired, or token mismatch") };
       }
       return { ok: true, value: undefined };
     } catch (error) {

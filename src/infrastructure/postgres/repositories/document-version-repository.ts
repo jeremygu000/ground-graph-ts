@@ -15,7 +15,7 @@ export class PostgresDocumentVersionRepository implements DocumentVersionReposit
     version: CreateDocumentVersionInput,
   ): Promise<{ ok: true; value: DocumentVersion } | { ok: false; error: Error }> {
     try {
-      const insertData = {
+      const insertData: typeof documentVersions.$inferInsert = {
         documentId,
         tenantId: version.tenantId,
         versionNumber: version.versionNumber,
@@ -26,6 +26,9 @@ export class PostgresDocumentVersionRepository implements DocumentVersionReposit
         isActive: version.isActive,
         createdBy: version.createdBy,
       };
+      if (version.id) {
+        insertData.id = version.id;
+      }
       const [result] = await this.db.drizzle
         .insert(documentVersions)
         .values(insertData)
