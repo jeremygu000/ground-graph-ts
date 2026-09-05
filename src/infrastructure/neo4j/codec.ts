@@ -13,6 +13,18 @@ function isPlainObject(value: unknown): value is PlainObject {
   return prototype === Object.prototype || prototype === null;
 }
 
+function decodeNeo4jInteger(value: unknown, context: string): number {
+  if (!neo4j.isInt(value)) {
+    throw new Error(`${context}: expected Neo4j Integer`);
+  }
+
+  if (!value.inSafeRange()) {
+    throw new Error(`${context}: integer is outside JavaScript safe range`);
+  }
+
+  return neo4j.integer.toNumber(value);
+}
+
 export function encodeNeo4jDateTime(value: string): Neo4jDateTime {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -46,7 +58,7 @@ function normalizeJsonValue(value: unknown, seen: WeakSet<object>): JSONValue {
   }
 
   if (neo4j.isInt(value)) {
-    return neo4j.integer.toNumber(value);
+    return decodeNeo4jInteger(value, "Invalid JSON value");
   }
 
   if (Array.isArray(value)) {
@@ -90,7 +102,7 @@ export function decodeNeo4jJsonValue(value: unknown): JSONValue {
   }
 
   if (neo4j.isInt(value)) {
-    return neo4j.integer.toNumber(value);
+    return decodeNeo4jInteger(value, "Invalid Neo4j JSON value");
   }
 
   if (neo4j.isDateTime(value)) {

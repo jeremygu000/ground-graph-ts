@@ -3,9 +3,9 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
-import { hasContainerRuntime, startRawComponentDatabase } from "./test-support";
+import { assertContainerRuntime, startRawComponentDatabase } from "./test-support";
 
-const describeComponent = (await hasContainerRuntime()) ? describe : describe.skip;
+await assertContainerRuntime();
 
 async function runCommand(command: string, args: string[], env: NodeJS.ProcessEnv): Promise<void> {
   await new Promise<void>((resolve, reject) => {
@@ -52,7 +52,7 @@ async function appliedMigrationCount(
   return Number(row?.count ?? 0);
 }
 
-describeComponent("Database migrations", () => {
+describe("Database migrations", () => {
   let ctx: Awaited<ReturnType<typeof startRawComponentDatabase>>;
   let tempDir: string;
 

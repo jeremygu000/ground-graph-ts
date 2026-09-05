@@ -23,7 +23,6 @@ export interface ComponentDb {
 
 let sharedContext: Promise<ComponentDb> | undefined;
 let sharedContextRefs = 0;
-let runtimeAvailable: Promise<boolean> | undefined;
 
 async function bootstrapSchema(db: Database): Promise<void> {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -113,12 +112,15 @@ async function waitForDatabase(db: Database): Promise<void> {
   throw new Error("Database did not become ready in time");
 }
 
-export async function hasContainerRuntime(): Promise<boolean> {
-  runtimeAvailable ??= getContainerRuntimeClient()
-    .then(() => true)
-    .catch(() => false);
-
-  return runtimeAvailable;
+export async function assertContainerRuntime(): Promise<void> {
+  try {
+    await getContainerRuntimeClient();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Container runtime is required for component tests. Start Docker or another compatible runtime, then rerun pnpm test:component. Original error: ${message}`,
+    );
+  }
 }
 
 export async function startComponentDatabase(): Promise<ComponentDb> {

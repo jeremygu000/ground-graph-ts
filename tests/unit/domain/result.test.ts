@@ -8,6 +8,8 @@ import {
   unwrapOr,
   map,
   mapError,
+  andThen,
+  andThenAsync,
 } from "../../../src/domain/result";
 
 describe("Result", () => {
@@ -92,6 +94,34 @@ describe("Result", () => {
       const original = new Error("Original");
       const result = mapError(failure(original), (e) => new Error(`Transformed: ${e.message}`));
       expect((result as any).error.message).toBe("Transformed: Original");
+    });
+  });
+
+  describe("andThen", () => {
+    it("should chain success results", async () => {
+      const result = await andThen(success(2), (value) => success(value * 3));
+      expect(result).toEqual(success(6));
+    });
+
+    it("should pass through failure results", async () => {
+      const error = new Error("nope");
+      const result = await andThen(failure(error), (value: number) => success(value * 2));
+      expect(result).toEqual(failure(error));
+    });
+  });
+
+  describe("andThenAsync", () => {
+    it("should chain async success results", async () => {
+      const result = await andThenAsync(success(2), async (value) => success(value * 4));
+      expect(result).toEqual(success(8));
+    });
+
+    it("should pass through async failure results", async () => {
+      const error = new Error("async nope");
+      const result = await andThenAsync(failure(error), async (value: number) =>
+        success(value * 2),
+      );
+      expect(result).toEqual(failure(error));
     });
   });
 });

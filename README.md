@@ -63,7 +63,8 @@ docker-compose up -d
 pnpm format:check
 pnpm lint
 pnpm typecheck
-pnpm test:unit --coverage
+pnpm test:unit
+pnpm test:component
 pnpm check
 ```
 
@@ -121,9 +122,14 @@ pnpm test:unit --coverage
 # Architecture tests
 pnpm test:architecture
 
-# All tests (requires Docker)
-pnpm test:all
+# Component tests (requires Docker or another compatible container runtime)
+pnpm test:component
+
+# Main quality gate: format, lint, typecheck, and unit coverage
+pnpm check
 ```
+
+`pnpm test:component` is expected to fail clearly if no container runtime is available.
 
 ### Database Migrations
 

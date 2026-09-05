@@ -4,12 +4,15 @@ import {
   createUserId,
   createSourceId,
   createDocumentId,
+  createDocumentVersionId,
   createChunkId,
   createEntityId,
   createFactId,
   createEvidenceId,
   createRunId,
   createStepId,
+  createIndexVersionId,
+  createEventId,
   ISO_8601_REGEX,
   isValidIS08601DateString,
   createUTCDateString,
@@ -41,6 +44,11 @@ describe("Primitives", () => {
       expect(id).toBe("doc-789");
     });
 
+    it("should create document version ID", () => {
+      const id = createDocumentVersionId("ver-789");
+      expect(id).toBe("ver-789");
+    });
+
     it("should create chunk ID", () => {
       const id = createChunkId("chk-abc");
       expect(id).toBe("chk-abc");
@@ -69,6 +77,38 @@ describe("Primitives", () => {
     it("should create step ID", () => {
       const id = createStepId("stp-abc");
       expect(id).toBe("stp-abc");
+    });
+
+    it("should create index version ID", () => {
+      const id = createIndexVersionId("idx-123");
+      expect(id).toBe("idx-123");
+    });
+
+    it("should create event ID", () => {
+      const id = createEventId("evt-456");
+      expect(id).toBe("evt-456");
+    });
+
+    it("should reject empty values for all ID helpers", () => {
+      const helpers = [
+        createTenantId,
+        createUserId,
+        createSourceId,
+        createDocumentId,
+        createDocumentVersionId,
+        createChunkId,
+        createIndexVersionId,
+        createEntityId,
+        createFactId,
+        createEvidenceId,
+        createRunId,
+        createStepId,
+        createEventId,
+      ];
+
+      for (const helper of helpers) {
+        expect(() => helper("")).toThrow("cannot be empty");
+      }
     });
   });
 

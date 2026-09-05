@@ -1,13 +1,9 @@
 {
   "name": "ground-graph-ts",
   "version": "0.1.0",
-  "description": "Hybrid Agentic GraphRAG system with vertical knowledge graph, horizontal workflow graph, and queryable execution graph",
   "private": true,
+  "description": "Hybrid Agentic GraphRAG system with vertical knowledge graph, horizontal workflow graph, and queryable execution graph",
   "type": "module",
-  "engines": {
-    "node": ">=22.0.0",
-    "pnpm": ">=9.0.0"
-  },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "format": "oxfmt --write src apps tests",
@@ -15,10 +11,10 @@
     "lint": "oxlint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:unit": "vitest run --coverage",
+    "test:unit": "vitest run tests/unit --coverage",
     "test:component": "vitest run tests/component --maxWorkers 1",
     "test:watch": "vitest",
-    "test:unit:coverage": "vitest run --coverage --coverage.reporters=html --coverage.reporters=lcov --coverage.reporters=text-summary",
+    "test:unit:coverage": "vitest run tests/unit --coverage --coverage.reporters=html --coverage.reporters=lcov --coverage.reporters=text-summary",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:unit",
     "check:ci": "pnpm install --frozen-lockfile && pnpm check",
     "db:generate": "drizzle-kit generate",
@@ -65,5 +61,9 @@
     "typescript": "^7.0.2",
     "vite": "^6.4.3",
     "vitest": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
   }
 }

@@ -12,11 +12,11 @@ import {
   encodeNeo4jJsonValue,
 } from "../../src/infrastructure/neo4j";
 import { KnowledgeFactSchema } from "../../src/domain/knowledge/types";
-import { hasContainerRuntime } from "./test-support";
+import { assertContainerRuntime } from "./test-support";
 
-const describeComponent = (await hasContainerRuntime()) ? describe : describe.skip;
+await assertContainerRuntime();
 
-describeComponent("Neo4jGraphRepository component", () => {
+describe("Neo4jGraphRepository component", () => {
   const image = "neo4j:5.26-community";
   let container: StartedTestContainer;
   let client: Neo4jClient;

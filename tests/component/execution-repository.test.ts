@@ -3,11 +3,11 @@ import {
   PostgresExecutionRunRepository,
   PostgresExecutionStepRepository,
 } from "../../src/infrastructure/postgres/repositories/execution-repository";
-import { hasContainerRuntime, startComponentDatabase } from "./test-support";
+import { assertContainerRuntime, startComponentDatabase } from "./test-support";
 
-const describeComponent = (await hasContainerRuntime()) ? describe : describe.skip;
+await assertContainerRuntime();
 
-describeComponent("PostgresExecutionStepRepository", () => {
+describe("PostgresExecutionStepRepository", () => {
   let ctx: Awaited<ReturnType<typeof startComponentDatabase>>;
   let runRepo: PostgresExecutionRunRepository;
   let stepRepo: PostgresExecutionStepRepository;

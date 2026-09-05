@@ -4,6 +4,13 @@ import {
   ValidationError,
   NotFoundError,
   DatabaseError,
+  AlreadyExistsError,
+  ForbiddenError,
+  InternalError,
+  InvalidStateError,
+  NetworkError,
+  TimeoutError,
+  GraphError,
 } from "../../../src/domain/errors";
 
 describe("Domain Errors", () => {
@@ -46,6 +53,16 @@ describe("Domain Errors", () => {
       expect(json.message).toBe("Invalid input");
       expect(json.metadata).toEqual({ field: "email" });
     });
+
+    it("should serialize a non-error cause", () => {
+      const error = new AppError({
+        code: "INTERNAL_ERROR",
+        message: "Something went wrong",
+        cause: "plain cause",
+      });
+
+      expect(error.toJSON().cause).toBe("plain cause");
+    });
   });
 
   describe("ValidationError", () => {
@@ -53,6 +70,26 @@ describe("Domain Errors", () => {
       const error = new ValidationError("Field is required");
       expect(error.code).toBe("VALIDATION_ERROR");
       expect(error.name).toBe("ValidationError");
+    });
+
+    it("should include metadata when provided", () => {
+      const error = new ValidationError("Field is required", { field: "email" });
+      expect(error.metadata).toEqual({ field: "email" });
+    });
+  });
+
+  describe("other error classes", () => {
+    it("should format common messages", () => {
+      expect(new AlreadyExistsError("Document", "123").message).toContain("already exists");
+      expect(new AlreadyExistsError("Document").message).toBe("Document already exists");
+      expect(new NotFoundError("Document", "123").message).toContain("not found");
+      expect(new NotFoundError("Document").message).toBe("Document not found");
+      expect(new ForbiddenError().code).toBe("FORBIDDEN");
+      expect(new InternalError("boom").code).toBe("INTERNAL_ERROR");
+      expect(new InvalidStateError("bad").message).toBe("bad");
+      expect(new NetworkError("down").code).toBe("NETWORK_ERROR");
+      expect(new TimeoutError().message).toBe("Operation timed out");
+      expect(new GraphError("graph").code).toBe("GRAPH_ERROR");
     });
   });
 

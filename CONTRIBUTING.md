@@ -18,17 +18,20 @@ By participating in this project, you agree to abide by our code of conduct. We 
 
 1. Fork the repository
 2. Clone your fork:
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/ground-graph-ts.git
    cd ground-graph-ts
    ```
 
 3. Install dependencies:
+
    ```bash
    pnpm install --frozen-lockfile
    ```
 
 4. Start local infrastructure:
+
    ```bash
    docker-compose up -d
    ```
@@ -42,7 +45,7 @@ By participating in this project, you agree to abide by our code of conduct. We 
 
 ### 1. Create a Branch
 
-Create a feature branch from `main`:
+Create a feature branch from `master`:
 
 ```bash
 git checkout -b feature/your-feature-name
@@ -74,7 +77,10 @@ pnpm typecheck
 # Unit tests with coverage
 pnpm test:unit --coverage
 
-# Full check
+# Component tests (requires Docker or another compatible container runtime)
+pnpm test:component
+
+# Main check gate
 pnpm check
 ```
 
@@ -91,6 +97,7 @@ Follow the commit message format:
 ```
 
 Types:
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation changes
@@ -100,6 +107,7 @@ Types:
 - `chore`: Maintenance tasks
 
 Example:
+
 ```
 feat(ingestion): add support for markdown document parsing
 
@@ -155,8 +163,9 @@ domain <- application <- workflows/API <- infrastructure composition
 
 ### Coverage Requirements
 
-- Lines/statements/functions >= 85%
-- Branches >= 80%
+- Unit coverage thresholds:
+  - Lines/statements/functions >= 85%
+  - Branches >= 80%
 
 ### Running Tests
 
@@ -170,12 +179,11 @@ pnpm test:unit --coverage
 # Architecture tests
 pnpm test:architecture
 
-# Component tests (requires Docker)
+# Component tests (requires Docker or another compatible container runtime)
 pnpm test:component
-
-# All tests (requires Docker)
-pnpm test:all
 ```
+
+`pnpm test:component` fails clearly if no container runtime is available. It does not skip suites or report a false green result.
 
 ## Documentation
 
@@ -189,6 +197,7 @@ pnpm test:all
 ### ADR Guidelines
 
 Architecture Decision Records (ADRs) should be placed in `docs/adr/` and include:
+
 - Context
 - Decision
 - Alternatives
@@ -210,18 +219,23 @@ Architecture Decision Records (ADRs) should be placed in `docs/adr/` and include
 
 ```markdown
 ## Summary
+
 Brief description of the change
 
 ## Motivation
+
 Why is this change needed?
 
 ## Changes
+
 - List of specific changes made
 
 ## Testing
+
 How was this tested?
 
 ## Checklist
+
 - [ ] Passes all quality gates
 - [ ] Tests added/updated
 - [ ] Documentation updated
@@ -242,6 +256,7 @@ When reporting issues, please include:
 ## Questions?
 
 Feel free to:
+
 - Open an issue for questions
 - Join discussions in pull requests
 - Check existing issues and discussions before creating new ones
