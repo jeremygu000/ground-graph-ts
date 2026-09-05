@@ -1,5 +1,8 @@
 import type { ExecutionRun, ExecutionStep } from "../../domain/execution/types";
 import type { Result } from "../../domain/result";
+import type { OutboxEvent, OutboxRepository } from "../events/ports";
+
+export type { OutboxEvent, OutboxRepository };
 
 export interface ExecutionRunRepository {
   create(run: ExecutionRun): Promise<Result<ExecutionRun>>;
@@ -40,35 +43,4 @@ export interface ExecutionStepRepository {
   ): Promise<Result<ExecutionStep>>;
   addDependency(stepId: string, dependsOnStepId: string, tenantId: string): Promise<Result<void>>;
   getDependencies(stepId: string, tenantId: string): Promise<Result<ExecutionStep[]>>;
-}
-
-export interface OutboxRepository {
-  create(event: OutboxEvent): Promise<Result<OutboxEvent>>;
-  findPending(tenantId: string, limit: number): Promise<Result<OutboxEvent[]>>;
-  claim(ids: string[], workerId: string, leaseDurationMs: number): Promise<Result<OutboxEvent[]>>;
-  complete(id: string, token: string): Promise<Result<void>>;
-  fail(id: string, token: string, error: string): Promise<Result<void>>;
-  deadLetter(id: string, token: string, error: string): Promise<Result<void>>;
-  findById(id: string, tenantId: string): Promise<Result<OutboxEvent | null>>;
-}
-
-export interface OutboxEvent {
-  id: string;
-  tenantId: string;
-  aggregateType: string;
-  aggregateId: string;
-  eventType: string;
-  payload: Record<string, unknown>;
-  idempotencyKey: string;
-  status: "pending" | "claimed" | "completed" | "dead_letter";
-  attempts: number;
-  availableAt: string;
-  claimedAt?: string;
-  claimedBy?: string;
-  leaseToken?: string;
-  completedAt?: string;
-  deadLetteredAt?: string;
-  error?: string;
-  createdAt: string;
-  updatedAt: string;
 }
