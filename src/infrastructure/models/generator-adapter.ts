@@ -203,9 +203,8 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
   private buildPrompt(request: GenerationRequest): { system: string; user: string } {
     const allowedList = request.allowedCitationIds.map((id) => `- ${id}`).join("\n");
     const contextBlock = request.evidence
-      .map((e, idx) => {
-        const citationId = `CIT-${idx + 1}-${e.id.slice(0, 8)}`;
-        return `[${citationId}]\n${e.content}\nscore=${e.score.toFixed(3)}`;
+      .map((e) => {
+        return `[${e.id}]\n${e.content}\nscore=${e.score.toFixed(3)}`;
       })
       .join("\n\n");
     const system =

@@ -113,7 +113,6 @@ export interface StructuredAnswer {
   status: "answered" | "insufficient_evidence" | "refused";
   claims: ClaimOutput[];
   refusalReason?: string;
-  reasoningTrace?: string;
 }
 
 export const StructuredAnswerSchema: z.ZodType<StructuredAnswer> = z.object({
@@ -141,7 +140,6 @@ export const StructuredAnswerSchema: z.ZodType<StructuredAnswer> = z.object({
     }),
   ),
   refusalReason: z.string().optional(),
-  reasoningTrace: z.string().optional(),
 }) as unknown as z.ZodType<StructuredAnswer>;
 
 export interface GenerationRequest {

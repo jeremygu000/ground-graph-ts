@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type {
   CitationBuilderPort,
   EmbeddingPort,
@@ -17,6 +18,7 @@ import type {
   RetrievalResult,
   RetrievalStrategy,
 } from "../../domain/retrieval/types";
+import type { StructuredAnswer } from "../../application/models/ports";
 import { success, failure, type Result } from "../../domain/result";
 import { NotFoundError, ValidationError, InternalError } from "../../domain/errors";
 import { withSpan, recordMetric } from "../telemetry";
@@ -153,7 +155,7 @@ export class DefaultVectorQueryService implements VectorQueryService {
           });
           const genResult = await this.deps.generator.generateStructured(genRequest);
           if (!genResult.ok) return failure(genResult.error);
-          generatedAnswer = genResult.value.structured;
+          generatedAnswer = this.applyRefusalPolicy(genResult.value.structured, citations.length);
         }
 
         const totalMs = elapsed(startedAt, this.deps.clock);
@@ -187,6 +189,32 @@ export class DefaultVectorQueryService implements VectorQueryService {
     );
   }
 
+  private applyRefusalPolicy(answer: StructuredAnswer, _citationCount: number): StructuredAnswer {
+    const { refusalMinCitations, refusalMinConfidence } = this.deps.config;
+    if (answer.status === "refused") return answer;
+
+    const minCitations = refusalMinCitations ?? 1;
+    const minConfidence = refusalMinConfidence ?? 0;
+
+    const totalCitations = answer.claims.reduce((sum, claim) => sum + claim.citations.length, 0);
+    const tooFewCitations = totalCitations < minCitations;
+    const tooLowConfidence = answer.claims.some((c) => c.confidence < minConfidence);
+
+    if (tooFewCitations || tooLowConfidence) {
+      return {
+        ...answer,
+        status: "insufficient_evidence" as const,
+        answer: "",
+        claims: [],
+        refusalReason: tooFewCitations
+          ? `Insufficient citations: ${totalCitations} < ${minCitations}`
+          : `Confidence below threshold: some claim < ${minConfidence}`,
+      };
+    }
+
+    return answer;
+  }
+
   buildGenerationRequest(
     query: RetrievalQuery,
     execution: RetrievalExecutionResult,
@@ -213,8 +241,8 @@ function toRetrievalResults(
   }>,
   strategy: RetrievalStrategy,
 ): RetrievalResult[] {
-  return rows.map((row, idx) => ({
-    id: `RES-${strategy}-${idx}-${row.chunkId.slice(0, 8)}`,
+  return rows.map((row) => ({
+    id: randomUUID(),
     strategy,
     score: row.score,
     chunkId: row.chunkId,

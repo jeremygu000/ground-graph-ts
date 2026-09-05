@@ -20,3 +20,8 @@ CREATE INDEX idx_documents_tenant_principal ON documents(tenant_id, principal_id
 CREATE INDEX idx_document_versions_tenant_principal ON document_versions(tenant_id, principal_id);
 CREATE INDEX idx_chunks_tenant_principal ON chunks(tenant_id, principal_id);
 CREATE INDEX idx_chunk_embeddings_tenant_principal ON chunk_embeddings(tenant_id, principal_id);
+
+-- Prevent multiple active index versions per tenant/type (M4 P1 fix)
+CREATE UNIQUE INDEX idx_index_versions_single_active
+ON index_versions (tenant_id, index_type) 
+WHERE is_active = true;

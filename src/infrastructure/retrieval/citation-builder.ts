@@ -1,10 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type {
-  CitationBuilderPort,
-  CitationOutput,
-  VectorSearchResultRow,
-  FullTextSearchResultRow,
-} from "../../application/models/ports";
+import type { CitationBuilderPort, CitationOutput } from "../../application/models/ports";
 import type { RetrievalResult } from "../../domain/retrieval/types";
 import type { EvidenceReference } from "../../domain/documents/types";
 import { success, failure, type Result } from "../../domain/result";
@@ -21,7 +16,8 @@ export class CitationBuilder implements CitationBuilderPort {
       if (!r) continue;
       const chunkId = r.chunkId;
       if (!chunkId) continue;
-      const evidenceId = deriveEvidenceId(chunkId, i);
+      const citationId = randomUUID();
+      const evidenceId = randomUUID();
       const documentVersionId = r.metadata?.["documentVersionId"];
       const documentVersionIdStr = typeof documentVersionId === "string" ? documentVersionId : "";
       if (!documentVersionIdStr) {
@@ -37,7 +33,6 @@ export class CitationBuilder implements CitationBuilderPort {
       const locatorPath = locator?.path ?? "";
       const startChar = r.content.length > 0 ? 0 : 0;
       const endChar = r.content.length;
-      const citationId = randomUUID();
       citations.push({
         citationId,
         evidenceId,
@@ -64,29 +59,4 @@ export class CitationBuilder implements CitationBuilderPort {
       snippet: c.snippet,
     }));
   }
-}
-
-export function buildCitationId(chunkId: string, index: number): string {
-  return `CIT-${index + 1}-${chunkId.slice(0, 8)}`;
-}
-
-export function deriveEvidenceId(chunkId: string, index: number): string {
-  return `EV-${chunkId.slice(0, 8)}-${index}`;
-}
-
-export function retrievalToCitation(
-  row: VectorSearchResultRow | FullTextSearchResultRow,
-  index: number,
-): CitationOutput {
-  return {
-    citationId: buildCitationId(row.chunkId, index),
-    evidenceId: deriveEvidenceId(row.chunkId, index),
-    chunkId: row.chunkId,
-    documentVersionId: row.documentVersionId,
-    locatorPath: (row.locator as { path?: string })?.path ?? "",
-    snippet: row.content,
-    startChar: 0,
-    endChar: row.content.length,
-    score: row.score,
-  };
 }
