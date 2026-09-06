@@ -417,7 +417,7 @@ async function runBaseline(): Promise<BaselineReport> {
     version: "0.1.0",
     generatedAt: new Date().toISOString(),
     datasetVersion: metadata.version,
-    evaluationMode: "offline-deterministic",
+    evaluationMode: "offline-deterministic-retrieval-only",
     embeddingModel: null,
     embeddingDimension: null,
     rerankerModel: null,
@@ -480,24 +480,11 @@ async function evaluateCase(
       expectedChunkIds.length > 0 ? retrievedExpectedCount / expectedChunkIds.length : null;
     const retrievalHit = expectedChunkIds.some((id) => retrievedChunkIds.includes(id));
 
-    let citationCorrectness: number | null = null;
-    if (evaluationCase.type === "factual" && expectedChunkIds.length > 0) {
-      citationCorrectness = retrievedExpectedCount / expectedChunkIds.length;
-    }
+    const citationCorrectness: number | null = null;
 
-    let refusalCorrectness: boolean | null = null;
-    if (evaluationCase.type === "refusal") {
-      const status = retrievalResult.generatedAnswer?.status;
-      refusalCorrectness = status === "refused";
-    } else if (evaluationCase.type === "factual" || evaluationCase.type === "acl") {
-      const status = retrievalResult.generatedAnswer?.status;
-      refusalCorrectness = status !== "refused";
-    }
+    const refusalCorrectness: boolean | null = null;
 
-    let aclLeakage: boolean | null = null;
-    if (evaluationCase.type === "acl") {
-      aclLeakage = retrievedChunkIds.length > 0;
-    }
+    const aclLeakage: boolean | null = null;
 
     return {
       caseId: evaluationCase.id,

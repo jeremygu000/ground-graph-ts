@@ -339,20 +339,22 @@ export class IngestionWorkflow {
     tenantId: string,
   ): Promise<void> {
     return await this.tracer.startActiveSpan("ingestion.deactivateStaleVersions", async (span) => {
-      try {
-        const versions = await uow.documentVersionRepository.listByDocument(documentId, tenantId);
-        if (!versions.ok || versions.value.length === 0) {
-          return;
-        }
+      const versions = await uow.documentVersionRepository.listByDocument(documentId, tenantId);
+      if (!versions.ok) {
+        throw versions.error;
+      }
+      if (versions.value.length === 0) {
+        return;
+      }
 
-        const toDeactivate = versions.value.filter((v) => v.isActive && v.id !== currentVersionId);
-        span.setAttribute("deactivated.count", toDeactivate.length);
+      const toDeactivate = versions.value.filter((v) => v.isActive && v.id !== currentVersionId);
+      span.setAttribute("deactivated.count", toDeactivate.length);
 
-        for (const version of toDeactivate) {
-          await uow.documentVersionRepository.deactivate(version.id, tenantId);
+      for (const version of toDeactivate) {
+        const result = await uow.documentVersionRepository.deactivate(version.id, tenantId);
+        if (!result.ok) {
+          throw result.error;
         }
-      } finally {
-        span.end();
       }
     });
   }

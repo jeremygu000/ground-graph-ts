@@ -128,17 +128,17 @@ export class PostgresOutboxRepository implements OutboxRepository {
       const rows = await this.db.drizzle.transaction(async (tx) => {
         const selectedRows = this.normalizeResultRows(
           await tx.execute(sql`
-            SELECT id
-            FROM outbox_events
-            WHERE tenant_id = ${tenantId}
-              AND ${inArray(outboxEvents.id, ids)}
-              AND (
-                status = 'pending'
-                OR (status = 'claimed' AND available_at < NOW())
-              )
-            ORDER BY available_at ASC, id ASC
-            FOR UPDATE SKIP LOCKED
-          `),
+              SELECT id
+              FROM outbox_events
+              WHERE tenant_id = ${tenantId}
+                AND ${inArray(outboxEvents.id, ids)}
+                AND (
+                  (status = 'pending' AND available_at <= NOW())
+                  OR (status = 'claimed' AND available_at < NOW())
+                )
+              ORDER BY available_at ASC, id ASC
+              FOR UPDATE SKIP LOCKED
+            `),
         );
 
         const selectedIds = selectedRows.map((row) => String(row.id));
