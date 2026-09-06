@@ -19,6 +19,7 @@ const EMBEDDING_DIMENSION = 1536;
 
 const vectorType = customType<{ data: number[]; driverData: string }>({
   dataType: () => `vector(${EMBEDDING_DIMENSION})`,
+  toDriver: (value: number[]) => `[${value.join(",")}]`,
 });
 
 export const sources = pgTable(

@@ -18,6 +18,7 @@ const EMBEDDING_DIMENSION = 1536;
 
 const vectorType = customType<{ data: number[]; driverData: string }>({
   dataType: () => `vector(${EMBEDDING_DIMENSION})`,
+  toDriver: (value: number[]) => `[${value.join(",")}]`,
 });
 
 function toPgVectorLiteral(values: number[]): string {
@@ -152,8 +153,8 @@ export class PostgresVectorIndexAdapter implements VectorIndexPort {
           if (options.filter?.principalId && options.filter.principalId.length > 0) {
             conditions.push(inArray(chunks.principalId, options.filter.principalId));
           }
-          const distance = sql<number>`${chunkEmbeddings.embedding} <=> ${toPgVectorLiteral(queryEmbedding)}::vector`;
-          const score = sql<number>`1 - ${distance}`;
+          const distance = sql<number>`(${chunkEmbeddings.embedding} <=> ${toPgVectorLiteral(queryEmbedding)}::vector)`;
+          const score = sql<number>`(1 - ${distance})`;
           const rows = await this.db.drizzle
             .select({
               chunkId: chunks.id,
