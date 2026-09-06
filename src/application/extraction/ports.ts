@@ -49,3 +49,10 @@ export interface MentionRepository {
   findByEntity(entityId: string, tenantId: string): Promise<Result<EntityMention[]>>;
   findUnresolved(tenantId: string, limit?: number): Promise<Result<EntityMention[]>>;
 }
+
+export interface GraphProjectionPort {
+  projectFact(fact: KnowledgeFact): Promise<Result<void>>;
+  projectEntity(entity: CanonicalEntity): Promise<Result<void>>;
+  removeFact(factId: string): Promise<Result<void>>;
+  removeEntity(entityId: string): Promise<Result<void>>;
+}

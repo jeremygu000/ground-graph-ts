@@ -4,6 +4,7 @@ export * from "./document-version-repository";
 export * from "./chunk-repository";
 export * from "./entity-repository";
 export * from "./fact-repository";
+export * from "./mention-repository";
 export * from "./execution-repository";
 export * from "./outbox-repository";
 export * from "./source-sync-state-repository";
