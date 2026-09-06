@@ -5,7 +5,14 @@ import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentation
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
-import { createCounter, createHistogram, createUpDownCounter } from "./metrics";
+import {
+  initMetrics,
+  shutdownMetrics,
+  createCounter,
+  createHistogram,
+  createUpDownCounter,
+} from "./metrics";
+import { AppError } from "../../domain/errors";
 
 let sdk: NodeSDK | undefined;
 
@@ -38,6 +45,13 @@ export function initTelemetry(config: TelemetryConfig): NodeSDK {
     ],
   });
 
+  initMetrics({
+    serviceName: config.serviceName,
+    serviceVersion: config.serviceVersion,
+    otlpEndpoint: config.otlpEndpoint,
+    enabled: config.enabled,
+  });
+
   if (config.enabled) {
     sdk.start();
   }
@@ -46,6 +60,7 @@ export function initTelemetry(config: TelemetryConfig): NodeSDK {
 }
 
 export async function shutdownTelemetry(): Promise<void> {
+  await shutdownMetrics();
   if (sdk) {
     await sdk.shutdown();
     sdk = undefined;
@@ -76,8 +91,8 @@ export async function withSpan<T>(
         span.setStatus({ code: SpanStatusCode.OK });
         return result;
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        span.setStatus({ code: SpanStatusCode.ERROR, message: errorMessage });
+        const errorCode = error instanceof AppError ? error.code : "INTERNAL_ERROR";
+        span.setStatus({ code: SpanStatusCode.ERROR, message: errorCode });
         span.recordException(error as Error);
         throw error;
       } finally {

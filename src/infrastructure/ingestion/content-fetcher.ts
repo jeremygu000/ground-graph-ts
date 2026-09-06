@@ -14,19 +14,145 @@ export class FileContentFetcher implements ContentFetcher {
   }
 }
 
+const PRIVATE_IP_PATTERNS = [
+  /^127\./,
+  /^10\./,
+  /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
+  /^192\.168\./,
+  /^169\.254\./,
+  /^0\./,
+  /^224\./,
+  /^240\./,
+];
+
+const BLOCKED_HOSTNAMES = [
+  "localhost",
+  "metadata.google.internal",
+  "metadata.aws",
+  "169.254.169.254",
+  "metadata.azure.com",
+];
+
+const DEFAULT_TIMEOUT_MS = 10_000;
+const DEFAULT_MAX_BYTES = 10 * 1024 * 1024;
+
+function isPrivateIp(hostname: string): boolean {
+  return PRIVATE_IP_PATTERNS.some((pattern) => pattern.test(hostname));
+}
+
+function validateUrl(url: URL): void {
+  if (url.username || url.password) {
+    throw new Error(`UrlContentFetcher: URL credentials are not allowed: ${url}`);
+  }
+
+  const hostname = url.hostname.toLowerCase();
+  if (BLOCKED_HOSTNAMES.includes(hostname)) {
+    throw new Error(`UrlContentFetcher: blocked hostname: ${hostname}`);
+  }
+
+  if (isPrivateIp(hostname)) {
+    throw new Error(`UrlContentFetcher: private IP addresses are not allowed: ${hostname}`);
+  }
+}
+
 export class UrlContentFetcher implements ContentFetcher {
+  constructor(
+    private timeoutMs: number = DEFAULT_TIMEOUT_MS,
+    private maxBytes: number = DEFAULT_MAX_BYTES,
+  ) {}
+
   async fetch(uri: string): Promise<Buffer> {
     if (!uri.startsWith("http://") && !uri.startsWith("https://")) {
       throw new Error(`UrlContentFetcher only supports http/https URIs, got: ${uri}`);
     }
-    const response = await fetch(uri);
-    if (!response.ok) {
-      throw new Error(
-        `UrlContentFetcher failed to fetch ${uri}: ${response.status} ${response.statusText}`,
-      );
+
+    const url = new URL(uri);
+    validateUrl(url);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    let response: Response;
+    let finalUrl = url;
+
+    try {
+      response = await fetch(url, {
+        signal: controller.signal,
+        redirect: "manual",
+      });
+
+      if (response.status >= 300 && response.status < 400) {
+        const locationHeader = response.headers.get("location");
+        if (!locationHeader) {
+          throw new Error(`UrlContentFetcher: redirect without Location header from ${uri}`);
+        }
+
+        const redirectUrl = new URL(locationHeader, url);
+        validateUrl(redirectUrl);
+        finalUrl = redirectUrl;
+
+        clearTimeout(timeoutId);
+        const redirectTimeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+
+        try {
+          response = await fetch(redirectUrl, {
+            signal: controller.signal,
+            redirect: "manual",
+          });
+
+          if (response.status >= 300 && response.status < 400) {
+            throw new Error(
+              `UrlContentFetcher: too many redirects from ${uri}, final: ${redirectUrl}`,
+            );
+          }
+        } finally {
+          clearTimeout(redirectTimeoutId);
+        }
+      } else if (response.status >= 300) {
+        throw new Error(
+          `UrlContentFetcher failed to fetch ${uri}: ${response.status} ${response.statusText}`,
+        );
+      }
+    } finally {
+      clearTimeout(timeoutId);
     }
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+
+    const contentLength = response.headers.get("content-length");
+    if (contentLength) {
+      const size = parseInt(contentLength, 10);
+      if (size > this.maxBytes) {
+        throw new Error(
+          `UrlContentFetcher: content-length ${size} exceeds max ${this.maxBytes} bytes from ${finalUrl}`,
+        );
+      }
+    }
+
+    const chunks: Uint8Array[] = [];
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error(`UrlContentFetcher: no response body from ${finalUrl}`);
+    }
+
+    let totalSize = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        totalSize += value.byteLength;
+        if (totalSize > this.maxBytes) {
+          throw new Error(
+            `UrlContentFetcher: received ${totalSize} bytes exceeds max ${this.maxBytes} from ${finalUrl}`,
+          );
+        }
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    const result = Buffer.concat(chunks.map((c) => Buffer.from(c)));
+    return result;
   }
 }
 

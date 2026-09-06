@@ -66,10 +66,15 @@ vi.mock("@opentelemetry/exporter-trace-otlp-http", () => ({
   OTLPTraceExporter: vi.fn(),
 }));
 
-vi.mock("@opentelemetry/sdk-metrics", () => ({
-  MeterProvider: vi.fn(),
-  PeriodicExportingMetricReader: vi.fn(),
-}));
+vi.mock("@opentelemetry/sdk-metrics", () => {
+  class MockMeterProvider {
+    shutdown = vi.fn().mockResolvedValue(undefined);
+  }
+  return {
+    MeterProvider: MockMeterProvider,
+    PeriodicExportingMetricReader: vi.fn(),
+  };
+});
 
 vi.mock("@opentelemetry/exporter-metrics-otlp-http", () => ({
   OTLPMetricExporter: vi.fn(),
