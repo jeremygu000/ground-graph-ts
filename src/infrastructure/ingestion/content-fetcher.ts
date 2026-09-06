@@ -21,7 +21,9 @@ export class UrlContentFetcher implements ContentFetcher {
     }
     const response = await fetch(uri);
     if (!response.ok) {
-      throw new Error(`UrlContentFetcher failed to fetch ${uri}: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `UrlContentFetcher failed to fetch ${uri}: ${response.status} ${response.statusText}`,
+      );
     }
     const arrayBuffer = await response.arrayBuffer();
     return Buffer.from(arrayBuffer);

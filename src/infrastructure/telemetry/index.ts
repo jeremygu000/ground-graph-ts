@@ -4,10 +4,7 @@ import { NodeSDK } from "@opentelemetry/sdk-node";
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
-import {
-  ATTR_SERVICE_NAME,
-  ATTR_SERVICE_VERSION,
-} from "@opentelemetry/semantic-conventions";
+import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
 import { createCounter, createHistogram, createUpDownCounter } from "./metrics";
 
 let sdk: NodeSDK | undefined;
@@ -94,7 +91,11 @@ const metricCounters = new Map<string, ReturnType<typeof createCounter>>();
 const metricHistograms = new Map<string, ReturnType<typeof createHistogram>>();
 const metricUpDownCounters = new Map<string, ReturnType<typeof createUpDownCounter>>();
 
-export function recordMetric(name: string, value: number, type: "counter" | "histogram" | "updown" = "counter"): void {
+export function recordMetric(
+  name: string,
+  value: number,
+  type: "counter" | "histogram" | "updown" = "counter",
+): void {
   if (type === "counter") {
     let counter = metricCounters.get(name);
     if (!counter) {

@@ -65,7 +65,8 @@ export class IngestionWorkflow {
               });
 
               let chunksCreated = 0;
-              const rawChunks: import("../../application/ingestion/chunker-port").ChunkFragment[] = [];
+              const rawChunks: import("../../application/ingestion/chunker-port").ChunkFragment[] =
+                [];
               if (isNewVersion) {
                 const runChunkerResult = await this.runChunker(input, version.id, parsed);
                 txSpan.setAttribute("chunk.count", runChunkerResult.length);

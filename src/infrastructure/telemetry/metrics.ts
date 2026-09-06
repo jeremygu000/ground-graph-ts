@@ -71,7 +71,11 @@ export function createHistogram(name: string, description?: string, unit?: strin
   return getMeter().createHistogram(name, options);
 }
 
-export function createUpDownCounter(name: string, description?: string, unit?: string): UpDownCounter {
+export function createUpDownCounter(
+  name: string,
+  description?: string,
+  unit?: string,
+): UpDownCounter {
   const options: { description?: string; unit?: string } = {};
   if (description !== undefined) options.description = description;
   if (unit !== undefined) options.unit = unit;
