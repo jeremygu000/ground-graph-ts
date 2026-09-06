@@ -3,7 +3,7 @@ import type {
   ContentFetcherFactory,
 } from "../../application/ingestion/content-fetcher-port";
 import https from "node:https";
-import type http from "node:http";
+import http from "node:http";
 
 export class FileContentFetcher implements ContentFetcher {
   async fetch(uri: string): Promise<Buffer> {
@@ -44,17 +44,56 @@ function isPrivateIPv4(addr: string): boolean {
   return false;
 }
 
+function parseIPv6(addr: string): number[] | null {
+  const parts = addr.toLowerCase().split("::");
+  if (parts.length > 2) return null;
+
+  const parseGroup = (s: string): number => {
+    if (s === "") return 0;
+    const n = parseInt(s, 16);
+    return isNaN(n) ? -1 : n;
+  };
+
+  const groups: number[] = [];
+  for (const part of parts) {
+    const gpStrings = part.split(":");
+    for (const gp of gpStrings) {
+      const n = parseGroup(gp);
+      if (n < 0 || n > 0xffff) return null;
+      groups.push(n);
+    }
+  }
+
+  if (parts.length === 2) {
+    const missing = 8 - groups.length;
+    if (missing < 0) return null;
+    groups.push(...Array(missing).fill(0));
+  }
+
+  if (groups.length !== 8) return null;
+  return groups;
+}
+
 function isPrivateIPv6(addr: string): boolean {
   const lower = addr.toLowerCase();
   if (lower === "::1") return true;
-  if (lower === "fc00::" || lower.startsWith("fc")) return true;
-  if (lower === "fd00::" || lower.startsWith("fd")) return true;
-  if (lower === "fe80::" || lower.startsWith("fe80")) return true;
-  if (lower === "ff00::" || lower.startsWith("ff")) return true;
+  if (lower === "::") return true;
+  if (lower.startsWith("fc00:")) return true;
+  if (lower.startsWith("fd00:")) return true;
+  if (lower.startsWith("ff00:")) return true;
+  if (lower.startsWith("fe80:")) return true;
+
   if (lower.startsWith("::ffff:")) {
     const mapped = lower.slice(7);
     if (isPrivateIPv4(mapped)) return true;
   }
+
+  const groups = parseIPv6(addr);
+  if (!groups) return false;
+
+  const firstGroup = groups[0]!;
+  if (firstGroup >= 0xfe80 && firstGroup <= 0xfebf) return true;
+
   return false;
 }
 
@@ -117,6 +156,10 @@ async function validateResolvedIps(hostname: string): Promise<void> {
 }
 
 function validateUrl(url: URL): void {
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new Error(`UrlContentFetcher: only http/https is supported, got: ${url.protocol}`);
+  }
+
   if (url.username || url.password) {
     throw new Error(`UrlContentFetcher: URL credentials are not allowed: ${url}`);
   }
@@ -137,8 +180,10 @@ export class UrlContentFetcher implements ContentFetcher {
     private maxBytes: number = DEFAULT_MAX_BYTES,
   ) {}
 
-  private async httpsRequest(
+  private async makeRequest(
+    protocol: string,
     hostname: string,
+    port: number,
     path: string,
     validatedIp: string,
     isRedirect: boolean = false,
@@ -147,8 +192,6 @@ export class UrlContentFetcher implements ContentFetcher {
     headers: Record<string, string | string[] | undefined>;
     body: Buffer;
   }> {
-    const port = 443;
-
     return new Promise((resolve, reject) => {
       let req: http.ClientRequest;
 
@@ -157,7 +200,8 @@ export class UrlContentFetcher implements ContentFetcher {
         reject(new Error("UrlContentFetcher: request timeout"));
       }, this.timeoutMs);
 
-      const options: https.RequestOptions = {
+      const isHttps = protocol === "https:";
+      const options: https.RequestOptions | http.RequestOptions = {
         hostname: validatedIp,
         port,
         path,
@@ -167,11 +211,15 @@ export class UrlContentFetcher implements ContentFetcher {
           "User-Agent": "GroundGraph-Ts/1.0",
           ...(isRedirect ? { Connection: "close" } : {}),
         },
-        servername: hostname,
-        rejectUnauthorized: true,
       };
 
-      req = https.request(options, (res) => {
+      if (isHttps) {
+        (options as https.RequestOptions).servername = hostname;
+        (options as https.RequestOptions).rejectUnauthorized = true;
+      }
+
+      const requestModule = isHttps ? https : http;
+      req = requestModule.request(options, (res) => {
         const chunks: Buffer[] = [];
         let totalSize = 0;
 
@@ -219,11 +267,22 @@ export class UrlContentFetcher implements ContentFetcher {
   }
 
   private async fetchWithPinnedIp(originalUrl: URL): Promise<{ body: Buffer; finalUrl: URL }> {
+    const protocol = originalUrl.protocol;
+    const hostname = originalUrl.host;
+    const port = originalUrl.port
+      ? parseInt(originalUrl.port, 10)
+      : protocol === "https:"
+        ? 443
+        : 80;
+    const path = originalUrl.pathname + originalUrl.search;
+
     const validatedIp = await resolveAndValidateHostname(originalUrl.hostname);
 
-    const { statusCode, headers, body } = await this.httpsRequest(
-      originalUrl.hostname,
-      originalUrl.pathname + originalUrl.search,
+    const { statusCode, headers, body } = await this.makeRequest(
+      protocol,
+      hostname,
+      port,
+      path,
       validatedIp,
     );
 
@@ -236,13 +295,20 @@ export class UrlContentFetcher implements ContentFetcher {
       const redirectUrl = new URL(location, originalUrl);
       validateUrl(redirectUrl);
 
+      const redirectPort = redirectUrl.port
+        ? parseInt(redirectUrl.port, 10)
+        : redirectUrl.protocol === "https:"
+          ? 443
+          : 80;
       const redirectIp = await resolveAndValidateHostname(redirectUrl.hostname);
       const {
         statusCode: redirectStatus,
         headers: redirectHeaders,
         body: redirectBody,
-      } = await this.httpsRequest(
-        redirectUrl.hostname,
+      } = await this.makeRequest(
+        redirectUrl.protocol,
+        redirectUrl.host,
+        redirectPort,
         redirectUrl.pathname + redirectUrl.search,
         redirectIp,
         true,
