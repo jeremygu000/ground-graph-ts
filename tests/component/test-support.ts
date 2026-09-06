@@ -32,6 +32,7 @@ async function bootstrapSchema(db: Database): Promise<void> {
     "0002_fulltext_and_vector_indexes.sql",
     "0003_principal_id_columns.sql",
     "0004_single_active_index_constraint.sql",
+    "0005_forward_migration_fix.sql",
   ];
   for (const file of migrationFiles) {
     const migrationPath = path.join(migrationsDir, file);

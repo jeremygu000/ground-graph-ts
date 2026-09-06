@@ -1,5 +1,6 @@
 import type { SourceDescriptor, ParsedDocument, Chunk } from "../../domain/documents/types";
 import type { Result } from "../../domain/result";
+import type { IndexVersionInfo } from "../models/ports";
 
 export interface SourceRepository {
   create(
@@ -128,3 +129,10 @@ export interface CreateDocumentVersionInput {
 
 export type CreateChunkInput = Omit<Chunk, "id">;
 export type { Chunk };
+
+export interface VectorIndexRepository {
+  activateIndexVersion(
+    info: Omit<IndexVersionInfo, "indexVersionId">,
+  ): Promise<Result<IndexVersionInfo>>;
+  getActiveIndexVersion(tenantId: string): Promise<Result<IndexVersionInfo | null>>;
+}

@@ -11,6 +11,7 @@ import {
   PostgresExecutionStepRepository,
   PostgresOutboxRepository,
 } from "./postgres/repositories";
+import { PostgresVectorIndexRepository } from "./postgres/index-repository";
 import type { UnitOfWork, UnitOfWorkFactory } from "../application/unit-of-work";
 
 export class DefaultUnitOfWork implements UnitOfWork {
@@ -24,6 +25,7 @@ export class DefaultUnitOfWork implements UnitOfWork {
   executionRunRepository: PostgresExecutionRunRepository;
   executionStepRepository: PostgresExecutionStepRepository;
   outboxRepository: PostgresOutboxRepository;
+  vectorIndexRepository: PostgresVectorIndexRepository;
 
   private committed = false;
 
@@ -39,6 +41,7 @@ export class DefaultUnitOfWork implements UnitOfWork {
     this.executionRunRepository = new PostgresExecutionRunRepository(db);
     this.executionStepRepository = new PostgresExecutionStepRepository(db);
     this.outboxRepository = new PostgresOutboxRepository(db);
+    this.vectorIndexRepository = new PostgresVectorIndexRepository(db);
   }
 
   async commit(): Promise<void> {
@@ -83,6 +86,7 @@ class TransactionalUnitOfWork implements UnitOfWork {
   executionRunRepository: PostgresExecutionRunRepository;
   executionStepRepository: PostgresExecutionStepRepository;
   outboxRepository: PostgresOutboxRepository;
+  vectorIndexRepository: PostgresVectorIndexRepository;
 
   constructor(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,6 +107,7 @@ class TransactionalUnitOfWork implements UnitOfWork {
     this.executionRunRepository = new PostgresExecutionRunRepository(txDb);
     this.executionStepRepository = new PostgresExecutionStepRepository(txDb);
     this.outboxRepository = new PostgresOutboxRepository(txDb);
+    this.vectorIndexRepository = new PostgresVectorIndexRepository(txDb);
   }
 
   async commit(): Promise<void> {

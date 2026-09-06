@@ -69,7 +69,7 @@ describe("Database migrations", () => {
     expect(await relationExists(ctx, "__drizzle_migrations", "drizzle")).toBe(true);
     expect(await relationExists(ctx, "sources")).toBe(true);
     expect(await relationExists(ctx, "chunk_embeddings")).toBe(true);
-    expect(await appliedMigrationCount(ctx)).toBe(4);
+    expect(await appliedMigrationCount(ctx)).toBe(5);
 
     await runCommand("pnpm", ["db:migrate"], {
       ...process.env,
@@ -79,7 +79,7 @@ describe("Database migrations", () => {
     expect(await relationExists(ctx, "__drizzle_migrations", "drizzle")).toBe(true);
     expect(await relationExists(ctx, "sources")).toBe(true);
     expect(await relationExists(ctx, "chunk_embeddings")).toBe(true);
-    expect(await appliedMigrationCount(ctx)).toBe(4);
+    expect(await appliedMigrationCount(ctx)).toBe(5);
 
     const [row] = await ctx.db.client.unsafe<[{ column_type: string }]>(`
       SELECT format_type(a.atttypid, a.atttypmod) AS column_type
