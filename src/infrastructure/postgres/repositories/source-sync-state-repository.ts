@@ -20,7 +20,7 @@ const SourceSyncStateSchema = z.object({
   updatedAt: z.string(),
 });
 
-function mapState(row: Record<string, unknown>): SourceSyncState {
+export function mapState(row: Record<string, unknown>): SourceSyncState {
   return SourceSyncStateSchema.parse({
     id: String(row.id),
     sourceId: String(row.sourceId),

@@ -243,5 +243,6 @@ function clamp01(v: number): number {
   return v;
 }
 
-export { EMBEDDING_DIMENSION, vectorType };
+export { clamp01 };
+export { EMBEDDING_DIMENSION, vectorType, toPgVectorLiteral };
 export { mapToChunk };

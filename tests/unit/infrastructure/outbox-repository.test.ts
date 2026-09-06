@@ -122,4 +122,128 @@ describe("PostgresOutboxRepository", () => {
       repo.deadLetter(outboxRow.id, "token", "boom", outboxRow.tenantId),
     ).resolves.toMatchObject({ ok: true });
   });
+
+  it("covers empty-result and error branches", async () => {
+    const empty = new PostgresOutboxRepository(
+      createDbMock({
+        insert: [[]],
+        select: [[], []],
+        update: [[], []],
+        transaction: [{ execute: [[]] }, { select: [[]] }],
+      }) as never,
+    );
+    await expect(empty.create(outboxRow as never)).resolves.toMatchObject({ ok: false });
+    await expect(empty.findPending(outboxRow.tenantId, 10)).resolves.toMatchObject({
+      ok: true,
+      value: [],
+    });
+    await expect(empty.findById(outboxRow.id, outboxRow.tenantId)).resolves.toEqual({
+      ok: true,
+      value: null,
+    });
+    await expect(empty.complete(outboxRow.id, "token", outboxRow.tenantId)).resolves.toMatchObject({
+      ok: false,
+    });
+    await expect(
+      empty.deadLetter(outboxRow.id, "token", "boom", outboxRow.tenantId),
+    ).resolves.toMatchObject({ ok: false });
+    await expect(empty.claim([outboxRow.id], "worker", 1000, outboxRow.tenantId)).resolves.toEqual({
+      ok: true,
+      value: [],
+    });
+    await expect(
+      empty.fail(outboxRow.id, "token", "boom", outboxRow.tenantId),
+    ).resolves.toMatchObject({ ok: false });
+
+    const deadLetterRow = { ...outboxRow, status: "claimed", attempts: 3, leaseToken: "token" };
+    const deadLetterDb = createDbMock({
+      transaction: [{ select: [[deadLetterRow]], update: [[{ id: deadLetterRow.id }]] }],
+    });
+    await expect(
+      new PostgresOutboxRepository(deadLetterDb as never).fail(
+        outboxRow.id,
+        "token",
+        "x".repeat(600),
+        outboxRow.tenantId,
+        3,
+      ),
+    ).resolves.toMatchObject({ ok: true });
+  });
+
+  it("converts database exceptions into failed results", async () => {
+    const rejectingChain = () => ({
+      from: vi.fn(() => rejectingChain()),
+      where: vi.fn(() => rejectingChain()),
+      values: vi.fn(() => rejectingChain()),
+      set: vi.fn(() => rejectingChain()),
+      returning: vi.fn(() => Promise.reject(new Error("db failure"))),
+      limit: vi.fn(() => Promise.reject(new Error("db failure"))),
+    });
+    const rejectingDb = {
+      drizzle: {
+        insert: vi.fn(() => rejectingChain()),
+        select: vi.fn(() => rejectingChain()),
+        update: vi.fn(() => rejectingChain()),
+        transaction: vi.fn(() => Promise.reject(new Error("tx failure"))),
+      },
+    };
+    const repo = new PostgresOutboxRepository(rejectingDb as never);
+    await expect(repo.create(outboxRow as never)).resolves.toMatchObject({ ok: false });
+    await expect(repo.findPending(outboxRow.tenantId, 1)).resolves.toMatchObject({ ok: false });
+    await expect(repo.findById(outboxRow.id, outboxRow.tenantId)).resolves.toMatchObject({
+      ok: false,
+    });
+    await expect(repo.complete(outboxRow.id, "token", outboxRow.tenantId)).resolves.toMatchObject({
+      ok: false,
+    });
+    await expect(
+      repo.claim([outboxRow.id], "worker", 1000, outboxRow.tenantId),
+    ).resolves.toMatchObject({ ok: false });
+    await expect(
+      repo.fail(outboxRow.id, "token", "err", outboxRow.tenantId),
+    ).resolves.toMatchObject({ ok: false });
+    await expect(
+      repo.deadLetter(outboxRow.id, "token", "err", outboxRow.tenantId),
+    ).resolves.toMatchObject({ ok: false });
+  });
+
+  it("accepts postgres execute results wrapped in rows", async () => {
+    const db = createDbMock({
+      transaction: [{ execute: [{ rows: [{ id: outboxRow.id }] }, { rows: [outboxRow] }] }],
+    });
+    await expect(
+      new PostgresOutboxRepository(db as never).claim(
+        [outboxRow.id],
+        "worker",
+        1000,
+        outboxRow.tenantId,
+      ),
+    ).resolves.toMatchObject({ ok: true, value: [expect.objectContaining({ id: outboxRow.id })] });
+  });
+
+  it("fails closed when fail updates affect no rows", async () => {
+    const row = { ...outboxRow, status: "claimed", attempts: 1, leaseToken: "token" };
+    const deadLetterUpdateMissing = createDbMock({
+      transaction: [{ select: [[row]], update: [[]] }],
+    });
+    await expect(
+      new PostgresOutboxRepository(deadLetterUpdateMissing as never).fail(
+        row.id,
+        "token",
+        "err",
+        row.tenantId,
+        1,
+      ),
+    ).resolves.toMatchObject({ ok: false });
+    const retryUpdateMissing = createDbMock({ transaction: [{ select: [[row]], update: [[]] }] });
+    await expect(
+      new PostgresOutboxRepository(retryUpdateMissing as never).fail(
+        row.id,
+        "token",
+        "err",
+        row.tenantId,
+        5,
+      ),
+    ).resolves.toMatchObject({ ok: false });
+  });
 });

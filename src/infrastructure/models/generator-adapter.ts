@@ -201,7 +201,7 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
     }
   }
 
-  private buildPrompt(request: GenerationRequest): { system: string; user: string } {
+  public buildPrompt(request: GenerationRequest): { system: string; user: string } {
     const allowedList = request.allowedCitationIds.map((id) => `- ${id}`).join("\n");
     const contextBlock = request.evidence
       .map((e) => {
@@ -225,10 +225,7 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
     return { system, user };
   }
 
-  private filterCitations(
-    answer: StructuredAnswer,
-    allowedCitationIds: string[],
-  ): StructuredAnswer {
+  public filterCitations(answer: StructuredAnswer, allowedCitationIds: string[]): StructuredAnswer {
     const allowed = new Set(allowedCitationIds);
     const filteredClaims = answer.claims.map((claim) => ({
       ...claim,
@@ -247,4 +244,9 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
       claims: hasAnyClaim ? claimsWithCitations : filteredClaims,
     };
   }
+
+  exportForTesting = {
+    buildPrompt: this.buildPrompt.bind(this),
+    filterCitations: this.filterCitations.bind(this),
+  };
 }

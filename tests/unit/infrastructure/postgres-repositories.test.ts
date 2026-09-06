@@ -5,6 +5,7 @@ import { PostgresDocumentVersionRepository } from "../../../src/infrastructure/p
 import { PostgresChunkRepository } from "../../../src/infrastructure/postgres/repositories/chunk-repository";
 import { PostgresEntityRepository } from "../../../src/infrastructure/postgres/repositories/entity-repository";
 import { PostgresFactRepository } from "../../../src/infrastructure/postgres/repositories/fact-repository";
+import { PostgresSourceSyncStateRepository } from "../../../src/infrastructure/postgres/repositories/source-sync-state-repository";
 
 type QueueMap = {
   select?: unknown[];
@@ -592,5 +593,152 @@ describe("postgres repositories", () => {
     await expect(
       factRepo.updateStatus(factRow.id, factRow.tenantId, "verified"),
     ).resolves.toMatchObject({ ok: false });
+  });
+});
+
+describe("source sync state repository", () => {
+  const syncStateRow = {
+    id: "77777777-7777-4777-8777-777777777777",
+    sourceId: "11111111-1111-4111-8111-111111111111",
+    tenantId: "22222222-2222-4222-8222-222222222222",
+    lastCursor: "cursor-123",
+    lastSyncedAt: new Date("2024-01-01T00:00:00.000Z"),
+    lastChangeHash: "hash-abc",
+    syncStatus: "idle" as const,
+    errorMessage: null,
+    createdAt: new Date("2024-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2024-01-01T00:00:00.000Z"),
+  };
+
+  it("creates sync state successfully", async () => {
+    const repo = new PostgresSourceSyncStateRepository({
+      drizzle: {
+        insert: vi.fn(() => createThenable([syncStateRow])),
+      },
+    } as never);
+
+    const result = await repo.create({
+      id: syncStateRow.id,
+      sourceId: syncStateRow.sourceId,
+      tenantId: syncStateRow.tenantId,
+      syncStatus: "idle",
+      createdAt: syncStateRow.createdAt.toISOString(),
+      updatedAt: syncStateRow.updatedAt.toISOString(),
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.sourceId).toBe(syncStateRow.sourceId);
+      expect(result.value.syncStatus).toBe("idle");
+    }
+  });
+
+  it("returns error when create fails", async () => {
+    const repo = new PostgresSourceSyncStateRepository({
+      drizzle: {
+        insert: vi.fn().mockRejectedValue(new Error("create failed")),
+      },
+    } as never);
+
+    const result = await repo.create({
+      id: syncStateRow.id,
+      sourceId: syncStateRow.sourceId,
+      tenantId: syncStateRow.tenantId,
+      syncStatus: "idle",
+      createdAt: syncStateRow.createdAt.toISOString(),
+      updatedAt: syncStateRow.updatedAt.toISOString(),
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("finds sync state by source id", async () => {
+    const repo = new PostgresSourceSyncStateRepository({
+      drizzle: {
+        select: vi.fn(() => createThenable([syncStateRow])),
+      },
+    } as never);
+
+    const result = await repo.findBySourceId(syncStateRow.sourceId, syncStateRow.tenantId);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).not.toBeNull();
+      expect(result.value?.syncStatus).toBe("idle");
+    }
+  });
+
+  it("returns null when sync state not found", async () => {
+    const repo = new PostgresSourceSyncStateRepository({
+      drizzle: {
+        select: vi.fn(() => createThenable([])),
+      },
+    } as never);
+
+    const result = await repo.findBySourceId("nonexistent", "nonexistent");
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toBeNull();
+    }
+  });
+
+  it("returns error when findBySourceId fails", async () => {
+    const repo = new PostgresSourceSyncStateRepository({
+      drizzle: {
+        select: vi.fn().mockRejectedValue(new Error("db error")),
+      },
+    } as never);
+
+    const result = await repo.findBySourceId(syncStateRow.sourceId, syncStateRow.tenantId);
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("updates sync state successfully", async () => {
+    const repo = new PostgresSourceSyncStateRepository({
+      drizzle: {
+        update: vi.fn(() => createThenable([syncStateRow])),
+      },
+    } as never);
+
+    const result = await repo.update(syncStateRow.sourceId, syncStateRow.tenantId, {
+      syncStatus: "syncing",
+      lastCursor: "new-cursor",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.syncStatus).toBe("idle");
+    }
+  });
+
+  it("returns error when update fails", async () => {
+    const repo = new PostgresSourceSyncStateRepository({
+      drizzle: {
+        update: vi.fn().mockRejectedValue(new Error("update failed")),
+      },
+    } as never);
+
+    const result = await repo.update(syncStateRow.sourceId, syncStateRow.tenantId, {
+      syncStatus: "error",
+      errorMessage: "failed",
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("returns not found when update returns no rows", async () => {
+    const repo = new PostgresSourceSyncStateRepository({
+      drizzle: {
+        update: vi.fn(() => createThenable([])),
+      },
+    } as never);
+
+    const result = await repo.update(syncStateRow.sourceId, syncStateRow.tenantId, {
+      syncStatus: "error",
+    });
+
+    expect(result.ok).toBe(false);
   });
 });

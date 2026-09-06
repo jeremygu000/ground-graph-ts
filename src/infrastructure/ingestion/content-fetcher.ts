@@ -27,7 +27,7 @@ const BLOCKED_HOSTNAMES = [
 const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024;
 
-function isPrivateIPv4(addr: string): boolean {
+export function isPrivateIPv4(addr: string): boolean {
   const parts = addr.split(".").map(Number);
   if (parts.length !== 4) return false;
   const a = parts[0]!;
@@ -44,7 +44,7 @@ function isPrivateIPv4(addr: string): boolean {
   return false;
 }
 
-function parseIPv6(addr: string): number[] | null {
+export function parseIPv6(addr: string): number[] | null {
   const parts = addr.toLowerCase().split("::");
   if (parts.length > 2) return null;
 
@@ -74,7 +74,7 @@ function parseIPv6(addr: string): number[] | null {
   return groups;
 }
 
-function isPrivateIPv6(addr: string): boolean {
+export function isPrivateIPv6(addr: string): boolean {
   const lower = addr.toLowerCase();
   if (lower === "::1") return true;
   if (lower === "::") return true;
@@ -96,7 +96,7 @@ function isPrivateIPv6(addr: string): boolean {
   return false;
 }
 
-function isPrivateIp(addr: string): boolean {
+export function isPrivateIp(addr: string): boolean {
   return isPrivateIPv4(addr) || isPrivateIPv6(addr);
 }
 

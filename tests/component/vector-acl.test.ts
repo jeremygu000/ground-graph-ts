@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
 import {
   chunks,
   documents,
@@ -197,5 +198,69 @@ describe("PostgresVectorIndexAdapter upsert and search", () => {
     const retrievedChunkIds = result.value.map((r) => r.chunkId);
     expect(retrievedChunkIds).toContain(chunkIdA);
     expect(retrievedChunkIds).toContain(chunkIdB);
+  });
+
+  it("excludes inactive document versions from normal retrieval", async () => {
+    const tenantId = crypto.randomUUID();
+    const principalId = crypto.randomUUID();
+    const { chunkIdA, indexVersionId } = await setupData(
+      tenantId,
+      principalId,
+      crypto.randomUUID(),
+      "https://example.com/inactive-version",
+      "https://example.com/other",
+    );
+    const [chunk] = await ctx.db.drizzle
+      .select({ versionId: chunks.documentVersionId })
+      .from(chunks)
+      .where(eq(chunks.id, chunkIdA));
+    await ctx.db.drizzle
+      .update(documentVersions)
+      .set({ isActive: false })
+      .where(eq(documentVersions.id, chunk!.versionId));
+
+    const result = await vectorIndex.search(
+      deterministicLocalEmbedding("chunk for principal A only", EMBEDDING_DIM),
+      tenantId,
+      { indexVersionId, limit: 10 },
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.map((row) => row.chunkId)).not.toContain(chunkIdA);
+  });
+
+  it("excludes chunks from inactive sources from normal retrieval", async () => {
+    const tenantId = crypto.randomUUID();
+    const principalId = crypto.randomUUID();
+    const { chunkIdA, indexVersionId } = await setupData(
+      tenantId,
+      principalId,
+      crypto.randomUUID(),
+      "https://example.com/inactive-source",
+      "https://example.com/other-source",
+    );
+    const [chunk] = await ctx.db.drizzle
+      .select({ versionId: chunks.documentVersionId })
+      .from(chunks)
+      .where(eq(chunks.id, chunkIdA));
+    const [version] = await ctx.db.drizzle
+      .select({ documentId: documentVersions.documentId })
+      .from(documentVersions)
+      .where(eq(documentVersions.id, chunk!.versionId));
+    const [document] = await ctx.db.drizzle
+      .select({ sourceId: documents.sourceId })
+      .from(documents)
+      .where(eq(documents.id, version!.documentId));
+    await ctx.db.drizzle
+      .update(sources)
+      .set({ isActive: false })
+      .where(eq(sources.id, document!.sourceId));
+
+    const result = await vectorIndex.search(
+      deterministicLocalEmbedding("chunk for principal A only", EMBEDDING_DIM),
+      tenantId,
+      { indexVersionId, limit: 10 },
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.map((row) => row.chunkId)).not.toContain(chunkIdA);
   });
 });

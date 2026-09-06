@@ -106,7 +106,10 @@ interface CorpusChunk {
   locator: Record<string, unknown>;
 }
 
-function loadDataset(datasetPath: string): { cases: BaselineCase[]; metadata: DatasetMetadata } {
+export function loadDataset(datasetPath: string): {
+  cases: BaselineCase[];
+  metadata: DatasetMetadata;
+} {
   const content = readFileSync(datasetPath, "utf-8");
   const data: DatasetMetadata = JSON.parse(content);
   return { cases: data.cases, metadata: data };
@@ -125,23 +128,31 @@ function loadCorpus(): CorpusChunk[] {
       locator: Record<string, unknown>;
     }>;
   };
-  return data.chunks.map((c) => ({
-    chunkId: c.chunkId,
-    documentVersionId: c.documentVersionId,
-    documentId: c.documentId ?? c.documentVersionId,
-    content: c.content,
-    locator: c.locator,
-  }));
+  return data.chunks.map(
+    (c: {
+      chunkId: string;
+      documentVersionId: string;
+      documentId?: string;
+      content: string;
+      locator: Record<string, unknown>;
+    }) => ({
+      chunkId: c.chunkId,
+      documentVersionId: c.documentVersionId,
+      documentId: c.documentId ?? c.documentVersionId,
+      content: c.content,
+      locator: c.locator,
+    }),
+  );
 }
 
-function computePercentile(values: number[], p: number): number {
+export function computePercentile(values: number[], p: number): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
   const idx = Math.ceil((p / 100) * sorted.length) - 1;
   return sorted[Math.max(0, idx)] ?? 0;
 }
 
-function computeAverage(values: number[]): number {
+export function computeAverage(values: number[]): number {
   if (values.length === 0) return 0;
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
@@ -155,7 +166,7 @@ function ok<T>(value: T): OkResult<T> {
   return { ok: true, value };
 }
 
-function createInMemoryVectorPort(
+export function createInMemoryVectorPort(
   index: InMemoryVectorIndex,
   corpus: CorpusChunk[],
   indexVersionId: string,
@@ -241,7 +252,7 @@ function createInMemoryVectorPort(
   };
 }
 
-function createGeneratorStub() {
+export function createGeneratorStub() {
   const stopWords = new Set([
     "what",
     "which",
@@ -353,7 +364,7 @@ function createGeneratorStub() {
   };
 }
 
-function createVectorService(
+export function createVectorService(
   embedding: EmbeddingPort,
   vector: VectorIndexPort,
 ): VectorQueryService {

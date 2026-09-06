@@ -71,7 +71,7 @@ export function getTracer(name: string): Tracer {
   return trace.getTracer(name);
 }
 
-function safeSetSpanAttribute(span: Span, key: string, value: string): void {
+export function safeSetSpanAttribute(span: Span, key: string, value: string): void {
   if (key === "source.uri" || key.endsWith(".uri")) {
     try {
       const url = new URL(value);

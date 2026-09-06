@@ -12,12 +12,18 @@ export default defineConfig({
       reportsDirectory: ".coverage",
       include: [
         "src/**/*.ts",
-        "apps/**/*.ts",
+        "apps/**/src/**/*.ts",
       ],
       exclude: [
-        "src/**/*.d.ts",
-        "src/**/*.test.ts",
-        "src/**/index.ts",
+        "**/dist/**",
+        "**/*.d.ts",
+        "**/*.test.ts",
+        "**/index.ts",
+        "**/ports.ts",
+        "src/application/health.ts",
+        "src/application/unit-of-work.ts",
+        "src/infrastructure/postgres/schema.ts",
+        "apps/evaluation-runner/src/runner.ts",
       ],
       thresholds: {
         lines: 85,

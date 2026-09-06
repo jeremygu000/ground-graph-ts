@@ -1,8 +1,17 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { indexVersions, outboxEvents, sources } from "../../src/infrastructure/postgres/schema";
+import {
+  chunks,
+  documentVersions,
+  documents,
+  indexVersions,
+  outboxEvents,
+  sourceSyncState,
+  sources,
+} from "../../src/infrastructure/postgres/schema";
 import { DefaultUnitOfWorkFactory } from "../../src/infrastructure/unit-of-work";
 import { assertContainerRuntime, startComponentDatabase } from "./test-support";
+import { IngestionWorkflow } from "../../src/workflows/ingestion/ingestion-workflow";
 
 await assertContainerRuntime();
 
@@ -148,5 +157,83 @@ describe("TransactionalUnitOfWork", () => {
 
     expect(activeVersions).toHaveLength(1);
     expect(Number(activeVersions[0]!.versionNumber)).toBe(2);
+  });
+
+  it("records durable error state and retries without duplicating versions or chunks", async () => {
+    const uri = `https://example.com/resume-${crypto.randomUUID()}`;
+    const sourceResult = await (
+      await uowFactory.create()
+    ).sourceRepository.create({ type: "url", uri }, tenantId, principalId);
+    expect(sourceResult.ok).toBe(true);
+    if (!sourceResult.ok) return;
+
+    let attempts = 0;
+    const workflow = new IngestionWorkflow(
+      uowFactory,
+      {
+        canParse: () => true,
+        parse: async () => ({
+          content: "resumable content",
+          metadata: {},
+          sections: [{ type: "paragraph", content: "resumable content", locators: [] }],
+        }),
+      },
+      {
+        chunk: async () => {
+          attempts += 1;
+          if (attempts === 1) throw new Error("transient chunk failure");
+          return [
+            {
+              sequenceNumber: 0,
+              content: "resumable content",
+              contentHash: "resume-hash",
+              locator: { type: "line", path: uri, startLine: 1 },
+              createdAt: new Date().toISOString(),
+            },
+          ];
+        },
+      },
+      { fetch: async () => Buffer.from("resumable content") },
+      {
+        startActiveSpan: async (_name, fn) =>
+          fn({
+            setAttribute: () => undefined,
+            setStatus: () => undefined,
+            end: () => undefined,
+            recordException: () => undefined,
+          }),
+        startSpan: () => ({
+          setAttribute: () => undefined,
+          setStatus: () => undefined,
+          end: () => undefined,
+          recordException: () => undefined,
+        }),
+      },
+    );
+
+    await expect(
+      workflow.execute({
+        sourceUri: uri,
+        sourceType: "url",
+        tenantId,
+        principalId,
+      }),
+    ).rejects.toThrow("transient chunk failure");
+    const [errorState] = await ctx.db.drizzle.select().from(sourceSyncState);
+    expect(errorState?.syncStatus).toBe("error");
+
+    const retry = await workflow.execute({
+      sourceUri: uri,
+      sourceType: "url",
+      tenantId,
+      principalId,
+    });
+    expect(retry.status).toBe("created");
+
+    const [finalState] = await ctx.db.drizzle.select().from(sourceSyncState);
+    expect(finalState?.syncStatus).toBe("idle");
+    expect(await ctx.db.drizzle.select().from(documents)).toHaveLength(1);
+    expect(await ctx.db.drizzle.select().from(documentVersions)).toHaveLength(1);
+    expect(await ctx.db.drizzle.select().from(chunks)).toHaveLength(1);
   });
 });

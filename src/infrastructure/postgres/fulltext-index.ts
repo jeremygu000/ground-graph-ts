@@ -121,7 +121,7 @@ export class PostgresFullTextSearchAdapter implements FullTextSearchPort {
   }
 }
 
-function buildTsQuery(query: string, _language: string): string {
+export function buildTsQuery(query: string, _language: string): string {
   const tokens = tokenize(query).filter((t) => t.length > 1);
   if (tokens.length === 0) return "";
   return tokens
@@ -130,18 +130,18 @@ function buildTsQuery(query: string, _language: string): string {
     .join(" & ");
 }
 
-function sanitize(token: string): string {
+export function sanitize(token: string): string {
   return token.replace(/[^a-z0-9]/gi, "").toLowerCase();
 }
 
-function clamp01(v: number): number {
+export function clamp01(v: number): number {
   if (Number.isNaN(v)) return 0;
   if (v < 0) return 0;
   if (v > 1) return 1;
   return v;
 }
 
-function clamp(v: number, min: number, max: number): number {
+export function clamp(v: number, min: number, max: number): number {
   if (v < min) return min;
   if (v > max) return max;
   return v;

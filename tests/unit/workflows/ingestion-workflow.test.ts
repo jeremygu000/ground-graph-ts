@@ -85,7 +85,179 @@ function createUnitOfWork(overrides: UnitOfWorkOverrides = {}): any {
   };
 }
 
+type WorkflowInternals = {
+  recordSyncState: (...args: any[]) => Promise<void>;
+  generateQualityReport: (...args: any[]) => any;
+  deactivateStaleVersions: (...args: any[]) => Promise<void>;
+};
+
 describe("IngestionWorkflow", () => {
+  const minimalInput = {
+    sourceUri: "file:///doc.md",
+    sourceType: "file" as const,
+    tenantId: "tenant-1",
+    principalId: "principal-1",
+  };
+
+  it("covers durable sync-state create/update/no-op paths", async () => {
+    const syncRepo = {
+      findBySourceId: vi.fn().mockResolvedValue({ ok: true, value: null }),
+      create: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+      update: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    };
+    const workflow = new IngestionWorkflow(
+      { create: vi.fn().mockResolvedValue({ sourceSyncStateRepository: syncRepo }) } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      createMockTracer(),
+    );
+    await (workflow as unknown as WorkflowInternals).recordSyncState(
+      "source-1",
+      minimalInput,
+      { syncStatus: "syncing", lastChangeHash: "hash" },
+      true,
+    );
+    syncRepo.findBySourceId.mockResolvedValueOnce({ ok: true, value: { id: "state-1" } });
+    await (workflow as unknown as WorkflowInternals).recordSyncState(
+      "source-1",
+      minimalInput,
+      { syncStatus: "idle" },
+      false,
+    );
+    expect(syncRepo.create).toHaveBeenCalledTimes(1);
+    expect(syncRepo.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("propagates sync-state repository errors", async () => {
+    const input = minimalInput;
+    const makeWorkflow = (repo: Record<string, unknown>) =>
+      new IngestionWorkflow(
+        { create: vi.fn().mockResolvedValue({ sourceSyncStateRepository: repo }) } as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        createMockTracer(),
+      );
+    await expect(
+      (
+        makeWorkflow({
+          findBySourceId: vi.fn().mockResolvedValue({ ok: false, error: new Error("find") }),
+        }) as unknown as WorkflowInternals
+      ).recordSyncState("s", input, { syncStatus: "syncing" }, true),
+    ).rejects.toThrow("find");
+    await expect(
+      (
+        makeWorkflow({
+          findBySourceId: vi.fn().mockResolvedValue({ ok: true, value: { id: "s" } }),
+          update: vi.fn().mockResolvedValue({ ok: false, error: new Error("update") }),
+        }) as unknown as WorkflowInternals
+      ).recordSyncState("s", input, { syncStatus: "idle" }, true),
+    ).rejects.toThrow("update");
+    await expect(
+      (
+        makeWorkflow({
+          findBySourceId: vi.fn().mockResolvedValue({ ok: true, value: null }),
+          create: vi.fn().mockResolvedValue({ ok: false, error: new Error("create") }),
+        }) as unknown as WorkflowInternals
+      ).recordSyncState("s", input, { syncStatus: "idle" }, true),
+    ).rejects.toThrow("create");
+  });
+
+  it("reports quality metrics for empty, duplicate, and empty chunks", () => {
+    const workflow = new IngestionWorkflow(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      createMockTracer(),
+    );
+    const report = (workflow as unknown as WorkflowInternals).generateQualityReport(
+      "doc",
+      "ver",
+      "file:///doc",
+      [
+        { content: "same", contentHash: "h", locator: { type: "line", path: "doc", startLine: 1 } },
+        { content: "same", contentHash: "h", locator: { type: "line", path: "doc", startLine: 2 } },
+        {
+          content: " ",
+          contentHash: "blank",
+          locator: { type: "line", path: "doc", startLine: 3 },
+        },
+      ],
+      "principal",
+    );
+    expect(report.qualityMetrics).toMatchObject({
+      totalChunks: 3,
+      duplicateChunks: 1,
+      emptyChunks: 1,
+      minChunkSize: 1,
+    });
+    expect(
+      (workflow as unknown as WorkflowInternals).generateQualityReport(
+        "doc",
+        "ver",
+        "file:///doc",
+        [],
+        "principal",
+      ).qualityMetrics.avgChunkSize,
+    ).toBe(0);
+  });
+
+  it("deactivates stale versions and surfaces repository failures", async () => {
+    const uow = createUnitOfWork({
+      documentVersionRepository: {
+        listByDocument: vi.fn().mockResolvedValue({
+          ok: true,
+          value: [
+            { id: "old", isActive: true },
+            { id: "current", isActive: true },
+            { id: "off", isActive: false },
+          ],
+        }),
+        deactivate: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+      },
+    });
+    const workflow = new IngestionWorkflow(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      createMockTracer(),
+    );
+    await (workflow as unknown as WorkflowInternals).deactivateStaleVersions(
+      uow,
+      "doc",
+      "current",
+      "tenant-1",
+    );
+    expect(uow.documentVersionRepository.deactivate).toHaveBeenCalledWith("old", "tenant-1");
+    uow.documentVersionRepository.listByDocument.mockResolvedValueOnce({ ok: true, value: [] });
+    await (workflow as unknown as WorkflowInternals).deactivateStaleVersions(
+      uow,
+      "doc",
+      "current",
+      "tenant-1",
+    );
+  });
+
+  it("deactivates a source through the application transaction", async () => {
+    const deactivate = vi.fn().mockResolvedValue({ ok: true, value: undefined });
+    const workflow = new IngestionWorkflow(
+      {
+        transaction: vi.fn(async (fn: (uow: unknown) => Promise<unknown>) =>
+          fn({ sourceRepository: { deactivate } }),
+        ),
+      } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      createMockTracer(),
+    );
+    await workflow.deactivateSource("source-1", "tenant-1");
+    expect(deactivate).toHaveBeenCalledWith("source-1", "tenant-1");
+  });
+
   it("creates a new document version and chunks", async () => {
     const uow = createUnitOfWork({
       sourceRepository: {

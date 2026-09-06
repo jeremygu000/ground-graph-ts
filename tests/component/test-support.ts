@@ -21,9 +21,6 @@ export interface ComponentDb {
   reset(): Promise<void>;
 }
 
-let sharedContext: Promise<ComponentDb> | undefined;
-let sharedContextRefs = 0;
-
 async function bootstrapSchema(db: Database): Promise<void> {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
   const migrationsDir = path.resolve(currentDir, "../../drizzle/migrations");
@@ -108,7 +105,8 @@ async function waitForDatabase(db: Database): Promise<void> {
       if (
         !message.includes("ECONNRESET") &&
         !message.includes("Connection terminated") &&
-        !message.includes("connection refused")
+        !message.includes("connection refused") &&
+        !message.includes("database system is starting up")
       ) {
         throw error;
       }
@@ -131,15 +129,9 @@ export async function assertContainerRuntime(): Promise<void> {
 }
 
 export async function startComponentDatabase(): Promise<ComponentDb> {
-  if (sharedContext) {
-    sharedContextRefs += 1;
-    return sharedContext;
-  }
-
-  sharedContext = createComponentDb(true, true);
-  sharedContextRefs = 1;
-
-  return sharedContext;
+  // Component files may be scheduled independently by Vitest. Each file owns
+  // its database so per-file TRUNCATE hooks cannot race with another fixture.
+  return createComponentDb(true, false);
 }
 
 export async function startRawComponentDatabase(): Promise<ComponentDb> {
