@@ -60,21 +60,20 @@ export class IngestionWorkflow {
               txSpan.setAttribute("document.id", document.id);
               txSpan.setAttribute("document.version_id", version.id);
 
-              if (versionNumber === 1) {
-                await uow.sourceRepository.update(source.id, input.tenantId, {
-                  lastSyncedAt: new Date().toISOString(),
-                });
-              }
+              await uow.sourceRepository.update(source.id, input.tenantId, {
+                lastSyncedAt: new Date().toISOString(),
+              });
 
               let chunksCreated = 0;
+              const rawChunks: import("../../application/ingestion/chunker-port").ChunkFragment[] = [];
               if (isNewVersion) {
-                const rawChunks = await this.runChunker(input, version.id, parsed);
-                txSpan.setAttribute("chunk.count", rawChunks.length);
+                const runChunkerResult = await this.runChunker(input, version.id, parsed);
+                txSpan.setAttribute("chunk.count", runChunkerResult.length);
 
                 await this.deactivateStaleVersions(uow, document.id, version.id, input.tenantId);
 
-                if (rawChunks.length > 0) {
-                  const chunksForStorage = rawChunks.map((c) => ({
+                if (runChunkerResult.length > 0) {
+                  const chunksForStorage = runChunkerResult.map((c) => ({
                     ...c,
                     documentVersionId: version.id,
                     principalId: input.principalId,
@@ -86,7 +85,8 @@ export class IngestionWorkflow {
                   if (!chunkResult.ok) {
                     throw new Error(`Failed to create chunks: ${chunkResult.error.message}`);
                   }
-                  chunksCreated = rawChunks.length;
+                  chunksCreated = runChunkerResult.length;
+                  rawChunks.push(...runChunkerResult);
                 }
               }
 
@@ -94,7 +94,7 @@ export class IngestionWorkflow {
                 document.id,
                 version.id,
                 input.sourceUri,
-                [],
+                rawChunks,
                 input.principalId,
               );
 
