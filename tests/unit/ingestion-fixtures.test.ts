@@ -65,7 +65,7 @@ describe("Ingestion Fixtures", () => {
 
     const codeSections = parsed.sections.filter((s) => s.type === "code");
     expect(codeSections.length).toBeGreaterThan(0);
-    expect(codeSections[0].content).toContain("function hello");
+    expect(codeSections[0]?.content).toContain("function hello");
   });
 
   it("detects headings in markdown", async () => {
