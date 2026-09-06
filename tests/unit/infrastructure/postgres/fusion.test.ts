@@ -90,6 +90,32 @@ describe("ReciprocalRankFusion", () => {
     }
   });
 
+  it("supports fallback keys and disabled deduplication", () => {
+    const fusion = new ReciprocalRankFusion();
+    const first = { ...makeResult("entity-1", 0.4), chunkId: undefined, entityId: "entity-1" };
+    const second = { ...makeResult("fact-1", 0.3), chunkId: undefined, factId: "fact-1" };
+    const result = fusion.fuse(
+      new Map<RetrievalStrategy, RetrievalResult[]>([["vector", [first, second]]]),
+      { dedupByChunkId: false },
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toHaveLength(2);
+  });
+
+  it("skips empty entries and handles results without entity or fact identifiers", () => {
+    const fusion = new ReciprocalRankFusion();
+    const anonymous = { ...makeResult("anonymous", 0.2), chunkId: undefined };
+    const result = fusion.fuse(
+      new Map<RetrievalStrategy, RetrievalResult[]>([
+        ["vector", [undefined as never, anonymous]],
+        ["graph", [makeResult("ignored", 0.9)]],
+      ]),
+      {},
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value[0]?.id).toBe("anonymous");
+  });
+
   it("skips zero-weight strategies", () => {
     const fusion = new ReciprocalRankFusion();
     const vectorResults = [makeResult("v1", 0.9)];
@@ -222,6 +248,15 @@ describe("ConvexFusion", () => {
       expect(result.value.length).toBe(2);
     }
   });
+
+  it("traces results without fusion metadata", () => {
+    const traces = traceFusion(
+      new Map<RetrievalStrategy, RetrievalResult[]>([["vector", [makeResult("v1", 0.5)]]]),
+      [makeResult("v1", 0.5)],
+      {},
+    );
+    expect(traces[0]?.fused).toBe(0);
+  });
 });
 
 describe("traceFusion", () => {
@@ -283,5 +318,20 @@ describe("ensureFusionOptions", () => {
       weights: { vector: 0.6, fulltext: 0, graph: 0, hybrid: 0 },
     });
     expect(result.weights?.vector).toBe(0.6);
+  });
+});
+
+describe("fusion score normalization", () => {
+  it("clamps invalid convex scores instead of returning invalid scores", () => {
+    const fusion = new ConvexFusion();
+    const result = fusion.fuse(
+      new Map<RetrievalStrategy, RetrievalResult[]>([
+        ["vector", [makeResult("high", 2), makeResult("nan", Number.NaN)]],
+      ]),
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.map((item) => item.score)).toEqual([0.6, 0]);
+    }
   });
 });

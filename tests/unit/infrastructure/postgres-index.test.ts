@@ -357,4 +357,19 @@ describe("postgres vector index repository", () => {
       new PostgresVectorIndexRepository(selectDb([], true)).getActiveIndexVersion("tenant-1"),
     ).resolves.toMatchObject({ ok: false });
   });
+
+  it("falls back to empty model and dimension when legacy rows omit them", async () => {
+    const row = {
+      id: "index-legacy",
+      ...info,
+      embeddingModel: null,
+      embeddingDimension: null,
+    };
+    await expect(
+      new PostgresVectorIndexRepository(selectDb([row])).getActiveIndexVersion("tenant-1"),
+    ).resolves.toMatchObject({
+      ok: true,
+      value: { embeddingModel: "", embeddingDimension: 0 },
+    });
+  });
 });

@@ -1,11 +1,5 @@
 import neo4j, { Driver, Session, ManagedTransaction } from "neo4j-driver";
-
-export interface Neo4jConfig {
-  uri: string;
-  user: string;
-  password: string;
-  maxConnectionPoolSize?: number;
-}
+import type { Neo4jConfig } from "./client.types";
 
 export class Neo4jClient {
   private _driver: Driver;

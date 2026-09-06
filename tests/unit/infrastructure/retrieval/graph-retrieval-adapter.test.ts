@@ -1,8 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import {
-  DefaultGraphRetrievalAdapter,
-  type GraphRetrievalDependencies,
-} from "../../../../src/infrastructure/retrieval/graph-retrieval-adapter";
+import { DefaultGraphRetrievalAdapter } from "../../../../src/infrastructure/retrieval/graph-retrieval-adapter";
+import type { GraphRetrievalDependencies } from "../../../../src/infrastructure/retrieval/graph-retrieval.types";
 import type { GraphTraversalPort } from "../../../../src/application/retrieval/ports.types";
 
 describe("DefaultGraphRetrievalAdapter", () => {

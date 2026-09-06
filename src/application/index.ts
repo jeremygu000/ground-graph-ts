@@ -5,4 +5,6 @@ export * from "./retrieval";
 export * from "./answering";
 export * from "./evaluation";
 export * from "./models";
-export * from "./unit-of-work";
+export * from "./unit-of-work.types";
+export * from "./validation.schema";
+export * from "./validation.mapper";

@@ -2,7 +2,7 @@ import { eq, and, asc, sql, inArray } from "drizzle-orm";
 import type { Database } from "../client";
 import { outboxEvents } from "../schema";
 import type { OutboxEvent, OutboxRepository } from "../../../application/events/ports.types";
-import { mapToOutboxEvent } from "../../../application/validation";
+import { mapToOutboxEvent } from "../../../application/validation.mapper";
 
 export class PostgresOutboxRepository implements OutboxRepository {
   constructor(private db: Database) {}

@@ -4,7 +4,7 @@ import type {
   LlmExtractorPort,
   LlmExtractionResult,
   ExtractionOptions,
-} from "../../application/extraction/llm-extraction-port";
+} from "../../application/extraction/llm-extraction.types";
 import type { Chunk } from "../../domain/documents/documents.schema";
 import { InternalError } from "../../domain/errors";
 import { type Result, success, failure } from "../../domain/result";

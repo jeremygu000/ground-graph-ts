@@ -1,41 +1,21 @@
 import { randomUUID } from "node:crypto";
 import type {
-  CitationBuilderPort,
-  EmbeddingPort,
-  FullTextSearchPort,
   GenerationRequest,
-  GeneratorPort,
-  RerankPort,
   RetrievalExecutionResult,
-  RetrievalFusionPort,
-  VectorIndexPort,
-  VectorPipelineConfig,
   VectorQueryService,
-} from "../../application/models/ports";
-import { StructuredAnswerSchema } from "../../application/models/ports";
+} from "../../application/models/models.types";
+import { StructuredAnswerSchema } from "../../application/models/models.schema";
 import type {
   RetrievalQuery,
   RetrievalResult,
   RetrievalStrategy,
 } from "../../domain/retrieval/retrieval.schema";
-import type { StructuredAnswer } from "../../application/models/ports";
+import type { StructuredAnswer } from "../../application/models/models.types";
 import { success, failure, type Result } from "../../domain/result";
 import { NotFoundError, ValidationError, InternalError } from "../../domain/errors";
 import { withSpan, recordMetric } from "../telemetry";
 import { traceFusion } from "../../infrastructure/postgres/fusion";
-
-export interface VectorQueryServiceDeps {
-  embedding: EmbeddingPort;
-  vector: VectorIndexPort;
-  fulltext: FullTextSearchPort | null;
-  reranker: RerankPort | null;
-  fusion: RetrievalFusionPort;
-  generator: GeneratorPort;
-  citationBuilder: CitationBuilderPort;
-  config: VectorPipelineConfig;
-  clock: () => Date;
-  idGen: () => string;
-}
+import type { VectorQueryServiceDeps } from "./vector-query.types";
 
 export class DefaultVectorQueryService implements VectorQueryService {
   constructor(private readonly deps: VectorQueryServiceDeps) {}

@@ -17,9 +17,8 @@ import type {
   VectorIndexPort,
   VectorSearchOptions,
   VectorSearchResultRow,
-} from "../../application/models/ports";
+} from "../../application/models/models.types";
 import { withSpan } from "../telemetry";
-import { mapToChunk } from "../../application/validation";
 
 const EMBEDDING_DIMENSION = 1536;
 
@@ -245,4 +244,3 @@ function clamp01(v: number): number {
 
 export { clamp01 };
 export { EMBEDDING_DIMENSION, vectorType, toPgVectorLiteral };
-export { mapToChunk };

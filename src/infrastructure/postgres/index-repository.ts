@@ -2,7 +2,7 @@ import { eq, and, desc } from "drizzle-orm";
 import type { Database } from "./client";
 import { indexVersions } from "./schema";
 import type { VectorIndexRepository } from "../../application/ingestion/ports.types";
-import type { IndexVersionInfo } from "../../application/models/ports";
+import type { IndexVersionInfo } from "../../application/models/models.types";
 import { success, failure, type Result } from "../../domain/result";
 import { DatabaseError } from "../../domain/errors";
 

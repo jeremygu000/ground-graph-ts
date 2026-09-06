@@ -1,11 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
-
-export interface DatabaseConfig {
-  url: string;
-  maxConnections?: number;
-}
+import type { DatabaseConfig } from "./client.types";
 
 export class Database {
   private pool: ReturnType<typeof postgres>;

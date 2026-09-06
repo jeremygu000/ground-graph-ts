@@ -3,7 +3,7 @@ import cors from "@fastify/cors";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { ZodError } from "zod";
-import type { HealthChecker } from "@/application/health";
+import type { HealthChecker } from "@/application/health.types";
 import {
   PostgresHealthChecker,
   Neo4jHealthChecker,

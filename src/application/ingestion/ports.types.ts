@@ -4,7 +4,7 @@ import type {
   Chunk,
 } from "../../domain/documents/documents.schema";
 import type { Result } from "../../domain/result";
-import type { IndexVersionInfo } from "../models/ports";
+import type { IndexVersionInfo } from "../models/models.types";
 
 export interface SourceRepository {
   create(

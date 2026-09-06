@@ -4,13 +4,7 @@ import type { KnowledgeFact } from "../../domain/knowledge/knowledge.schema";
 import type { Result } from "../../domain/result";
 import { InternalError } from "../../domain/errors";
 
-export interface ReconciliationReport {
-  factsReconciled: number;
-  factsFailed: number;
-  entitiesCreated: number;
-  entitiesFailed: number;
-  errors: Array<{ factId: string; error: string }>;
-}
+import type { ReconciliationReport } from "./reconciliation.types";
 
 export class GraphReconciliationService {
   constructor(

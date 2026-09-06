@@ -4,24 +4,11 @@ import type {
   EmbedBatchRequest,
   EmbedBatchResult,
   EmbeddingResult,
-} from "../../application/models/ports";
+} from "../../application/models/models.types";
 import type { Result } from "../../domain/result";
 import { success, failure } from "../../domain/result";
 import { ValidationError } from "../../domain/errors";
-
-export interface InMemoryVectorIndexEntry {
-  tenantId?: string;
-  chunkId: string;
-  documentVersionId: string;
-  documentId: string;
-  content: string;
-  locator: Record<string, unknown>;
-  metadata: Record<string, unknown>;
-  embedding: number[];
-  indexVersionId: string;
-  embeddingModel: string;
-  dimension: number;
-}
+import type { InMemoryVectorIndexEntry } from "./in-memory.types";
 
 export class InMemoryEmbeddingAdapter implements EmbeddingPort {
   private readonly model: string;

@@ -6,11 +6,13 @@ import {
   DocumentVersionSchema,
   OutboxEventSchema,
   SourceSchema,
+} from "../../../src/application/validation.schema";
+import {
   mapToChunk,
   mapToDocumentVersion,
   mapToOutboxEvent,
   mapToSource,
-} from "../../../src/application/validation";
+} from "../../../src/application/validation.mapper";
 import { validateOrDefault } from "../../../src/domain/validation";
 
 describe("application validation mappers", () => {

@@ -39,6 +39,20 @@ domain <- application <- workflows/API <- infrastructure composition
 3. **Workflows** (`src/workflows/`): Uses application services via LangGraph adapter
 4. **Infrastructure** (`src/infrastructure/`): Implements application ports
 
+### File Organization Rules
+
+Keep each module organized by responsibility. These conventions are mandatory for new code and should be applied when modifying existing modules:
+
+1. `*.types.ts` contains public TypeScript interfaces, type aliases, port contracts, and configuration contracts. It must not contain runtime code.
+2. `*.schema.ts` contains Zod schemas and types directly inferred from those schemas. It must not contain database row mapping or unrelated business logic.
+3. `*.mapper.ts` contains conversions from database/driver/external representations into validated domain or application values. Mappers must perform runtime validation at the boundary.
+4. `*.utils.ts` contains small, deterministic, side-effect-free helpers with a cohesive purpose. Do not use a generic `utils.ts` for unrelated functionality.
+5. Implementation files contain one cohesive service, adapter, workflow, or domain operation. Do not mix unrelated interfaces, schemas, and implementation logic in the same file.
+6. `index.ts` files are public module entrypoints and may re-export symbols from sibling modules. Non-index implementation files must import types directly and must not re-export them.
+7. Use semantic names for implementation files, such as `structured-code-extractor.ts`, `validation.mapper.ts`, or `ingestion-workflow.ts`; avoid catch-all files when a module has multiple independent responsibilities.
+8. Schema-derived types may remain beside their Zod schema because the schema is their single source of truth. Domain primitives such as `Result` and branded IDs may keep their tightly coupled constructors beside the type definitions.
+9. Pure type files are excluded from coverage; runtime schemas, mappers, adapters, services, and workflows are not excluded merely because they are difficult to cover.
+
 ## Milestone Progress
 
 - [x] M0 — Repository and TypeScript engineering baseline
@@ -79,10 +93,19 @@ pnpm check
 
 ```
 src/
-├── domain/          # Core domain logic (primitives, errors, result, types)
-├── application/     # Use cases, ports, transaction boundaries
-├── workflows/       # LangGraph workflows
-└── infrastructure/  # Adapters (postgres, neo4j, models, etc.)
+├── domain/          # Core domain logic, primitives, errors, results, schemas
+├── application/     # Use cases, ports, schemas, mappers, transaction boundaries
+├── workflows/       # LangGraph workflows and workflow-specific types
+└── infrastructure/  # Adapters (postgres, neo4j, models, telemetry, storage)
+
+# Typical module layout
+<module>/
+├── <feature>.types.ts       # interfaces and type aliases
+├── <feature>.schema.ts      # runtime Zod schemas
+├── <feature>.mapper.ts      # validated external/DB mapping
+├── <feature>.utils.ts       # cohesive pure helpers, when needed
+├── <feature>.ts             # service/adapter implementation
+└── index.ts                 # public re-export surface only
 
 apps/
 ├── api/             # Fastify API
@@ -106,6 +129,7 @@ tests/
 3. Run quality gates after each change
 4. Update progress ledger in `docs/plan.md`
 5. Create/update ADRs in `docs/adr/`
+6. Before finishing a refactor, run `rg` to verify that public declarations are not left in implementation files and run `pnpm check`.
 
 ## ADR Requirements
 

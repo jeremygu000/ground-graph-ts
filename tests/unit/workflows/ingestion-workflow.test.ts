@@ -6,7 +6,7 @@ import type {
   DocumentParser,
   ParsedContent,
 } from "../../../src/application/ingestion/parser-port.types";
-import type { UnitOfWorkFactory } from "../../../src/application/unit-of-work";
+import type { UnitOfWorkFactory } from "../../../src/application/unit-of-work.types";
 import type { TracerPort } from "../../../src/application/observability/tracer-port.types";
 import { IngestionWorkflow } from "../../../src/workflows/ingestion/ingestion-workflow";
 

@@ -1,4 +1,4 @@
-import type { HealthChecker, HealthResult } from "../application/health";
+import type { HealthChecker, HealthResult } from "../application/health.types";
 import type { Database } from "./postgres/client";
 import type { Neo4jClient } from "./neo4j/client";
 import type { ObjectStorageClient } from "./object-storage/client";

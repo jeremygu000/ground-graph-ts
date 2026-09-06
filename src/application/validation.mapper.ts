@@ -1,8 +1,18 @@
 import { z } from "zod";
 import { validateOrThrow } from "../domain/validation";
-import { ParsedDocumentSchema, SourceTypeSchema } from "../domain/documents/documents.schema";
-import type { Document } from "./ingestion/ports.types";
-import type { DocumentVersion } from "./ingestion/ports.types";
+import {
+  ChunkSchema,
+  ParsedDocumentSchema,
+  SourceTypeSchema,
+} from "../domain/documents/documents.schema";
+import {
+  ChunkSchema as ApplicationChunkSchema,
+  DocumentSchema,
+  DocumentVersionSchema,
+  OutboxEventSchema,
+  SourceSchema,
+} from "./validation.schema";
+import type { Document, DocumentVersion } from "./ingestion/ports.types";
 
 function toISOString(val: unknown): string {
   if (val instanceof Date) return val.toISOString();
@@ -21,28 +31,12 @@ function undefinedIfNull<T>(value: T | null | undefined): T | undefined {
   return value === null ? undefined : value;
 }
 
-export const SourceSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  principalId: z.string().uuid(),
-  type: SourceTypeSchema,
-  uri: z.string().url(),
-  mimeType: z.string().optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-  isActive: z.boolean(),
-  lastSyncedAt: z.string().optional().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-export type SourceInput = z.infer<typeof SourceSchema>;
-
-export function mapToSource(row: Record<string, unknown>): SourceInput {
+export function mapToSource(row: Record<string, unknown>): z.infer<typeof SourceSchema> {
   return {
     id: String(row.id),
     tenantId: String(row.tenantId),
     principalId: String(row.principalId),
-    type: row.type as "file" | "url" | "git" | "api",
+    type: row.type as z.infer<typeof SourceTypeSchema>,
     uri: String(row.uri),
     mimeType: undefinedIfNull(row.mimeType as string | null | undefined),
     metadata: undefinedIfNull(row.metadata as Record<string, unknown> | null | undefined),
@@ -52,18 +46,6 @@ export function mapToSource(row: Record<string, unknown>): SourceInput {
     updatedAt: toISOString(row.updatedAt),
   };
 }
-
-export const DocumentSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  principalId: z.string().uuid(),
-  sourceId: z.string().uuid(),
-  title: z.string().optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-  isActive: z.boolean(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
 
 export function mapToDocument(row: Record<string, unknown>): Document {
   const result = {
@@ -79,21 +61,6 @@ export function mapToDocument(row: Record<string, unknown>): Document {
   };
   return validateOrThrow(DocumentSchema, result, "Document") as Document;
 }
-
-export const DocumentVersionSchema = z.object({
-  id: z.string().uuid(),
-  documentId: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  principalId: z.string().uuid(),
-  versionNumber: z.number().int().positive(),
-  contentHash: z.string(),
-  checksum: z.string(),
-  sizeBytes: z.number().int().nonnegative(),
-  parsedDocument: ParsedDocumentSchema.optional(),
-  isActive: z.boolean(),
-  createdAt: z.string(),
-  createdBy: z.string().uuid().optional(),
-});
 
 export function mapToDocumentVersion(row: Record<string, unknown>): DocumentVersion {
   const result: z.input<typeof DocumentVersionSchema> = {
@@ -112,31 +79,9 @@ export function mapToDocumentVersion(row: Record<string, unknown>): DocumentVers
     isActive: Boolean(row.isActive),
     createdAt: toISOString(row.createdAt),
   };
-
-  if (row.createdBy != null) {
-    result.createdBy = String(row.createdBy);
-  }
-
-  const validated = validateOrThrow(DocumentVersionSchema, result, "DocumentVersion");
-  return validated as DocumentVersion;
+  if (row.createdBy != null) result.createdBy = String(row.createdBy);
+  return validateOrThrow(DocumentVersionSchema, result, "DocumentVersion") as DocumentVersion;
 }
-
-export const ChunkSchema = z.object({
-  id: z.string().uuid(),
-  documentVersionId: z.string().uuid(),
-  principalId: z.string().uuid(),
-  sequenceNumber: z.number().int().nonnegative(),
-  content: z.string(),
-  contentHash: z.string(),
-  locator: z.object({
-    type: z.enum(["line", "heading", "page", "section"]),
-    path: z.string(),
-    startLine: z.number().int().nonnegative().optional(),
-    endLine: z.number().int().nonnegative().optional(),
-  }),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-  createdAt: z.string(),
-});
 
 export function mapToChunk(row: Record<string, unknown>) {
   const result = {
@@ -151,34 +96,10 @@ export function mapToChunk(row: Record<string, unknown>) {
     metadata: undefinedIfNull(row.metadata as Record<string, unknown> | null | undefined),
     createdAt: toISOString(row.createdAt),
   };
-
-  return validateOrThrow(ChunkSchema, result, "Chunk") as z.infer<typeof ChunkSchema>;
+  return validateOrThrow(ApplicationChunkSchema, result, "Chunk");
 }
 
-export const OutboxEventSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  aggregateType: z.string(),
-  aggregateId: z.string().uuid(),
-  eventType: z.string(),
-  payload: z.record(z.string(), z.unknown()),
-  idempotencyKey: z.string(),
-  status: z.enum(["pending", "claimed", "completed", "dead_letter"]),
-  attempts: z.number().int().nonnegative(),
-  availableAt: z.string(),
-  claimedAt: z.string().optional(),
-  claimedBy: z.string().optional(),
-  leaseToken: z.string().optional(),
-  completedAt: z.string().optional(),
-  deadLetteredAt: z.string().optional(),
-  error: z.string().optional(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-export type OutboxEventInput = z.infer<typeof OutboxEventSchema>;
-
-export function mapToOutboxEvent(row: Record<string, unknown>): OutboxEventInput {
+export function mapToOutboxEvent(row: Record<string, unknown>) {
   const result: Record<string, unknown> = {
     id: String(row.id),
     tenantId: String(row.tenantId),
@@ -187,19 +108,17 @@ export function mapToOutboxEvent(row: Record<string, unknown>): OutboxEventInput
     eventType: String(row.eventType),
     payload: row.payload as Record<string, unknown>,
     idempotencyKey: String(row.idempotencyKey),
-    status: String(row.status) as "pending" | "claimed" | "completed" | "dead_letter",
+    status: String(row.status),
     attempts: Number(row.attempts),
     availableAt: toISOString(row.availableAt),
     createdAt: toISOString(row.createdAt),
     updatedAt: toISOString(row.updatedAt),
   };
-
   if (row.claimedAt != null) result.claimedAt = toISOString(row.claimedAt);
   if (row.claimedBy != null) result.claimedBy = String(row.claimedBy);
   if (row.leaseToken != null) result.leaseToken = String(row.leaseToken);
   if (row.completedAt != null) result.completedAt = toISOString(row.completedAt);
   if (row.deadLetteredAt != null) result.deadLetteredAt = toISOString(row.deadLetteredAt);
   if (row.error != null) result.error = String(row.error);
-
   return validateOrThrow(OutboxEventSchema, result, "OutboxEvent");
 }

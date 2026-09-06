@@ -13,15 +13,11 @@ import {
   createUpDownCounter,
 } from "./metrics";
 import { AppError } from "../../domain/errors";
+import type { TelemetryConfig } from "./telemetry.types";
+
+export type { TelemetryConfig } from "./telemetry.types";
 
 let sdk: NodeSDK | undefined;
-
-export interface TelemetryConfig {
-  serviceName: string;
-  serviceVersion: string;
-  otlpEndpoint: string;
-  enabled: boolean;
-}
 
 export function initTelemetry(config: TelemetryConfig): NodeSDK {
   if (sdk) {

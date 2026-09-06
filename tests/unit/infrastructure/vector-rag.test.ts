@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -26,22 +26,26 @@ import {
 } from "../../../src/infrastructure/postgres/fusion";
 import { CitationBuilder } from "../../../src/infrastructure/retrieval/citation-builder";
 import { DefaultVectorQueryService } from "../../../src/infrastructure/retrieval/vector-query-service";
-import { StructuredAnswerSchema } from "../../../src/application/models/ports";
-import { success } from "../../../src/domain/result";
+import { StructuredAnswerSchema } from "../../../src/application/models/models.schema";
+import { failure, success } from "../../../src/domain/result";
 import type { Chunk } from "../../../src/domain/documents/documents.schema";
 import type {
+  RetrievalQuery,
   RetrievalResult,
   RetrievalStrategy,
 } from "../../../src/domain/retrieval/retrieval.schema";
 import type {
   EmbeddingPort,
   FullTextSearchPort,
+  GenerationRequest,
   GeneratorPort,
   RerankPort,
   RetrievalFusionPort,
+  RetrievalExecutionResult,
+  StructuredAnswer,
   VectorIndexPort,
   VectorQueryService,
-} from "../../../src/application/models/ports";
+} from "../../../src/application/models/models.types";
 
 const EMBEDDING_DIM = 1536;
 const MODEL = "test-embed-v1";
@@ -387,6 +391,33 @@ describe("M4 vector RAG baseline", () => {
         () => new OpenAIEmbeddingAdapter({ provider: "local", model: "", dimension: 16 }),
       ).toThrow();
     });
+
+    it("covers retry classification, backoff, sleep, and provider error mapping", async () => {
+      const adapter = new OpenAIEmbeddingAdapter({
+        provider: "local",
+        model: "local-test",
+        dimension: 4,
+        maxRetries: 1,
+      });
+      const internal = adapter as unknown as {
+        isRetryable(error: unknown): boolean;
+        backoffMs(attempt: number): number;
+        sleep(ms: number): Promise<void>;
+        mapError(error: unknown): Error;
+      };
+      expect(internal.isRetryable(new Error("temporary network failure"))).toBe(true);
+      expect(internal.isRetryable(new Error("timeout"))).toBe(false);
+      expect(internal.isRetryable(new Error("invalid input"))).toBe(false);
+      expect(internal.isRetryable("unknown failure")).toBe(true);
+      vi.spyOn(Math, "random").mockReturnValue(0);
+      expect(internal.backoffMs(2)).toBe(800);
+      await expect(internal.sleep(0)).resolves.toBeUndefined();
+      expect(internal.mapError(new Error("invalid api key"))).toBeInstanceOf(Error);
+      expect(internal.mapError(new Error("rate limit 429"))).toBeInstanceOf(Error);
+      expect(internal.mapError(new Error("model not found"))).toBeInstanceOf(Error);
+      expect(internal.mapError(new Error("other"))).toBeInstanceOf(Error);
+      expect(internal.mapError({ reason: "unknown" })).toBeInstanceOf(Error);
+    });
   });
 
   describe("vector index behaviour", () => {
@@ -433,6 +464,253 @@ describe("M4 vector RAG baseline", () => {
         maxResults: 5,
       });
       expect(result.ok).toBe(false);
+    });
+
+    it("propagates embedding failures and rejects missing query embeddings", async () => {
+      const failingEmbedding: EmbeddingPort = {
+        getDimension: () => EMBEDDING_DIM,
+        getModel: () => MODEL,
+        embedBatch: async () => failure(new Error("embedding unavailable")),
+      };
+      const failedService = buildService({
+        embedding: failingEmbedding,
+        index,
+        tenantId,
+        indexVersionId,
+      });
+      await expect(
+        failedService.query({
+          question: "test",
+          tenantId,
+          principalId: PRINCIPAL_ID,
+          strategy: "vector",
+          maxResults: 5,
+        }),
+      ).resolves.toMatchObject({ ok: false, error: { message: "embedding unavailable" } });
+
+      const emptyEmbedding: EmbeddingPort = {
+        getDimension: () => EMBEDDING_DIM,
+        getModel: () => MODEL,
+        embedBatch: async () =>
+          success({ embeddings: [], totalTokens: 0, model: MODEL, dimension: EMBEDDING_DIM }),
+      };
+      const emptyService = buildService({
+        embedding: emptyEmbedding,
+        index,
+        tenantId,
+        indexVersionId,
+      });
+      await expect(
+        emptyService.query({
+          question: "test",
+          tenantId,
+          principalId: PRINCIPAL_ID,
+          strategy: "vector",
+          maxResults: 5,
+        }),
+      ).resolves.toMatchObject({
+        ok: false,
+        error: { message: "Embedding result missing for question" },
+      });
+    });
+
+    it("fails closed for dimension, vector, full-text, fusion, and rerank errors", async () => {
+      const query = {
+        question: "test",
+        tenantId,
+        principalId: PRINCIPAL_ID,
+        strategy: "vector" as const,
+        maxResults: 5,
+      };
+      const mismatchedEmbedding: EmbeddingPort = {
+        getDimension: () => EMBEDDING_DIM + 1,
+        getModel: () => MODEL,
+        embedBatch: async () => failure(new Error("should not embed")),
+      };
+      expect(
+        await buildService({
+          embedding: mismatchedEmbedding,
+          index,
+          tenantId,
+          indexVersionId,
+        }).query(query),
+      ).toMatchObject({ ok: false });
+
+      const internal = service as unknown as {
+        deps: { vector: VectorIndexPort; citationBuilder: CitationBuilder };
+      };
+      const originalSearch = internal.deps.vector.search;
+      internal.deps.vector.search = async () => failure(new Error("vector unavailable"));
+      await expect(service.query(query)).resolves.toMatchObject({
+        ok: false,
+        error: { message: "vector unavailable" },
+      });
+      internal.deps.vector.search = originalSearch;
+
+      const fulltextFailure = {
+        async search() {
+          return failure(new Error("fulltext unavailable"));
+        },
+        async rebuildIndex() {
+          return success({ rebuilt: 0 });
+        },
+      } as unknown as InMemoryFullTextSearchStub;
+      await expect(
+        buildService({
+          embedding,
+          index,
+          fulltext: fulltextFailure,
+          tenantId,
+          indexVersionId,
+        }).query(query),
+      ).resolves.toMatchObject({ ok: false, error: { message: "fulltext unavailable" } });
+
+      const fusionFailure: RetrievalFusionPort = {
+        fuse: () => failure(new Error("fusion unavailable")),
+      };
+      await expect(
+        buildService({ embedding, index, fusion: fusionFailure, tenantId, indexVersionId }).query(
+          query,
+        ),
+      ).resolves.toMatchObject({ ok: false, error: { message: "fusion unavailable" } });
+
+      const rerankFailure: RerankPort = {
+        rerank: async () => failure(new Error("rerank unavailable")),
+        getModel: () => "test-rerank",
+      };
+      await expect(
+        buildService({ embedding, index, rerank: rerankFailure, tenantId, indexVersionId }).query(
+          query,
+        ),
+      ).resolves.toMatchObject({ ok: false, error: { message: "rerank unavailable" } });
+    });
+
+    it("propagates index, citation, and generation failures", async () => {
+      const query = {
+        question: "test",
+        tenantId,
+        principalId: PRINCIPAL_ID,
+        strategy: "vector" as const,
+        maxResults: 5,
+      };
+      const internal = service as unknown as {
+        deps: {
+          vector: VectorIndexPort;
+          citationBuilder: CitationBuilder;
+          generator: GeneratorPort;
+          config: {
+            enableGeneration: boolean;
+            refusalMinCitations?: number;
+            refusalMinConfidence?: number;
+          };
+        };
+      };
+      const originalIndex = internal.deps.vector.getActiveIndexVersion;
+      internal.deps.vector.getActiveIndexVersion = async () =>
+        failure(new Error("index unavailable"));
+      await expect(service.query(query)).resolves.toMatchObject({
+        ok: false,
+        error: { message: "index unavailable" },
+      });
+      internal.deps.vector.getActiveIndexVersion = originalIndex;
+
+      const originalCitation = internal.deps.citationBuilder.buildFromRetrieval;
+      internal.deps.citationBuilder.buildFromRetrieval = async () =>
+        failure(new Error("citation unavailable"));
+      await expect(service.query(query)).resolves.toMatchObject({
+        ok: false,
+        error: { message: "citation unavailable" },
+      });
+      internal.deps.citationBuilder.buildFromRetrieval = originalCitation;
+
+      const originalGenerator = internal.deps.generator.generateStructured;
+      internal.deps.config.enableGeneration = true;
+      internal.deps.generator.generateStructured = async () =>
+        failure(new Error("generator unavailable"));
+      await expect(service.query(query)).resolves.toMatchObject({
+        ok: false,
+        error: { message: "generator unavailable" },
+      });
+      internal.deps.generator.generateStructured = originalGenerator;
+      internal.deps.config.enableGeneration = false;
+    });
+
+    it("covers refusal policy reduction and generation request mapping", () => {
+      const internal = service as unknown as {
+        applyRefusalPolicy: (answer: StructuredAnswer, citationCount: number) => StructuredAnswer;
+        buildGenerationRequest: (
+          query: RetrievalQuery,
+          execution: RetrievalExecutionResult,
+        ) => GenerationRequest;
+      };
+      const citation = {
+        citationId: crypto.randomUUID(),
+        evidenceId: crypto.randomUUID(),
+        chunkId: crypto.randomUUID(),
+        documentVersionId: crypto.randomUUID(),
+        locatorPath: "doc.md",
+        snippet: "evidence",
+        startChar: 0,
+        endChar: 8,
+        score: 1,
+      };
+      const answer = {
+        answer: "claim",
+        status: "answered" as const,
+        claims: [
+          {
+            claimId: crypto.randomUUID(),
+            claimText: "claim",
+            citations: [citation],
+            confidence: 1,
+            supportedBy: [citation.evidenceId],
+          },
+        ],
+      };
+      expect(internal.applyRefusalPolicy(answer, 1).status).toBe("answered");
+      expect(
+        internal.applyRefusalPolicy({ ...answer, status: "refused", claims: [] }, 0).status,
+      ).toBe("refused");
+      expect(
+        internal.applyRefusalPolicy(
+          { ...answer, claims: [{ ...answer.claims[0]!, confidence: 0.1 }] },
+          1,
+        ).status,
+      ).toBe("insufficient_evidence");
+      expect(
+        internal.buildGenerationRequest(
+          {
+            question: "question",
+            tenantId,
+            principalId: PRINCIPAL_ID,
+            strategy: "vector",
+            maxResults: 5,
+          },
+          {
+            queryId: crypto.randomUUID(),
+            strategy: "vector",
+            results: [],
+            citations: [citation],
+            fusionTrace: [],
+            timing: {
+              embeddingMs: 0,
+              vectorSearchMs: 0,
+              fullTextSearchMs: 0,
+              fusionMs: 0,
+              rerankMs: 0,
+              totalMs: 0,
+            },
+            indexVersion: {
+              indexVersionId,
+              versionNumber: 1,
+              embeddingModel: MODEL,
+              embeddingDimension: EMBEDDING_DIM,
+              isActive: true,
+              tenantId,
+            },
+          },
+        ).allowedCitationIds,
+      ).toEqual([citation.citationId]);
     });
 
     it("refuses graph and hybrid strategies", async () => {
@@ -718,6 +996,26 @@ describe("M4 vector RAG baseline", () => {
       const adapter = new LexicalRerankAdapter({ provider: "local", model: "lexical-blend" });
       const result = await adapter.rerank({ query: "", candidates: [] });
       expect(result.ok).toBe(false);
+    });
+
+    it("handles punctuation-only queries and empty content", async () => {
+      const adapter = new LexicalRerankAdapter({ provider: "local", model: "lexical-blend" });
+      const result = await adapter.rerank({
+        query: "!!!",
+        candidates: [{ id: "a", strategy: "vector", score: 0.5, content: "" }],
+      });
+      expect(result.ok).toBe(true);
+      expect(lexicalOverlapScore(["token"], "")).toBe(0);
+    });
+
+    it("rejects vector scores outside the supported range", async () => {
+      const adapter = new LexicalRerankAdapter({ provider: "local", model: "lexical-blend" });
+      await expect(
+        adapter.rerank({
+          query: "token",
+          candidates: [{ id: "a", strategy: "vector", score: 2, content: "token" }],
+        }),
+      ).rejects.toThrow("Vector score must be in [0,1]");
     });
   });
 

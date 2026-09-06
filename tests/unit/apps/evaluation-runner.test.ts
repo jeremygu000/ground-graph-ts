@@ -1,13 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { readFileSync } from "fs";
 import {
-  loadDataset,
-  computePercentile,
-  computeAverage,
   createGeneratorStub,
   createVectorService,
   createInMemoryVectorPort,
 } from "../../../apps/evaluation-runner/src/runner";
+import { loadCorpus, loadDataset } from "../../../apps/evaluation-runner/src/dataset";
+import { computePercentile, computeAverage } from "../../../apps/evaluation-runner/src/metrics";
 import {
   InMemoryEmbeddingAdapter,
   InMemoryVectorIndex,
@@ -76,6 +75,60 @@ describe("loadDataset", () => {
 
     const result = loadDataset("empty.json");
     expect(result.cases).toHaveLength(0);
+  });
+});
+
+describe("loadCorpus", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("loads corpus chunks and defaults documentId to documentVersionId", () => {
+    (readFileSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      JSON.stringify({
+        chunks: [
+          {
+            chunkId: "chunk-1",
+            documentVersionId: "version-1",
+            content: "first chunk",
+            locator: { type: "page", page: 1 },
+          },
+          {
+            chunkId: "chunk-2",
+            documentVersionId: "version-2",
+            documentId: "document-2",
+            content: "second chunk",
+            locator: { type: "heading", path: "Intro" },
+          },
+        ],
+      }),
+    );
+
+    const result = loadCorpus("/project");
+
+    expect(readFileSync).toHaveBeenCalledWith("/project/evals/retrieval/corpus.json", "utf8");
+    expect(result).toEqual([
+      {
+        chunkId: "chunk-1",
+        documentVersionId: "version-1",
+        documentId: "version-1",
+        content: "first chunk",
+        locator: { type: "page", page: 1 },
+      },
+      {
+        chunkId: "chunk-2",
+        documentVersionId: "version-2",
+        documentId: "document-2",
+        content: "second chunk",
+        locator: { type: "heading", path: "Intro" },
+      },
+    ]);
+  });
+
+  it("returns an empty corpus when the source contains no chunks", () => {
+    (readFileSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(JSON.stringify({ chunks: [] }));
+
+    expect(loadCorpus("/project")).toEqual([]);
   });
 });
 

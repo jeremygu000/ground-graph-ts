@@ -1,17 +1,4 @@
-export type IDPrefix =
-  | "ten"
-  | "usr"
-  | "src"
-  | "doc"
-  | "ver"
-  | "chk"
-  | "idx"
-  | "ent"
-  | "fct"
-  | "evd"
-  | "run"
-  | "stp"
-  | "evt";
+import type { IDGenerator, IDPrefix } from "./id.types";
 
 const PREFIX_TO_NUMBER: Record<IDPrefix, string> = {
   ten: "00",
@@ -28,10 +15,6 @@ const PREFIX_TO_NUMBER: Record<IDPrefix, string> = {
   stp: "11",
   evt: "12",
 };
-
-export interface IDGenerator {
-  generate(prefix: IDPrefix): string;
-}
 
 export class UUIDv7Generator implements IDGenerator {
   private counter = 0;

@@ -8,7 +8,10 @@ vi.mock("ai", () => aiMocks);
 vi.mock("@ai-sdk/openai", () => ({ openai: vi.fn(() => ({ model: "mock" })) }));
 import { OpenAIGeneratorAdapter } from "../../../../src/infrastructure/models/generator-adapter";
 import { ValidationError } from "../../../../src/domain/errors";
-import type { GenerationRequest, StructuredAnswer } from "../../../../src/application/models/ports";
+import type {
+  GenerationRequest,
+  StructuredAnswer,
+} from "../../../../src/application/models/models.types";
 
 describe("OpenAIGeneratorAdapter", () => {
   it("generates and validates a structured answer", async () => {

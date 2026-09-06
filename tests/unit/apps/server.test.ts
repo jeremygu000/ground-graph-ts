@@ -150,4 +150,40 @@ describe("api server", () => {
       expect.objectContaining({ error: "Internal Server Error" }),
     );
   });
+
+  it("reports degraded readiness without checkers and handles checker failures", async () => {
+    const app = await serverModule.buildApp();
+    const ready = serverMocks.routes.get("/ready");
+    if (!ready) throw new Error("expected readiness route");
+    const degradedReply = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn().mockReturnThis(),
+    };
+    await ready({}, degradedReply as never);
+    expect(degradedReply.status).toHaveBeenCalledWith(200);
+    expect(degradedReply.send).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "degraded", checks: {} }),
+    );
+
+    expect(app).toBe(serverMocks.app);
+    const failingApp = await serverModule.buildApp([
+      {
+        name: "broken",
+        check: vi.fn(async () => {
+          throw new Error("connection lost");
+        }),
+      } as never,
+    ]);
+    const failingReady = serverMocks.routes.get("/ready");
+    const failingReply = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn().mockReturnThis(),
+    };
+    await failingReady!({}, failingReply as never);
+    expect(failingApp).toBe(serverMocks.app);
+    expect(failingReply.status).toHaveBeenCalledWith(503);
+    expect(failingReply.send).toHaveBeenCalledWith(
+      expect.objectContaining({ checks: { broken: { healthy: false, error: "connection lost" } } }),
+    );
+  });
 });

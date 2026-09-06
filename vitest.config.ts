@@ -20,8 +20,6 @@ export default defineConfig({
         "**/*.types.ts",
         "**/*.test.ts",
         "**/index.ts",
-        "src/application/health.ts",
-        "src/application/unit-of-work.ts",
         "src/infrastructure/postgres/schema.ts",
         "apps/evaluation-runner/src/runner.ts",
       ],

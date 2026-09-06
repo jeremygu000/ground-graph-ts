@@ -1,27 +1,18 @@
 import type { Result } from "../../domain/result";
-import type { Chunk } from "../../domain/documents/documents.schema";
-import type { EntityTypeRepository, PredicateRepository } from "../../../ontology/ports";
 import { DEFAULT_ONTOLOGY_TYPES, DEFAULT_PREDICATES } from "../../../ontology/types";
+import type { Chunk } from "../../domain/documents/documents.schema";
+import type {
+  DeterministicExtractor,
+  ExtractionCandidate,
+  ExtractionServiceDeps,
+} from "./extraction.types";
 
-export interface ExtractionCandidate {
-  entities: Array<{
-    name: string;
-    type: string;
-    aliases?: string[];
-    confidence: number;
-  }>;
-  facts: Array<{
-    subjectName: string;
-    predicate: string;
-    objectName?: string;
-    objectValue?: string;
-    confidence: number;
-  }>;
-}
-
-export interface DeterministicExtractor {
-  extract(content: Chunk): ExtractionCandidate;
-}
+export type {
+  DeterministicExtractor,
+  ExtractionCandidate,
+  ExtractionServiceDeps,
+} from "./extraction.types";
+export type { ReconciliationReport } from "./reconciliation.types";
 
 export class StructuredCodeExtractor implements DeterministicExtractor {
   extract(content: Chunk): ExtractionCandidate {
@@ -212,11 +203,6 @@ export function createExtractorForType(type: string): DeterministicExtractor | n
     default:
       return null;
   }
-}
-
-export interface ExtractionServiceDeps {
-  entityTypeRepository: EntityTypeRepository;
-  predicateRepository: PredicateRepository;
 }
 
 export class ExtractionService {

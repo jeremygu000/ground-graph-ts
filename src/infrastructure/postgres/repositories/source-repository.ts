@@ -4,7 +4,8 @@ import { sources } from "../schema";
 import type { SourceRepository } from "../../../application/ingestion/ports.types";
 import type { Source } from "../../../application/ingestion/ports.types";
 import type { SourceDescriptor } from "../../../domain/documents/documents.schema";
-import { SourceSchema, mapToSource } from "../../../application/validation";
+import { SourceSchema } from "../../../application/validation.schema";
+import { mapToSource } from "../../../application/validation.mapper";
 import { validateOrThrow } from "../../../domain/validation";
 
 export class PostgresSourceRepository implements SourceRepository {

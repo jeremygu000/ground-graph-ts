@@ -13,7 +13,7 @@ import {
 } from "./postgres/repositories";
 import { PostgresSourceSyncStateRepository } from "./postgres/repositories/source-sync-state-repository";
 import { PostgresVectorIndexRepository } from "./postgres/index-repository";
-import type { UnitOfWork, UnitOfWorkFactory } from "../application/unit-of-work";
+import type { UnitOfWork, UnitOfWorkFactory } from "../application/unit-of-work.types";
 
 export class DefaultUnitOfWork implements UnitOfWork {
   sourceRepository: PostgresSourceRepository;

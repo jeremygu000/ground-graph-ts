@@ -1,8 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import {
-  DefaultEntityResolver,
-  type EntityRepositoryPort,
-} from "@/application/retrieval/entity-resolver";
+import { DefaultEntityResolver } from "@/application/retrieval/entity-resolver";
+import type { EntityRepositoryPort } from "@/application/retrieval/entity-resolver.types";
 
 describe("DefaultEntityResolver", () => {
   let resolver: DefaultEntityResolver;

@@ -3,7 +3,7 @@ import type { Database } from "../client";
 import { chunks } from "../schema";
 import type { ChunkRepository } from "../../../application/ingestion/ports.types";
 import type { Chunk } from "../../../domain/documents/documents.schema";
-import { mapToChunk } from "../../../application/validation";
+import { mapToChunk } from "../../../application/validation.mapper";
 
 export class PostgresChunkRepository implements ChunkRepository {
   constructor(private db: Database) {}

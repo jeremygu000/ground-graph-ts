@@ -1,11 +1,11 @@
-import { readFileSync, writeFileSync } from "fs";
-import { join, dirname } from "path";
+import { writeFileSync } from "node:fs";
+import { join, dirname } from "node:path";
 import { fileURLToPath } from "url";
 import {
   InMemoryEmbeddingAdapter,
   InMemoryVectorIndex,
-  type InMemoryVectorIndexEntry,
 } from "../../../src/infrastructure/models/in-memory";
+import type { InMemoryVectorIndexEntry } from "../../../src/infrastructure/models/in-memory.types";
 import { cosineSimilarity } from "../../../src/infrastructure/models/in-memory";
 import { ReciprocalRankFusion } from "../../../src/infrastructure/postgres/fusion";
 import { CitationBuilder } from "../../../src/infrastructure/retrieval/citation-builder";
@@ -15,156 +15,21 @@ import type {
   VectorIndexPort,
   EmbeddingPort,
   VectorSearchResultRow,
-} from "../../../src/application/models/ports";
-interface RetrievalQuery {
-  question: string;
-  tenantId: string;
-  principalId: string;
-  strategy: "vector" | "fulltext";
-  maxResults?: number;
-}
+} from "../../../src/application/models/models.types";
+import { loadCorpus, loadDataset } from "./dataset";
+import { computeAverage, computePercentile } from "./metrics";
+import { ok } from "./evaluation.utils";
+import type {
+  BaselineCase,
+  BaselineCaseResult,
+  BaselineReport,
+  BaselineSummary,
+  CorpusChunk,
+  RetrievalQuery,
+} from "./evaluation.types";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-export interface BaselineCase {
-  id: string;
-  type: string;
-  tags: string[];
-  question: string;
-  tenantId: string;
-  principalId: string;
-  expectedStatus: string;
-  expectedAnswer: string;
-  requiredClaimText: string;
-  forbiddenClaimText: string[];
-  expectedEntities: string[];
-  expectedEvidenceChunkIds: string[];
-}
-
-export interface BaselineReport {
-  version: string;
-  generatedAt: string;
-  datasetVersion: string;
-  evaluationMode: string;
-  embeddingModel: string | null;
-  embeddingDimension: number | null;
-  rerankerModel: string | null;
-  generatorModel: string | null;
-  indexVersion: string | null;
-  cases: BaselineCaseResult[];
-  summary: BaselineSummary;
-}
-
-export interface BaselineCaseResult {
-  caseId: string;
-  status: "pending" | "running" | "completed" | "failed" | "skipped";
-  retrievalRecall: number | null;
-  retrievalHit: boolean | null;
-  answerCorrectness: number | null;
-  citationCorrectness: number | null;
-  refusalCorrectness: boolean | null;
-  aclLeakage: boolean | null;
-  latencyMs: number | null;
-  promptTokens: number | null;
-  inputTokens: number | null;
-  outputTokens: number | null;
-  estimatedCostUSD: number | null;
-  error: string | null;
-}
-
-export interface BaselineSummary {
-  totalCases: number;
-  completedCases: number;
-  failedCases: number;
-  skippedCases: number;
-  retrievalRecall: { average: number; p50: number; p95: number } | null;
-  answerCorrectness: { average: number; p50: number; p95: number } | null;
-  citationCorrectness: { average: number; p50: number; p95: number } | null;
-  refusalCorrectness: { percentage: number } | null;
-  aclLeakage: { percentage: number } | null;
-  latencyMs: { p50: number; p95: number } | null;
-  totalCostUSD: number | null;
-}
-
-interface DatasetMetadata {
-  name: string;
-  version: string;
-  description: string;
-  embedding_model: string;
-  embedding_dimension: number;
-  reranker_model: string;
-  generator_model: string;
-  cases: BaselineCase[];
-}
-
-interface CorpusChunk {
-  chunkId: string;
-  documentVersionId: string;
-  documentId: string;
-  content: string;
-  locator: Record<string, unknown>;
-}
-
-export function loadDataset(datasetPath: string): {
-  cases: BaselineCase[];
-  metadata: DatasetMetadata;
-} {
-  const content = readFileSync(datasetPath, "utf-8");
-  const data: DatasetMetadata = JSON.parse(content);
-  return { cases: data.cases, metadata: data };
-}
-
-function loadCorpus(): CorpusChunk[] {
-  const projectRoot = join(__dirname, "..", "..", "..");
-  const corpusPath = join(projectRoot, "evals", "retrieval", "corpus.json");
-  const raw = readFileSync(corpusPath, "utf8");
-  const data = JSON.parse(raw) as {
-    chunks: Array<{
-      chunkId: string;
-      documentVersionId: string;
-      documentId?: string;
-      content: string;
-      locator: Record<string, unknown>;
-    }>;
-  };
-  return data.chunks.map(
-    (c: {
-      chunkId: string;
-      documentVersionId: string;
-      documentId?: string;
-      content: string;
-      locator: Record<string, unknown>;
-    }) => ({
-      chunkId: c.chunkId,
-      documentVersionId: c.documentVersionId,
-      documentId: c.documentId ?? c.documentVersionId,
-      content: c.content,
-      locator: c.locator,
-    }),
-  );
-}
-
-export function computePercentile(values: number[], p: number): number {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const idx = Math.ceil((p / 100) * sorted.length) - 1;
-  return sorted[Math.max(0, idx)] ?? 0;
-}
-
-export function computeAverage(values: number[]): number {
-  if (values.length === 0) return 0;
-  return values.reduce((a, b) => a + b, 0) / values.length;
-}
-
-interface OkResult<T> {
-  ok: true;
-  value: T;
-}
-
-function ok<T>(value: T): OkResult<T> {
-  return { ok: true, value };
-}
 
 export function createInMemoryVectorPort(
   index: InMemoryVectorIndex,
@@ -403,7 +268,7 @@ async function runBaseline(): Promise<BaselineReport> {
   console.log(`Loaded ${cases.length} evaluation cases`);
 
   console.log("Loading corpus...");
-  const corpus = loadCorpus();
+  const corpus = loadCorpus(projectRoot);
   console.log(`Loaded ${corpus.length} corpus chunks`);
 
   const indexVersionId = "00000000-0000-4000-8000-000000000001";

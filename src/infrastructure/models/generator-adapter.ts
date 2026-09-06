@@ -7,26 +7,15 @@ import type {
   GenerationResult,
   GeneratorPort,
   StructuredAnswer,
-  GeneratorProvider,
-} from "../../application/models/ports";
+} from "../../application/models/models.types";
 import { success, type Result } from "../../domain/result";
 import { InternalError, NetworkError, ValidationError } from "../../domain/errors";
 import { withSpan } from "../telemetry";
 import { ZodStructuredOutputParser } from "./structured-output-parser";
+import type { OpenAIGeneratorConfig } from "./generator.types";
 
 const DEFAULT_MAX_RETRIES = 2;
 const DEFAULT_TIMEOUT_MS = 60_000;
-
-export interface OpenAIGeneratorConfig {
-  provider?: GeneratorProvider;
-  model: string;
-  apiKey?: string;
-  baseUrl?: string;
-  organizationId?: string;
-  defaultGeneration?: Partial<GenerationConfig>;
-  maxRetries?: number;
-  timeoutMs?: number;
-}
 
 export class OpenAIGeneratorAdapter implements GeneratorPort {
   private readonly config: OpenAIGeneratorConfig;

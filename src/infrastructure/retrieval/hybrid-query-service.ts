@@ -1,82 +1,15 @@
-import type {
-  CitationOutput,
-  EmbeddingPort,
-  FullTextSearchPort,
-  GeneratorPort,
-  RetrievalFusionPort,
-  RerankPort,
-  VectorIndexPort,
-  VectorSearchOptions,
-  IndexVersionInfo,
-} from "../../application/models/ports";
+import type { VectorSearchOptions } from "../../application/models/models.types";
 import type {
   RetrievalQuery,
   RetrievalResult,
   RetrievalStrategy,
 } from "../../domain/retrieval/retrieval.schema";
-import type { StructuredAnswer } from "../../application/models/ports";
 import { success, failure, type Result } from "../../domain/result";
 import { ValidationError, InternalError } from "../../domain/errors";
 import { withSpan, recordMetric } from "../../infrastructure/telemetry";
 import { traceFusion } from "../../infrastructure/postgres/fusion";
-import type {
-  EntityResolverPort,
-  EntityResolutionResult,
-} from "../../application/retrieval/entity-resolver";
-import type { GraphRetrievalPort } from "./graph-retrieval-adapter";
-
-export interface HybridQueryServiceDeps {
-  embedding: EmbeddingPort;
-  vector: VectorIndexPort;
-  fulltext: FullTextSearchPort | null;
-  graph: GraphRetrievalPort | null;
-  reranker: RerankPort | null;
-  fusion: RetrievalFusionPort;
-  generator: GeneratorPort;
-  entityResolver: EntityResolverPort;
-  config: HybridPipelineConfig;
-  clock: () => Date;
-  idGen: () => string;
-}
-
-export interface HybridPipelineConfig {
-  maxCandidates: number;
-  enableFullText: boolean;
-  enableRerank: boolean;
-  enableGeneration: boolean;
-  enableGraph: boolean;
-  fusionWeights: Partial<Record<RetrievalStrategy, number>>;
-  refusalMinCitations: number;
-  refusalMinConfidence: number;
-  maxGraphDepth: number;
-  graphTraversalBudget: number;
-}
-
-export interface HybridQueryResult {
-  queryId: string;
-  strategy: RetrievalStrategy;
-  results: RetrievalResult[];
-  citations: CitationOutput[];
-  entityResolution: EntityResolutionResult | null;
-  generatedAnswer?: StructuredAnswer;
-  fusionTrace: Array<{
-    strategy: RetrievalStrategy;
-    inputs: number;
-    fused: number;
-    weight: number;
-  }>;
-  timing: {
-    entityResolutionMs: number;
-    embeddingMs: number;
-    vectorSearchMs: number;
-    fullTextSearchMs: number;
-    graphSearchMs: number;
-    fusionMs: number;
-    rerankMs: number;
-    totalMs: number;
-  };
-  indexVersion: IndexVersionInfo | null;
-}
+import type { EntityResolutionResult } from "../../application/retrieval/entity-resolver.types";
+import type { HybridQueryResult, HybridQueryServiceDeps } from "./hybrid-query.types";
 
 export class HybridQueryService {
   constructor(private readonly deps: HybridQueryServiceDeps) {}

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { success, failure, type Result } from "../../domain/result";
 import { ValidationError } from "../../domain/errors";
-import type { RepairStrategy, StructuredOutputParser } from "../../application/models/ports";
+import type { RepairStrategy, StructuredOutputParser } from "../../application/models/models.types";
 
 export class ZodStructuredOutputParser<T> implements StructuredOutputParser<T> {
   constructor(public readonly schema: z.ZodType<T>) {}

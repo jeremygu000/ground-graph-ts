@@ -1,4 +1,4 @@
-import type { UnitOfWorkFactory } from "../../application/unit-of-work";
+import type { UnitOfWorkFactory } from "../../application/unit-of-work.types";
 import type { DocumentParser, ParsedContent } from "../../application/ingestion/parser-port.types";
 import type {
   Chunker,
@@ -6,34 +6,13 @@ import type {
   ChunkingOptions,
   ChunkFragment,
 } from "../../application/ingestion/chunker-port.types";
-import type { IngestionQualityReport } from "../../application/ingestion/ingestion.schema";
 import type { Document, Source } from "../../application/ingestion/ports.types";
+import type { IngestionQualityReport } from "../../application/ingestion/ingestion.types";
 import type { ContentFetcher } from "../../application/ingestion/content-fetcher-port.types";
 import type { ObjectStoragePort } from "../../application/ingestion/object-storage-port.types";
 import type { TracerPort } from "../../application/observability/tracer-port.types";
 import { computeContentHash } from "../../application/ingestion/hash";
-
-export interface IngestionWorkflowInput {
-  sourceUri: string;
-  sourceType: "file" | "url" | "git" | "api" | "s3";
-  mimeType?: string;
-  metadata?: Record<string, unknown>;
-  tenantId: string;
-  principalId: string;
-  userId?: string;
-  chunkingStrategy?: "heading" | "recursive" | "page" | "semantic";
-  maxChunkSize?: number;
-  chunkOverlap?: number;
-}
-
-export interface IngestionWorkflowResult {
-  documentId: string;
-  versionId: string;
-  versionNumber: number;
-  status: "created" | "updated" | "unchanged";
-  chunksCreated: number;
-  qualityReport: IngestionQualityReport;
-}
+import type { IngestionWorkflowInput, IngestionWorkflowResult } from "./ingestion-workflow.types";
 
 export class IngestionWorkflow {
   constructor(

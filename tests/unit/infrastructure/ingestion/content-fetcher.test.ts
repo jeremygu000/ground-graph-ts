@@ -1,11 +1,43 @@
+import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
+
+const httpRequest = vi.hoisted(() => vi.fn());
+const httpsRequest = vi.hoisted(() => vi.fn());
+
+vi.mock("node:http", () => ({ default: { request: httpRequest } }));
+vi.mock("node:https", () => ({ default: { request: httpsRequest } }));
 import {
   isPrivateIPv4,
   parseIPv6,
   isPrivateIPv6,
   isPrivateIp,
+  FileContentFetcher,
+  S3ContentFetcher,
+  CompositeContentFetcher,
+  DefaultContentFetcherFactory,
   UrlContentFetcher,
 } from "../../../../src/infrastructure/ingestion/content-fetcher";
+import { setGlobalObjectStorageClient } from "../../../../src/infrastructure/object-storage/client";
+
+vi.mock("fs/promises", () => ({
+  readFile: vi.fn(async () => Buffer.from("file-content")),
+}));
+
+vi.mock("node:dns", () => ({
+  resolve4: (_hostname: string, callback: (error: Error | null, addresses?: string[]) => void) =>
+    callback(null, ["93.184.216.34"]),
+  resolve6: (_hostname: string, callback: (error: Error, addresses?: string[]) => void) =>
+    callback(new Error("no IPv6 record")),
+  lookup: (
+    _hostname: string,
+    callback: (error: Error | null, address?: { address: string; family: number }) => void,
+  ) => callback(null, { address: "93.184.216.34", family: 4 }),
+}));
+
+type PrivateFetcher = {
+  makeRequest: (...args: unknown[]) => Promise<unknown>;
+  fetchWithPinnedIp: (url: URL) => Promise<{ body: Buffer; finalUrl: URL }>;
+};
 
 describe("isPrivateIPv4", () => {
   it("returns true for loopback 127.0.0.1", () => {
@@ -195,10 +227,42 @@ describe("isPrivateIp", () => {
 });
 
 describe("UrlContentFetcher response handling", () => {
-  type PrivateFetcher = {
-    makeRequest: (...args: unknown[]) => Promise<unknown>;
-    fetchWithPinnedIp: (url: URL) => Promise<{ body: Buffer; finalUrl: URL }>;
-  };
+  it("executes the HTTP request lifecycle and collects response chunks", async () => {
+    const request = new EventEmitter() as EventEmitter & {
+      destroy: ReturnType<typeof vi.fn>;
+      end: () => void;
+    };
+    request.destroy = vi.fn();
+    request.end = () => {
+      const response = new EventEmitter() as EventEmitter & {
+        statusCode: number;
+        headers: Record<string, string>;
+      };
+      response.statusCode = 200;
+      response.headers = { "content-type": "text/plain" };
+      httpRequest.mock.calls[0]?.[1](response);
+      response.emit("data", Buffer.from("hello "));
+      response.emit("data", Buffer.from("world"));
+      response.emit("end");
+    };
+    httpRequest.mockImplementationOnce(
+      (_options: unknown, callback: (response: unknown) => void) => {
+        void callback;
+        return request;
+      },
+    );
+
+    const fetcher = new UrlContentFetcher(1000, 100);
+    const privateFetcher = fetcher as unknown as PrivateFetcher;
+    await expect(
+      privateFetcher.makeRequest("http:", "example.com", 80, "/", "93.184.216.34"),
+    ).resolves.toMatchObject({
+      statusCode: 200,
+      body: Buffer.from("hello world"),
+      headers: { "content-type": "text/plain" },
+    });
+    expect(httpRequest).toHaveBeenCalledOnce();
+  });
 
   it("accepts successful responses and rejects oversized content-length", async () => {
     const fetcher = new UrlContentFetcher(1000, 10);
@@ -248,6 +312,94 @@ describe("UrlContentFetcher response handling", () => {
     await expect(privateFetcher.fetchWithPinnedIp(new URL("http://8.8.8.8/start"))).rejects.toThrow(
       "404",
     );
+    makeRequest.mockResolvedValueOnce({
+      statusCode: 302,
+      headers: { location: "http://8.8.8.8/final" },
+      body: Buffer.alloc(0),
+    });
+    makeRequest.mockResolvedValueOnce({ statusCode: 302, headers: {}, body: Buffer.alloc(0) });
+    await expect(privateFetcher.fetchWithPinnedIp(new URL("http://8.8.8.8/start"))).rejects.toThrow(
+      "too many redirects",
+    );
+    makeRequest.mockResolvedValueOnce({ statusCode: 500, headers: {}, body: Buffer.alloc(0) });
+    await expect(privateFetcher.fetchWithPinnedIp(new URL("http://8.8.8.8/start"))).rejects.toThrow(
+      "500",
+    );
+    makeRequest.mockResolvedValueOnce({
+      statusCode: 302,
+      headers: { location: "http://8.8.8.8/final" },
+      body: Buffer.alloc(0),
+    });
+    makeRequest.mockResolvedValueOnce({
+      statusCode: 200,
+      headers: { "content-length": "101" },
+      body: Buffer.from("ok"),
+    });
+    await expect(privateFetcher.fetchWithPinnedIp(new URL("http://8.8.8.8/start"))).rejects.toThrow(
+      "exceeds max",
+    );
+  });
+});
+
+describe("content fetcher adapters", () => {
+  it("accepts file URIs and rejects other file schemes", async () => {
+    const fetcher = new FileContentFetcher();
+    await expect(fetcher.fetch("file:///tmp/document.md")).resolves.toEqual(
+      Buffer.from("file-content"),
+    );
+    await expect(fetcher.fetch("/tmp/document.md")).rejects.toThrow("only supports file://");
+  });
+
+  it("rejects unsupported URL protocols and credentials", async () => {
+    const fetcher = new UrlContentFetcher();
+    await expect(fetcher.fetch("ftp://example.com/file")).rejects.toThrow(
+      "only supports http/https",
+    );
+    await expect(fetcher.fetch("https://user:password@example.com/file")).rejects.toThrow(
+      "credentials are not allowed",
+    );
+  });
+
+  it("validates DNS and fetches a public URL with a pinned address", async () => {
+    const fetcher = new UrlContentFetcher(1000, 100);
+    const privateFetcher = fetcher as unknown as PrivateFetcher;
+    vi.spyOn(privateFetcher, "makeRequest").mockResolvedValue({
+      statusCode: 200,
+      headers: {},
+      body: Buffer.from("remote-content"),
+    });
+
+    await expect(fetcher.fetch("http://example.com/document.md")).resolves.toEqual(
+      Buffer.from("remote-content"),
+    );
+  });
+
+  it("routes composite fetches and reports unknown schemes", async () => {
+    const composite = new CompositeContentFetcher();
+    const fetch = vi.fn(async () => Buffer.from("ok"));
+    composite.register("custom", { fetch });
+
+    await expect(composite.fetch("custom://resource")).resolves.toEqual(Buffer.from("ok"));
+    expect(fetch).toHaveBeenCalledWith("custom://resource");
+    await expect(composite.fetch("missing://resource")).rejects.toThrow(
+      "No ContentFetcher registered",
+    );
+  });
+
+  it("creates the standard file/http/https/s3 fetcher registrations", () => {
+    const factory = new DefaultContentFetcherFactory();
+    const composite = factory.create();
+    expect(composite).toBeInstanceOf(CompositeContentFetcher);
+  });
+
+  it("downloads S3 content through the global object storage client", async () => {
+    const download = vi.fn(async () => Buffer.from("s3-content"));
+    setGlobalObjectStorageClient({ download } as never);
+    const fetcher = new S3ContentFetcher("processed");
+
+    await expect(fetcher.fetch("s3://bucket/key.md")).resolves.toEqual(Buffer.from("s3-content"));
+    expect(download).toHaveBeenCalledWith("bucket/key.md", "processed");
+    await expect(fetcher.fetch("file:///tmp/key.md")).rejects.toThrow("only supports s3://");
   });
 });
 

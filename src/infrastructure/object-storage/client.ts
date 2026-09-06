@@ -1,14 +1,6 @@
 import { S3Client, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { Readable } from "stream";
-
-export interface ObjectStorageConfig {
-  endpoint: string;
-  region: string;
-  accessKeyId: string;
-  secretAccessKey: string;
-  bucketRaw: string;
-  bucketProcessed: string;
-}
+import type { ObjectStorageConfig } from "./client.types";
 
 export class ObjectStorageClient {
   private client: S3Client;

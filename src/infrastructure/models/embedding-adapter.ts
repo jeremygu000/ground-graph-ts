@@ -6,7 +6,7 @@ import type {
   EmbeddingConfig,
   EmbeddingPort,
   EmbeddingResult,
-} from "../../application/models/ports";
+} from "../../application/models/models.types";
 import type { Result } from "../../domain/result";
 import { success } from "../../domain/result";
 import { InternalError, NetworkError, ValidationError } from "../../domain/errors";

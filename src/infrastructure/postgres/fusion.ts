@@ -2,7 +2,7 @@ import type {
   FusionOptions,
   FusionTrace,
   RetrievalFusionPort,
-} from "../../application/models/ports";
+} from "../../application/models/models.types";
 import type { RetrievalResult, RetrievalStrategy } from "../../domain/retrieval/retrieval.schema";
 import { success, failure, type Result } from "../../domain/result";
 import { ValidationError } from "../../domain/errors";

@@ -121,6 +121,15 @@ describe("MarkdownParser", () => {
       expect(result.sections.some((s) => s.type === "paragraph")).toBe(true);
     });
 
+    it("closes a heading before entering a fenced code block", async () => {
+      const result = await parser.parse(
+        Buffer.from("# Heading\n```ts\nconst value = 1;\n```", "utf8"),
+        { type: "url", uri: "test.md" },
+      );
+      expect(result.sections.map((section) => section.type)).toEqual(["heading", "code"]);
+      expect(result.sections[1]?.content).toContain("const value = 1;");
+    });
+
     it("handles multiple consecutive headings", async () => {
       const result = await parser.parse(Buffer.from("# H1\n## H2\n### H3", "utf8"), {
         type: "url",
@@ -416,6 +425,14 @@ describe("CompositeParser", () => {
 describe("PdfParser", () => {
   const parser = new PdfParser();
 
+  it("handles a PDF without a text title", () => {
+    const internal = parser as unknown as {
+      extractTitleFromText(text: string): string | undefined;
+    };
+    expect(internal.extractTitleFromText("plain body")).toBeUndefined();
+    expect(internal.extractTitleFromText("# Embedded title")).toBe("Embedded title");
+  });
+
   describe("canParse", () => {
     it("identifies by .pdf extension", () => {
       expect(parser.canParse({ type: "url", uri: "f.pdf" })).toBe(true);
@@ -473,6 +490,13 @@ describe("DocxParser", () => {
 
 describe("EpubParser", () => {
   const parser = new EpubParser();
+
+  it("handles an EPUB chapter without a title", () => {
+    const internal = parser as unknown as {
+      extractTitleFromHtml(html: string): string | undefined;
+    };
+    expect(internal.extractTitleFromHtml("<h1>Chapter</h1>")).toBeUndefined();
+  });
 
   describe("canParse", () => {
     it("identifies by .epub extension", () => {

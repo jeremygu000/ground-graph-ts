@@ -5,7 +5,7 @@ import type {
   FullTextSearchOptions,
   FullTextSearchPort,
   FullTextSearchResultRow,
-} from "../../application/models/ports";
+} from "../../application/models/models.types";
 import { success, failure, type Result } from "../../domain/result";
 import { DatabaseError, ValidationError } from "../../domain/errors";
 import { withSpan } from "../telemetry";

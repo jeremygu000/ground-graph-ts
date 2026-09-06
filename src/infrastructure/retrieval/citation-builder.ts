@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { CitationBuilderPort, CitationOutput } from "../../application/models/ports";
+import type { CitationBuilderPort, CitationOutput } from "../../application/models/models.types";
 import type { RetrievalResult } from "../../domain/retrieval/retrieval.schema";
 import type { EvidenceReference } from "../../domain/documents/documents.schema";
 import { success, failure, type Result } from "../../domain/result";

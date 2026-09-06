@@ -7,16 +7,10 @@ import {
 } from "@opentelemetry/api";
 import { MeterProvider, PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
 import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
+import type { MetricsConfig } from "./metrics.types";
 
 let meterProvider: MeterProvider | undefined;
 let meter: Meter | undefined;
-
-export interface MetricsConfig {
-  serviceName: string;
-  serviceVersion: string;
-  otlpEndpoint: string;
-  enabled: boolean;
-}
 
 export function initMetrics(config: MetricsConfig): Meter {
   if (meter) {

@@ -7,14 +7,14 @@ import type {
   RetrievalFusionPort,
   GeneratorPort,
   VectorSearchResultRow,
-} from "@/application/models/ports";
-import type { GraphRetrievalPort } from "@/infrastructure/retrieval/graph-retrieval-adapter";
-import type { EntityResolverPort } from "@/application/retrieval/entity-resolver";
-import {
-  HybridQueryService,
-  type HybridQueryServiceDeps,
-  type HybridPipelineConfig,
-} from "@/infrastructure/retrieval/hybrid-query-service";
+} from "@/application/models/models.types";
+import type { GraphRetrievalPort } from "@/infrastructure/retrieval/graph-retrieval.types";
+import type { EntityResolverPort } from "@/application/retrieval/entity-resolver.types";
+import { HybridQueryService } from "@/infrastructure/retrieval/hybrid-query-service";
+import type {
+  HybridQueryServiceDeps,
+  HybridPipelineConfig,
+} from "@/infrastructure/retrieval/hybrid-query.types";
 import type { RetrievalQuery } from "@/domain/retrieval/retrieval.schema";
 
 describe("HybridQueryService", () => {
@@ -401,9 +401,71 @@ describe("HybridQueryService", () => {
 
       expect(result.ok).toBe(false);
     });
+
+    it("returns failure when the active index lookup fails", async () => {
+      vi.mocked(mockVector.getActiveIndexVersion).mockResolvedValueOnce({
+        ok: false,
+        error: new Error("Index lookup failed"),
+      });
+      const result = await service.query({
+        question: "How does UserService work?",
+        tenantId: "550e8400-e29b-41d4-a716-446655440000",
+        principalId: "550e8400-e29b-41d4-a716-446655440001",
+        strategy: "hybrid",
+        maxResults: 20,
+      });
+      expect(result).toMatchObject({ ok: false, error: { message: "Index lookup failed" } });
+    });
+
+    it("returns failure when the query embedding is missing", async () => {
+      vi.mocked(mockEmbedding.embedBatch).mockResolvedValueOnce({
+        ok: true,
+        value: { embeddings: [], totalTokens: 0, model: "test", dimension: 1536 },
+      });
+      const result = await service.query({
+        question: "How does UserService work?",
+        tenantId: "550e8400-e29b-41d4-a716-446655440000",
+        principalId: "550e8400-e29b-41d4-a716-446655440001",
+        strategy: "hybrid",
+        maxResults: 20,
+      });
+      expect(result).toMatchObject({
+        ok: false,
+        error: { message: "Embedding result missing for question" },
+      });
+    });
   });
 
   describe("executeGraphRetrieval", () => {
+    it("returns no graph results when the graph adapter is absent", async () => {
+      const noGraphService = new HybridQueryService({
+        ...service["deps"],
+        graph: null,
+      });
+      const executeGraphRetrieval = noGraphService["executeGraphRetrieval"];
+      const result = await executeGraphRetrieval.call(
+        noGraphService,
+        {
+          entities: [],
+          queryPlan: {
+            strategy: "graph",
+            seedEntityIds: ["entity-1"],
+            relatedEntityIds: [],
+            budget: { vectorResults: 1, fulltextResults: 1, graphResults: 1 },
+            reasoning: "test",
+          },
+        },
+        {
+          question: "test",
+          tenantId: "tenant",
+          principalId: "principal",
+          strategy: "graph",
+          maxResults: 5,
+        },
+      );
+      expect(result).toEqual({ ok: true, value: [] });
+    });
+
     it("returns empty when no seed entities", async () => {
       vi.mocked(mockEntityResolver.resolveEntitiesFromQuery).mockResolvedValueOnce({
         ok: true,

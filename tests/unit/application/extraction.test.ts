@@ -1,20 +1,18 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { ValidationRule } from "../../../src/application/extraction/ontology-validation";
 import { OntologyValidationService } from "../../../src/application/extraction/ontology-validation";
 import type {
   CanonicalEntity,
   KnowledgeFact,
 } from "../../../src/domain/knowledge/knowledge.schema";
-import {
-  classifyMention,
-  type ResolutionBand,
-} from "../../../src/application/extraction/llm-extraction-port";
+import { classifyMention } from "../../../src/application/extraction/llm-extraction-port";
+import type { ResolutionBand } from "../../../src/application/extraction/llm-extraction.types";
+import type { ValidationRule } from "../../../src/application/extraction/ontology-validation.types";
 import {
   ReviewQueueItemSchema,
   ReviewStatusSchema,
   ReviewItemTypeSchema,
   GraphMetricsSchema,
-} from "../../../src/domain/knowledge/review";
+} from "../../../src/domain/knowledge/review.schema";
 
 describe("OntologyValidationService", () => {
   const createMockEntity = (overrides: Partial<CanonicalEntity> = {}): CanonicalEntity => ({
