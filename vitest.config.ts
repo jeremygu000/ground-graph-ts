@@ -11,11 +11,8 @@ export default defineConfig({
       reporter: ["text", "json", "html", "lcov"],
       reportsDirectory: ".coverage",
       include: [
-        "src/domain/**/*.ts",
-        "src/application/**/*.ts",
-        "src/infrastructure/health.ts",
-        "src/infrastructure/unit-of-work.ts",
-        "src/infrastructure/neo4j/codec.ts",
+        "src/**/*.ts",
+        "apps/**/*.ts",
       ],
       exclude: [
         "src/**/*.d.ts",

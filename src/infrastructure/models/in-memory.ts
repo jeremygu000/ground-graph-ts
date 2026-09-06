@@ -10,6 +10,7 @@ import { success, failure } from "../../domain/result";
 import { ValidationError } from "../../domain/errors";
 
 export interface InMemoryVectorIndexEntry {
+  tenantId?: string;
   chunkId: string;
   documentVersionId: string;
   documentId: string;

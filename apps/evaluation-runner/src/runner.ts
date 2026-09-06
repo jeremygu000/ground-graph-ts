@@ -160,6 +160,7 @@ function createInMemoryVectorPort(
   corpus: CorpusChunk[],
   indexVersionId: string,
   tenantId: string,
+  allowedTenantIds: string[] = [tenantId],
 ): VectorIndexPort {
   const EMBEDDING_MODEL = "offline-deterministic";
   const EMBEDDING_DIM = 1536;
@@ -170,10 +171,20 @@ function createInMemoryVectorPort(
     dimension: EMBEDDING_DIM,
   });
   index.setActiveIndex(tenantId, indexVersionId);
+  for (const allowedTenantId of allowedTenantIds) {
+    if (allowedTenantId !== tenantId) {
+      index.registerVersion(allowedTenantId, indexVersionId, {
+        versionNumber: 1,
+        model: EMBEDDING_MODEL,
+        dimension: EMBEDDING_DIM,
+      });
+      index.setActiveIndex(allowedTenantId, indexVersionId);
+    }
+  }
 
   return {
     async getActiveIndexVersion(tid) {
-      if (tid !== tenantId) return ok(null);
+      if (!allowedTenantIds.includes(tid)) return ok(null);
       return ok({
         indexVersionId,
         versionNumber: 1,
@@ -187,6 +198,7 @@ function createInMemoryVectorPort(
       const entries: InMemoryVectorIndexEntry[] = embeddings.map((emb, i) => {
         const c = corpus[i]!;
         return {
+          tenantId,
           chunkId: c.chunkId,
           documentVersionId: c.documentVersionId,
           documentId: c.documentId,
@@ -203,7 +215,7 @@ function createInMemoryVectorPort(
       return ok({ upserted: embeddings.length, indexVersionId: vid });
     },
     async search(queryEmbedding, tid, options) {
-      if (tid !== tenantId) return ok([]);
+      if (!allowedTenantIds.includes(tid)) return ok([]);
       const limit = options?.limit ?? 20;
       const entries = index.search(tid, queryEmbedding, {
         limit,
@@ -230,6 +242,27 @@ function createInMemoryVectorPort(
 }
 
 function createGeneratorStub() {
+  const stopWords = new Set([
+    "what",
+    "which",
+    "how",
+    "does",
+    "are",
+    "is",
+    "the",
+    "in",
+    "of",
+    "on",
+    "for",
+    "with",
+    "and",
+    "or",
+    "to",
+    "a",
+    "an",
+    "this",
+    "that",
+  ]);
   return {
     async generateStructured(request: {
       question: string;
@@ -252,6 +285,34 @@ function createGeneratorStub() {
         });
       }
       const evidenceText = request.evidence.map((e) => e.snippet).join(" ");
+      const questionTerms = new Set(
+        request.question
+          .toLocaleLowerCase()
+          .match(/[a-z0-9]+/g)
+          ?.filter((term) => term.length > 2 && !stopWords.has(term)),
+      );
+      const evidenceTerms = new Set(
+        evidenceText
+          .toLocaleLowerCase()
+          .match(/[a-z0-9]+/g)
+          ?.filter((term) => term.length > 2 && !stopWords.has(term)),
+      );
+      if (![...questionTerms].some((term) => evidenceTerms.has(term))) {
+        return ok({
+          structured: {
+            answer: "",
+            status: "insufficient_evidence" as const,
+            claims: [],
+            refusalReason: "offline-deterministic-mode-no-matching-evidence",
+          },
+          model: "offline-stub",
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          finishReason: "stop" as const,
+          repairAttempts: 0,
+        });
+      }
       const answer = `[DETERMINISTIC] Based on evidence: ${evidenceText.substring(0, 200)}`;
       return ok({
         structured: {
@@ -339,7 +400,9 @@ async function runBaseline(): Promise<BaselineReport> {
 
   const embedding = new InMemoryEmbeddingAdapter("offline-deterministic", 1536);
   const index = new InMemoryVectorIndex();
-  const vectorPort = createInMemoryVectorPort(index, corpus, indexVersionId, tenantId);
+  const vectorPort = createInMemoryVectorPort(index, corpus, indexVersionId, tenantId, [
+    ...new Set(cases.map((evaluationCase) => evaluationCase.tenantId)),
+  ]);
   const vectorService = createVectorService(embedding, vectorPort);
 
   console.log("Building vector index...");
@@ -457,11 +520,11 @@ async function runBaseline(): Promise<BaselineReport> {
     generatedAt: new Date().toISOString(),
     datasetVersion: metadata.version,
     evaluationMode: "offline-deterministic-generation",
-    embeddingModel: null,
-    embeddingDimension: null,
+    embeddingModel: "offline-deterministic",
+    embeddingDimension: 1536,
     rerankerModel: null,
-    generatorModel: null,
-    indexVersion: null,
+    generatorModel: "offline-stub",
+    indexVersion: indexVersionId,
     cases: caseResults,
     summary,
   };
@@ -519,8 +582,14 @@ async function evaluateCase(
       expectedChunkIds.length > 0 ? retrievedExpectedCount / expectedChunkIds.length : null;
     const retrievalHit = expectedChunkIds.some((id) => retrievedChunkIds.includes(id));
 
+    const citedChunkIds = retrievalResult.citations.map((citation) => citation.chunkId);
+    const correctlyCitedCount = expectedChunkIds.filter((id) => citedChunkIds.includes(id)).length;
     const citationCorrectness: number | null =
-      retrievalResult.citations.length > 0 && expectedChunkIds.length > 0 ? 1 : 0;
+      expectedChunkIds.length > 0
+        ? correctlyCitedCount / expectedChunkIds.length
+        : citedChunkIds.length === 0
+          ? 1
+          : 0;
 
     const hasEvidence = retrievalResult.results.length > 0;
     const expectedStatus = evaluationCase.expectedStatus;
@@ -532,9 +601,20 @@ async function evaluateCase(
         ? actualStatus === expectedStatus
         : null;
 
+    const answerText = generated?.answer ?? "";
+    const normalizedAnswer = answerText.toLocaleLowerCase();
+    const hasRequiredClaim =
+      evaluationCase.requiredClaimText.trim().length === 0 ||
+      normalizedAnswer.includes(evaluationCase.requiredClaimText.toLocaleLowerCase());
+    const hasForbiddenClaim = evaluationCase.forbiddenClaimText.some((text) =>
+      normalizedAnswer.includes(text.toLocaleLowerCase()),
+    );
     const answerCorrectness: number | null =
       expectedStatus === "answered" && actualStatus === "answered"
-        ? (generated?.claims.length ?? 0) > 0
+        ? generated !== undefined &&
+          generated.claims.length > 0 &&
+          hasRequiredClaim &&
+          !hasForbiddenClaim
           ? 1
           : 0
         : expectedStatus !== "answered"
@@ -619,7 +699,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       console.log(
         "\nBaseline artifact written to evals/reports/m4-vector-offline-baseline-v1.json",
       );
-      process.exit(0);
+      if (report.summary.failedCases > 0 || report.summary.skippedCases > 0) {
+        process.exitCode = 1;
+      }
     })
     .catch((err) => {
       console.error("Failed to run baseline:", err);

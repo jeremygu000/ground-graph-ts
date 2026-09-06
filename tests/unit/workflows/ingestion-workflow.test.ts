@@ -294,4 +294,98 @@ describe("IngestionWorkflow", () => {
     expect(uow.documentVersionRepository.create).not.toHaveBeenCalled();
     expect(uow.chunkRepository.createMany).not.toHaveBeenCalled();
   });
+
+  it("deletes uploaded raw content when chunk persistence fails", async () => {
+    const source = {
+      id: "11111111-1111-4111-8111-111111111111",
+      tenantId: "22222222-2222-4222-8222-222222222222",
+      type: "url" as const,
+      uri: "https://example.com/failure.md",
+      isActive: true,
+      createdAt: "2024-01-15T10:30:00.000Z",
+      updatedAt: "2024-01-15T10:30:00.000Z",
+    };
+    const document = {
+      id: "33333333-3333-4333-8333-333333333333",
+      tenantId: source.tenantId,
+      sourceId: source.id,
+      isActive: true,
+      createdAt: source.createdAt,
+      updatedAt: source.updatedAt,
+    };
+    const version = {
+      id: "44444444-4444-4444-8444-444444444444",
+      documentId: document.id,
+      tenantId: source.tenantId,
+      versionNumber: 1,
+      contentHash: "hash",
+      checksum: "checksum",
+      sizeBytes: 4,
+      isActive: true,
+      createdAt: source.createdAt,
+    };
+    const uow = createUnitOfWork({
+      sourceRepository: {
+        findByUri: vi.fn().mockResolvedValue({ ok: true, value: source }),
+        update: vi.fn().mockResolvedValue({ ok: true, value: source }),
+      },
+      documentRepository: {
+        findBySourceId: vi.fn().mockResolvedValue({ ok: true, value: null }),
+        create: vi.fn().mockResolvedValue({ ok: true, value: document }),
+      },
+      documentVersionRepository: {
+        create: vi.fn().mockResolvedValue({ ok: true, value: version }),
+      },
+      chunkRepository: {
+        createMany: vi.fn().mockResolvedValue({
+          ok: false,
+          error: new Error("database unavailable"),
+        }),
+      },
+    });
+    const objectStorage = {
+      upload: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(undefined),
+      download: vi.fn(),
+      exists: vi.fn(),
+      getMetadata: vi.fn(),
+    };
+    const workflow = new IngestionWorkflow(
+      { create: vi.fn(), transaction: async (fn) => fn(uow) },
+      {
+        canParse: vi.fn(),
+        parse: vi.fn().mockResolvedValue({
+          content: "text",
+          metadata: {},
+          sections: [{ type: "paragraph", content: "text", locators: [] }],
+        } satisfies ParsedContent),
+      },
+      {
+        chunk: vi.fn().mockResolvedValue([
+          {
+            id: "55555555-5555-4555-8555-555555555555",
+            documentVersionId: "",
+            sequenceNumber: 0,
+            content: "text",
+            contentHash: "hash",
+            locator: {},
+            createdAt: source.createdAt,
+          },
+        ]),
+      },
+      { fetch: vi.fn().mockResolvedValue(Buffer.from("text")) },
+      createMockTracer(),
+      objectStorage,
+    );
+
+    await expect(
+      workflow.execute({
+        sourceUri: source.uri,
+        sourceType: "url",
+        tenantId: source.tenantId,
+        principalId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+      }),
+    ).rejects.toThrow("Failed to create chunks");
+    expect(objectStorage.delete).toHaveBeenCalledWith(`raw/${source.id}/${version.id}`, "raw");
+  });
 });

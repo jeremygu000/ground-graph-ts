@@ -70,32 +70,44 @@ export class IngestionWorkflow {
               const rawChunks: import("../../application/ingestion/chunker-port").ChunkFragment[] =
                 [];
               if (isNewVersion) {
+                let uploadedRawKey: string | undefined;
                 if (this.objectStorage) {
                   const rawKey = `raw/${source.id}/${version.id}`;
                   await this.objectStorage.upload(rawKey, raw, "raw");
+                  uploadedRawKey = rawKey;
                   txSpan.setAttribute("object_storage.raw_key", rawKey);
                 }
+                try {
+                  const runChunkerResult = await this.runChunker(input, version.id, parsed);
+                  txSpan.setAttribute("chunk.count", runChunkerResult.length);
 
-                const runChunkerResult = await this.runChunker(input, version.id, parsed);
-                txSpan.setAttribute("chunk.count", runChunkerResult.length);
+                  await this.deactivateStaleVersions(uow, document.id, version.id, input.tenantId);
 
-                await this.deactivateStaleVersions(uow, document.id, version.id, input.tenantId);
-
-                if (runChunkerResult.length > 0) {
-                  const chunksForStorage = runChunkerResult.map((c) => ({
-                    ...c,
-                    documentVersionId: version.id,
-                    principalId: input.principalId,
-                  }));
-                  const chunkResult = await uow.chunkRepository.createMany(
-                    chunksForStorage,
-                    input.tenantId,
-                  );
-                  if (!chunkResult.ok) {
-                    throw new Error(`Failed to create chunks: ${chunkResult.error.message}`);
+                  if (runChunkerResult.length > 0) {
+                    const chunksForStorage = runChunkerResult.map((c) => ({
+                      ...c,
+                      documentVersionId: version.id,
+                      principalId: input.principalId,
+                    }));
+                    const chunkResult = await uow.chunkRepository.createMany(
+                      chunksForStorage,
+                      input.tenantId,
+                    );
+                    if (!chunkResult.ok) {
+                      throw new Error(`Failed to create chunks: ${chunkResult.error.message}`);
+                    }
+                    chunksCreated = runChunkerResult.length;
+                    rawChunks.push(...runChunkerResult);
                   }
-                  chunksCreated = runChunkerResult.length;
-                  rawChunks.push(...runChunkerResult);
+                } catch (error) {
+                  if (uploadedRawKey && this.objectStorage) {
+                    try {
+                      await this.objectStorage.delete(uploadedRawKey, "raw");
+                    } catch {
+                      // Preserve the original transaction error if cleanup also fails.
+                    }
+                  }
+                  throw error;
                 }
               }
 

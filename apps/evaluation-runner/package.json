@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "tsx watch src/runner.ts",
     "build": "tsc",
-    "start": "node dist/runner.js"
+    "start": "tsx src/runner.ts"
   },
   "dependencies": {
     "zod": "^4.5.4"
