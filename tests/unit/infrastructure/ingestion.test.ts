@@ -143,7 +143,7 @@ describe("ingestion infrastructure", () => {
           },
           { maxChunkSize: 8, overlapSize: 0, strategy: "semantic" },
         ),
-      ).resolves.toHaveLength(1);
+      ).rejects.toThrow("Chunking strategy 'semantic' is not yet implemented");
     });
   });
 

@@ -68,7 +68,13 @@ export class PostgresSourceRepository implements SourceRepository {
       const [result] = await this.db.drizzle
         .select()
         .from(sources)
-        .where(and(eq(sources.uri, uri), eq(sources.tenantId, tenantId), eq(sources.principalId, principalId)));
+        .where(
+          and(
+            eq(sources.uri, uri),
+            eq(sources.tenantId, tenantId),
+            eq(sources.principalId, principalId),
+          ),
+        );
       if (!result) return { ok: true, value: null };
       const mapped = mapToSource(result as Record<string, unknown>);
       const validated = validateOrThrow(

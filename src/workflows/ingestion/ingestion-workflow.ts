@@ -55,12 +55,8 @@ export class IngestionWorkflow {
               const parsed = await this.runParser(input, source);
               txSpan.setAttribute("document.title", parsed.title ?? "(none)");
 
-              const { document, version, versionNumber, isNewVersion } = await this.upsertDocumentAndVersion(
-                uow,
-                input,
-                source,
-                parsed,
-              );
+              const { document, version, versionNumber, isNewVersion } =
+                await this.upsertDocumentAndVersion(uow, input, source, parsed);
               txSpan.setAttribute("document.id", document.id);
               txSpan.setAttribute("document.version_id", version.id);
 
