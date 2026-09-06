@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type {
   Chunker,
   ChunkableContent,
@@ -71,13 +72,7 @@ export class HeadingChunker implements Chunker {
   }
 
   private hashContent(content: string): string {
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString(16).padStart(16, "0");
+    return createHash("sha256").update(content, "utf8").digest("hex");
   }
 }
 
@@ -154,13 +149,7 @@ export class RecursiveChunker implements Chunker {
   }
 
   private hashContent(content: string): string {
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString(16).padStart(16, "0");
+    return createHash("sha256").update(content, "utf8").digest("hex");
   }
 }
 
@@ -175,6 +164,9 @@ export class CompositeChunker implements Chunker {
       if (chunker instanceof RecursiveChunker && options.strategy === "recursive") {
         return chunker.chunk(content, options);
       }
+    }
+    if (options.strategy === "page" || options.strategy === "semantic") {
+      throw new Error(`Chunking strategy '${options.strategy}' is not yet implemented`);
     }
     return new RecursiveChunker().chunk(content, options);
   }
