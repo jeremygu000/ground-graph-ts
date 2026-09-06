@@ -1,0 +1,5 @@
+Simple plain text content for testing the plain text parser.
+
+This document contains multiple paragraphs to test chunking behavior.
+
+Third paragraph here.
