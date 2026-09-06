@@ -93,7 +93,9 @@ export async function withSpan<T>(
       } catch (error) {
         const errorCode = error instanceof AppError ? error.code : "INTERNAL_ERROR";
         span.setStatus({ code: SpanStatusCode.ERROR, message: errorCode });
-        span.recordException(error as Error);
+        if (!(error instanceof AppError)) {
+          span.recordException(error as Error);
+        }
         throw error;
       } finally {
         span.end();

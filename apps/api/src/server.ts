@@ -12,6 +12,7 @@ import {
 import { Database, setGlobalDatabase } from "@/infrastructure/postgres/client";
 import { Neo4jClient } from "@/infrastructure/neo4j/client";
 import { ObjectStorageClient } from "@/infrastructure/object-storage/client";
+import { initTelemetry, shutdownTelemetry } from "@/infrastructure/telemetry";
 
 export async function buildApp(healthCheckers: HealthChecker[] = []) {
   const app = Fastify({
@@ -120,7 +121,24 @@ const healthCheckers: HealthChecker[] = [
   new MinioHealthChecker(minio),
 ];
 
+initTelemetry({
+  serviceName: "ground-graph-api",
+  serviceVersion: "0.1.0",
+  otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "http://localhost:4318",
+  enabled: process.env.OTEL_ENABLED !== "false",
+});
+
 const app = await buildApp(healthCheckers);
 
 await app.listen({ port: PORT, host: HOST });
 console.log(`Server listening on ${HOST}:${PORT}`);
+
+async function gracefulShutdown(): Promise<void> {
+  console.log("Shutting down gracefully...");
+  await app.close();
+  await shutdownTelemetry();
+  process.exit(0);
+}
+
+process.on("SIGINT", gracefulShutdown);
+process.on("SIGTERM", gracefulShutdown);
