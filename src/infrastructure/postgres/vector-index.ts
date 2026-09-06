@@ -1,7 +1,14 @@
 import { eq, and, sql, inArray, asc, desc } from "drizzle-orm";
 import { customType } from "drizzle-orm/pg-core";
 import type { Database } from "./client";
-import { chunkEmbeddings, chunks, documents, indexVersions } from "./schema";
+import {
+  chunkEmbeddings,
+  chunks,
+  documents,
+  documentVersions,
+  indexVersions,
+  sources,
+} from "./schema";
 import type { Chunk } from "../../domain/documents/types";
 import { success, failure, type Result } from "../../domain/result";
 import { DatabaseError, ValidationError } from "../../domain/errors";
@@ -142,6 +149,9 @@ export class PostgresVectorIndexAdapter implements VectorIndexPort {
             sql`${chunkEmbeddings.tenantId} = ${tenantId}`,
             sql`${chunkEmbeddings.indexVersionId} = ${indexVersionId}`,
             sql`${chunks.tenantId} = ${tenantId}`,
+            eq(documentVersions.isActive, true),
+            eq(documents.isActive, true),
+            eq(sources.isActive, true),
             sql`${chunkEmbeddings.embedding} <=> ${toPgVectorLiteral(queryEmbedding)}::vector <= ${1 - minScore}`,
           ];
           if (options.filter?.documentIds && options.filter.documentIds.length > 0) {
@@ -168,11 +178,9 @@ export class PostgresVectorIndexAdapter implements VectorIndexPort {
             })
             .from(chunkEmbeddings)
             .innerJoin(chunks, sql`${chunks.id} = ${chunkEmbeddings.chunkId}`)
-            .innerJoin(
-              sql`document_versions`,
-              sql`document_versions.id = ${chunks.documentVersionId}`,
-            )
-            .innerJoin(documents, sql`${documents.id} = document_versions.document_id`)
+            .innerJoin(documentVersions, eq(documentVersions.id, chunks.documentVersionId))
+            .innerJoin(documents, eq(documents.id, documentVersions.documentId))
+            .innerJoin(sources, eq(sources.id, documents.sourceId))
             .where(and(...conditions))
             .orderBy(asc(distance))
             .limit(limit);

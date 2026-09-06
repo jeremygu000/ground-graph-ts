@@ -1,6 +1,6 @@
 import { sql, eq, and, inArray } from "drizzle-orm";
 import type { Database } from "./client";
-import { chunks, documents } from "./schema";
+import { chunks, documents, documentVersions, sources } from "./schema";
 import type {
   FullTextSearchOptions,
   FullTextSearchPort,
@@ -36,6 +36,9 @@ export class PostgresFullTextSearchAdapter implements FullTextSearchPort {
           }
           const conditions = [
             sql`${chunks.tenantId} = ${tenantId}`,
+            eq(documentVersions.isActive, true),
+            eq(documents.isActive, true),
+            eq(sources.isActive, true),
             sql`to_tsvector(${language}, coalesce(${chunks.content}, '')) @@ to_tsquery(${language}, ${tsQuery})`,
           ];
           if (options.filter?.documentIds && options.filter.documentIds.length > 0) {
@@ -66,11 +69,9 @@ export class PostgresFullTextSearchAdapter implements FullTextSearchPort {
               headline,
             })
             .from(chunks)
-            .innerJoin(
-              sql`document_versions`,
-              sql`document_versions.id = ${chunks.documentVersionId}`,
-            )
-            .innerJoin(documents, eq(documents.id, sql`document_versions.document_id`))
+            .innerJoin(documentVersions, eq(documentVersions.id, chunks.documentVersionId))
+            .innerJoin(documents, eq(documents.id, documentVersions.documentId))
+            .innerJoin(sources, eq(sources.id, documents.sourceId))
             .where(and(...conditions))
             .orderBy(sql`${rank} DESC`)
             .limit(limit);

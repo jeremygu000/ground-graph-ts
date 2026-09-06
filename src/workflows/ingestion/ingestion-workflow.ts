@@ -47,34 +47,24 @@ export class IngestionWorkflow {
 
   async execute(input: IngestionWorkflowInput): Promise<IngestionWorkflowResult> {
     return await this.tracer.startActiveSpan("ingestion.workflow", async (rootSpan) => {
+      let syncSourceId: string | undefined;
+      let syncChangeHash: string | undefined;
       try {
-        return await this.uowFactory.transaction(async (uow) => {
+        const stateUow = await this.uowFactory.create();
+        const existingSource = await stateUow?.sourceRepository.findByUri(
+          input.sourceUri,
+          input.tenantId,
+          input.principalId,
+        );
+        if (existingSource?.ok && existingSource.value) {
+          syncSourceId = existingSource.value.id;
+          await this.recordSyncState(syncSourceId, input, { syncStatus: "syncing" }, true);
+        }
+        const result = await this.uowFactory.transaction(async (uow) => {
           return await this.tracer.startActiveSpan("ingestion.transaction", async (txSpan) => {
-            let syncStateSource: Source | undefined;
             try {
               const source = await this.upsertSource(uow, input);
-              syncStateSource = source;
-              const syncRepo = uow.sourceSyncStateRepository;
-              if (syncRepo) {
-                const existingSyncState = await syncRepo.findBySourceId(source.id, input.tenantId);
-                if (!existingSyncState.ok) throw existingSyncState.error;
-                if (existingSyncState.value) {
-                  const updated = await syncRepo.update(source.id, input.tenantId, {
-                    syncStatus: "syncing",
-                  });
-                  if (!updated.ok) throw updated.error;
-                } else {
-                  const created = await syncRepo.create({
-                    id: source.id,
-                    sourceId: source.id,
-                    tenantId: input.tenantId,
-                    syncStatus: "syncing",
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                  });
-                  if (!created.ok) throw created.error;
-                }
-              }
+              syncSourceId = source.id;
               txSpan.setAttribute("source.id", source.id);
 
               const { parsed, raw } = await this.runParser(input, source);
@@ -142,14 +132,7 @@ export class IngestionWorkflow {
               );
 
               txSpan.setStatus("OK");
-              if (syncRepo) {
-                const completed = await syncRepo.update(source.id, input.tenantId, {
-                  syncStatus: "idle",
-                  lastSyncedAt: new Date().toISOString(),
-                  lastChangeHash: computeContentHash(parsed.content),
-                });
-                if (!completed.ok) throw completed.error;
-              }
+              syncChangeHash = computeContentHash(parsed.content);
               let status: "created" | "updated" | "unchanged";
               if (versionNumber === 1) {
                 status = "created";
@@ -167,17 +150,6 @@ export class IngestionWorkflow {
                 qualityReport,
               };
             } catch (err) {
-              const syncRepo = uow.sourceSyncStateRepository;
-              if (syncRepo && syncStateSource) {
-                try {
-                  await syncRepo.update(syncStateSource.id, input.tenantId, {
-                    syncStatus: "error",
-                    errorMessage: err instanceof Error ? err.message : String(err),
-                  });
-                } catch {
-                  // Preserve the original ingestion failure if state recording also fails.
-                }
-              }
               txSpan.setStatus("ERROR", err instanceof Error ? err.message : String(err));
               throw err;
             } finally {
@@ -185,13 +157,67 @@ export class IngestionWorkflow {
             }
           });
         });
+        if (syncSourceId) {
+          await this.recordSyncState(
+            syncSourceId,
+            input,
+            {
+              syncStatus: "idle",
+              ...(syncChangeHash ? { lastChangeHash: syncChangeHash } : {}),
+              lastSyncedAt: new Date().toISOString(),
+            },
+            true,
+          );
+        }
+        return result;
       } catch (err) {
+        if (syncSourceId) {
+          await this.recordSyncState(
+            syncSourceId,
+            input,
+            {
+              syncStatus: "error",
+              errorMessage: err instanceof Error ? err.message : String(err),
+            },
+            false,
+          );
+        }
         rootSpan.setStatus("ERROR", err instanceof Error ? err.message : String(err));
         throw err;
       } finally {
         rootSpan.end();
       }
     });
+  }
+
+  private async recordSyncState(
+    sourceId: string,
+    input: IngestionWorkflowInput,
+    updates: Partial<import("../../application/ingestion/ports").SourceSyncState>,
+    createIfMissing: boolean,
+  ): Promise<void> {
+    const stateUow = await this.uowFactory.create();
+    const syncRepo = stateUow?.sourceSyncStateRepository;
+    if (!syncRepo) return;
+    const existing = await syncRepo.findBySourceId(sourceId, input.tenantId);
+    if (!existing.ok) throw existing.error;
+    if (existing.value) {
+      const updated = await syncRepo.update(sourceId, input.tenantId, updates);
+      if (!updated.ok) throw updated.error;
+      return;
+    }
+    if (!createIfMissing) return;
+    const created = await syncRepo.create({
+      id: sourceId,
+      sourceId,
+      tenantId: input.tenantId,
+      syncStatus: updates.syncStatus ?? "idle",
+      ...(updates.lastSyncedAt ? { lastSyncedAt: updates.lastSyncedAt } : {}),
+      ...(updates.lastChangeHash ? { lastChangeHash: updates.lastChangeHash } : {}),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    if (!created.ok) throw created.error;
   }
 
   async deactivateSource(sourceId: string, tenantId: string): Promise<void> {
