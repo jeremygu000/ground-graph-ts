@@ -1,6 +1,28 @@
 import { readFileSync, writeFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import {
+  InMemoryEmbeddingAdapter,
+  InMemoryVectorIndex,
+  type InMemoryVectorIndexEntry,
+} from "../../../src/infrastructure/models/in-memory";
+import { cosineSimilarity } from "../../../src/infrastructure/models/in-memory";
+import { ReciprocalRankFusion } from "../../../src/infrastructure/postgres/fusion";
+import { CitationBuilder } from "../../../src/infrastructure/retrieval/citation-builder";
+import { DefaultVectorQueryService } from "../../../src/infrastructure/retrieval/vector-query-service";
+import type {
+  VectorQueryService,
+  VectorIndexPort,
+  EmbeddingPort,
+  VectorSearchResultRow,
+} from "../../../src/application/models/ports";
+interface RetrievalQuery {
+  question: string;
+  tenantId: string;
+  principalId: string;
+  strategy: "vector" | "fulltext";
+  maxResults?: number;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -25,11 +47,11 @@ export interface BaselineReport {
   generatedAt: string;
   datasetVersion: string;
   evaluationMode: string;
-  embeddingModel: string;
-  embeddingDimension: number;
-  rerankerModel: string;
-  generatorModel: string;
-  indexVersion: string;
+  embeddingModel: string | null;
+  embeddingDimension: number | null;
+  rerankerModel: string | null;
+  generatorModel: string | null;
+  indexVersion: string | null;
   cases: BaselineCaseResult[];
   summary: BaselineSummary;
 }
@@ -76,30 +98,18 @@ interface DatasetMetadata {
   cases: BaselineCase[];
 }
 
-function loadDataset(datasetPath: string): { cases: BaselineCase[]; metadata: DatasetMetadata } {
-  const content = readFileSync(datasetPath, "utf-8");
-  const data: DatasetMetadata = JSON.parse(content);
-  return { cases: data.cases, metadata: data };
-}
-
-function computePercentile(values: number[], p: number): number {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const idx = Math.ceil((p / 100) * sorted.length) - 1;
-  return sorted[Math.max(0, idx)] ?? 0;
-}
-
-function computeAverage(values: number[]): number {
-  if (values.length === 0) return 0;
-  return values.reduce((a, b) => a + b, 0) / values.length;
-}
-
 interface CorpusChunk {
   chunkId: string;
   documentVersionId: string;
   documentId: string;
   content: string;
   locator: Record<string, unknown>;
+}
+
+function loadDataset(datasetPath: string): { cases: BaselineCase[]; metadata: DatasetMetadata } {
+  const content = readFileSync(datasetPath, "utf-8");
+  const data: DatasetMetadata = JSON.parse(content);
+  return { cases: data.cases, metadata: data };
 }
 
 function loadCorpus(): CorpusChunk[] {
@@ -124,6 +134,154 @@ function loadCorpus(): CorpusChunk[] {
   }));
 }
 
+function computePercentile(values: number[], p: number): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const idx = Math.ceil((p / 100) * sorted.length) - 1;
+  return sorted[Math.max(0, idx)] ?? 0;
+}
+
+function computeAverage(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
+interface OkResult<T> {
+  ok: true;
+  value: T;
+}
+
+function ok<T>(value: T): OkResult<T> {
+  return { ok: true, value };
+}
+
+function createInMemoryVectorPort(
+  index: InMemoryVectorIndex,
+  corpus: CorpusChunk[],
+  indexVersionId: string,
+  tenantId: string,
+): VectorIndexPort {
+  const EMBEDDING_MODEL = "offline-deterministic";
+  const EMBEDDING_DIM = 1536;
+
+  index.registerVersion(tenantId, indexVersionId, {
+    versionNumber: 1,
+    model: EMBEDDING_MODEL,
+    dimension: EMBEDDING_DIM,
+  });
+  index.setActiveIndex(tenantId, indexVersionId);
+
+  return {
+    async getActiveIndexVersion(tid) {
+      if (tid !== tenantId) return ok(null);
+      return ok({
+        indexVersionId,
+        versionNumber: 1,
+        embeddingModel: EMBEDDING_MODEL,
+        embeddingDimension: EMBEDDING_DIM,
+        isActive: true,
+        tenantId,
+      });
+    },
+    async upsertEmbeddings(_chunks, embeddings, vid) {
+      const entries: InMemoryVectorIndexEntry[] = embeddings.map((emb, i) => {
+        const c = corpus[i]!;
+        return {
+          chunkId: c.chunkId,
+          documentVersionId: c.documentVersionId,
+          documentId: c.documentId,
+          content: c.content,
+          locator: c.locator,
+          metadata: {},
+          embedding: emb,
+          indexVersionId: vid,
+          embeddingModel: EMBEDDING_MODEL,
+          dimension: EMBEDDING_DIM,
+        };
+      });
+      index.upsert(entries);
+      return ok({ upserted: embeddings.length, indexVersionId: vid });
+    },
+    async search(queryEmbedding, tid, options) {
+      if (tid !== tenantId) return ok([]);
+      const limit = options?.limit ?? 20;
+      const entries = index.search(tid, queryEmbedding, {
+        limit,
+        minScore: options?.minScore ?? 0,
+      });
+      const results: VectorSearchResultRow[] = entries.map((e) => ({
+        chunkId: e.chunkId,
+        documentVersionId: e.documentVersionId,
+        documentId: e.documentId,
+        content: e.content,
+        locator: e.locator,
+        metadata: e.metadata,
+        score: cosineSimilarity(queryEmbedding, e.embedding),
+        indexVersionId: e.indexVersionId,
+        embeddingModel: e.embeddingModel,
+      }));
+      return ok(results);
+    },
+    async deleteByDocumentVersion(docVid) {
+      const deleted = index.deleteByDocumentVersion(docVid);
+      return ok({ deleted });
+    },
+  };
+}
+
+function createGeneratorStub() {
+  return {
+    async generateStructured() {
+      return ok({
+        structured: {
+          answer: "",
+          status: "insufficient_evidence" as const,
+          claims: [],
+          refusalReason: "offline-deterministic-mode",
+        },
+        model: "offline-stub",
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        finishReason: "stop" as const,
+        repairAttempts: 0,
+      });
+    },
+    getModel() {
+      return "offline-stub";
+    },
+  };
+}
+
+function createVectorService(
+  embedding: EmbeddingPort,
+  vector: VectorIndexPort,
+): VectorQueryService {
+  return new DefaultVectorQueryService({
+    embedding,
+    vector,
+    fulltext: null,
+    reranker: null,
+    fusion: new ReciprocalRankFusion(),
+    generator: createGeneratorStub(),
+    citationBuilder: new CitationBuilder(),
+    config: {
+      embedding: { provider: "local" as const, model: "offline-deterministic", dimension: 1536 },
+      reranker: { provider: "none" as const, model: "offline-stub" },
+      generator: { model: "offline-stub" },
+      maxCandidates: 20,
+      enableFullText: false,
+      enableRerank: false,
+      enableGeneration: false,
+      fusionWeights: { vector: 1 },
+      refusalMinCitations: 1,
+      refusalMinConfidence: 0.5,
+    },
+    clock: () => new Date(),
+    idGen: () => crypto.randomUUID(),
+  });
+}
+
 async function runBaseline(): Promise<BaselineReport> {
   const projectRoot = join(__dirname, "..", "..", "..");
   const datasetPath = join(projectRoot, "evals", "datasets", "m4-vector-baseline.json");
@@ -137,6 +295,43 @@ async function runBaseline(): Promise<BaselineReport> {
   const corpus = loadCorpus();
   console.log(`Loaded ${corpus.length} corpus chunks`);
 
+  const indexVersionId = "00000000-0000-4000-8000-000000000001";
+  const tenantId = "00000000-0000-4000-8000-000000000001";
+
+  const embedding = new InMemoryEmbeddingAdapter("offline-deterministic", 1536);
+  const index = new InMemoryVectorIndex();
+  const vectorPort = createInMemoryVectorPort(index, corpus, indexVersionId, tenantId);
+  const vectorService = createVectorService(embedding, vectorPort);
+
+  console.log("Building vector index...");
+  const embedResult = await embedding.embedBatch({
+    inputs: corpus.map((c) => c.content),
+    tenantId,
+  });
+
+  if (embedResult.ok) {
+    const entries: InMemoryVectorIndexEntry[] = corpus.map((c, idx) => ({
+      chunkId: c.chunkId,
+      documentVersionId: c.documentVersionId,
+      documentId: c.documentId,
+      content: c.content,
+      locator: c.locator,
+      metadata: {},
+      embedding: embedResult.value.embeddings[idx]!.embedding,
+      indexVersionId,
+      embeddingModel: "offline-deterministic",
+      dimension: 1536,
+    }));
+
+    await vectorPort.upsertEmbeddings(
+      entries as unknown as Parameters<typeof vectorPort.upsertEmbeddings>[0],
+      entries.map((e) => e.embedding),
+      indexVersionId,
+      tenantId,
+    );
+    console.log(`Indexed ${corpus.length} chunks`);
+  }
+
   const caseResults: BaselineCaseResult[] = [];
   const completedResults: BaselineCaseResult[] = [];
   const failedResults: BaselineCaseResult[] = [];
@@ -147,7 +342,7 @@ async function runBaseline(): Promise<BaselineReport> {
     const evaluationCase = cases[i]!;
     console.log(`  [${i + 1}/${cases.length}] Case ${evaluationCase.id}: ${evaluationCase.type}`);
 
-    const result = await evaluateOffline(evaluationCase, corpus);
+    const result = await evaluateCase(evaluationCase, vectorService);
     caseResults.push(result);
 
     if (result.status === "completed") {
@@ -223,11 +418,11 @@ async function runBaseline(): Promise<BaselineReport> {
     generatedAt: new Date().toISOString(),
     datasetVersion: metadata.version,
     evaluationMode: "offline-deterministic",
-    embeddingModel: metadata.embedding_model,
-    embeddingDimension: metadata.embedding_dimension,
-    rerankerModel: metadata.reranker_model,
-    generatorModel: metadata.generator_model,
-    indexVersion: "pending",
+    embeddingModel: null,
+    embeddingDimension: null,
+    rerankerModel: null,
+    generatorModel: null,
+    indexVersion: null,
     cases: caseResults,
     summary,
   };
@@ -237,29 +432,72 @@ async function runBaseline(): Promise<BaselineReport> {
   return report;
 }
 
-async function evaluateOffline(
+async function evaluateCase(
   evaluationCase: BaselineCase,
-  corpus: CorpusChunk[],
+  vectorService: VectorQueryService,
 ): Promise<BaselineCaseResult> {
   const startTime = Date.now();
 
   try {
-    const retrievedChunks = searchCorpus(evaluationCase.question, corpus);
+    const query: RetrievalQuery = {
+      question: evaluationCase.question,
+      tenantId: evaluationCase.tenantId,
+      principalId: evaluationCase.principalId,
+      strategy: "vector",
+      maxResults: 10,
+    };
 
-    const retrievalHit = evaluationCase.expectedEvidenceChunkIds.some((expectedChunkId) =>
-      retrievedChunks.some((r) => r.chunkId === expectedChunkId),
-    );
+    const result = await vectorService.query(query as Parameters<typeof vectorService.query>[0]);
 
-    const retrievalRecall = retrievalHit ? 1.0 : 0.0;
+    if (!result.ok) {
+      return {
+        caseId: evaluationCase.id,
+        status: "failed",
+        retrievalRecall: null,
+        retrievalHit: null,
+        answerCorrectness: null,
+        citationCorrectness: null,
+        refusalCorrectness: null,
+        aclLeakage: null,
+        latencyMs: Date.now() - startTime,
+        promptTokens: null,
+        inputTokens: null,
+        outputTokens: null,
+        estimatedCostUSD: null,
+        error: result.error instanceof Error ? result.error.message : String(result.error),
+      };
+    }
 
-    const citationCorrectness = evaluateCitationCorrectness(
-      evaluationCase.expectedEvidenceChunkIds,
-      retrievedChunks.map((r) => r.chunkId),
-    );
+    const retrievalResult = result.value;
 
-    const refused = evaluationCase.type === "refusal";
-    const refusalCorrectness = evaluateRefusalCorrectness(evaluationCase, refused);
-    const aclLeakage = evaluateAclLeakage(evaluationCase, retrievedChunks);
+    const expectedChunkIds = evaluationCase.expectedEvidenceChunkIds;
+    const retrievedChunkIds = retrievalResult.results.map((r) => r.chunkId);
+
+    const retrievedExpectedCount = expectedChunkIds.filter((id) =>
+      retrievedChunkIds.includes(id),
+    ).length;
+    const retrievalRecall =
+      expectedChunkIds.length > 0 ? retrievedExpectedCount / expectedChunkIds.length : null;
+    const retrievalHit = expectedChunkIds.some((id) => retrievedChunkIds.includes(id));
+
+    let citationCorrectness: number | null = null;
+    if (evaluationCase.type === "factual" && expectedChunkIds.length > 0) {
+      citationCorrectness = retrievedExpectedCount / expectedChunkIds.length;
+    }
+
+    let refusalCorrectness: boolean | null = null;
+    if (evaluationCase.type === "refusal") {
+      const status = retrievalResult.generatedAnswer?.status;
+      refusalCorrectness = status === "refused";
+    } else if (evaluationCase.type === "factual" || evaluationCase.type === "acl") {
+      const status = retrievalResult.generatedAnswer?.status;
+      refusalCorrectness = status !== "refused";
+    }
+
+    let aclLeakage: boolean | null = null;
+    if (evaluationCase.type === "acl") {
+      aclLeakage = retrievedChunkIds.length > 0;
+    }
 
     return {
       caseId: evaluationCase.id,
@@ -297,47 +535,6 @@ async function evaluateOffline(
   }
 }
 
-function searchCorpus(question: string, corpus: CorpusChunk[]): CorpusChunk[] {
-  const questionLower = question.toLowerCase();
-  const words = questionLower.split(/\s+/).filter((w) => w.length > 3);
-
-  const scored = corpus.map((chunk) => {
-    const contentLower = chunk.content.toLowerCase();
-    let score = 0;
-    for (const word of words) {
-      if (contentLower.includes(word)) score += 1;
-    }
-    if (contentLower.includes(questionLower.substring(0, 50))) score += 5;
-    return { chunk, score };
-  });
-
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, 10).map((s) => s.chunk);
-}
-
-function evaluateCitationCorrectness(
-  expectedChunkIds: string[],
-  retrievedChunkIds: string[],
-): number {
-  if (expectedChunkIds.length === 0) return null as unknown as number;
-  const hits = expectedChunkIds.filter((id) => retrievedChunkIds.includes(id)).length;
-  return hits / expectedChunkIds.length;
-}
-
-function evaluateRefusalCorrectness(
-  evaluationCase: BaselineCase,
-  refused: boolean,
-): boolean | null {
-  if (evaluationCase.type === "refusal") return refused === true;
-  if (evaluationCase.type === "factual" || evaluationCase.type === "acl") return refused === false;
-  return null;
-}
-
-function evaluateAclLeakage(evaluationCase: BaselineCase, results: CorpusChunk[]): boolean | null {
-  if (evaluationCase.type !== "acl") return null;
-  return results.length > 0;
-}
-
 if (import.meta.url === `file://${process.argv[1]}`) {
   runBaseline()
     .then((report) => {
@@ -346,8 +543,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       console.log(`Evaluation Mode: ${report.evaluationMode}`);
       console.log(`Generated: ${report.generatedAt}`);
       console.log(`Dataset: ${report.datasetVersion}`);
-      console.log(`Embedding: ${report.embeddingModel} (${report.embeddingDimension}d)`);
-      console.log(`Generator: ${report.generatorModel}`);
       console.log(`\nTotal cases: ${report.summary.totalCases}`);
       console.log(`Completed: ${report.summary.completedCases}`);
       console.log(`Failed: ${report.summary.failedCases}`);

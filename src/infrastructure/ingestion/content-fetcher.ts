@@ -78,8 +78,6 @@ function isPrivateIPv6(addr: string): boolean {
   const lower = addr.toLowerCase();
   if (lower === "::1") return true;
   if (lower === "::") return true;
-  if (lower.startsWith("fc00:")) return true;
-  if (lower.startsWith("fd00:")) return true;
   if (lower.startsWith("ff00:")) return true;
   if (lower.startsWith("fe80:")) return true;
 
@@ -93,6 +91,7 @@ function isPrivateIPv6(addr: string): boolean {
 
   const firstGroup = groups[0]!;
   if (firstGroup >= 0xfe80 && firstGroup <= 0xfebf) return true;
+  if (firstGroup >= 0xfc00 && firstGroup <= 0xfdff) return true;
 
   return false;
 }
