@@ -4,4 +4,5 @@ export interface ReconciliationReport {
   entitiesCreated: number;
   entitiesFailed: number;
   errors: Array<{ factId: string; error: string }>;
+  repositoryError?: string;
 }

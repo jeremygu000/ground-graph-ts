@@ -211,7 +211,10 @@ export class ExtractionService {
   async initializeOntology(tenantId: string): Promise<Result<void>> {
     for (const typeName of DEFAULT_ONTOLOGY_TYPES) {
       const existing = await this.deps.entityTypeRepository.findByName(typeName, tenantId);
-      if (existing.ok && !existing.value) {
+      if (!existing.ok) {
+        return existing;
+      }
+      if (!existing.value) {
         const entityType = {
           id: crypto.randomUUID(),
           tenantId,
@@ -221,13 +224,19 @@ export class ExtractionService {
           updatedAt: new Date().toISOString(),
           attributes: {},
         };
-        await this.deps.entityTypeRepository.create(entityType);
+        const createResult = await this.deps.entityTypeRepository.create(entityType);
+        if (!createResult.ok) {
+          return createResult;
+        }
       }
     }
 
     for (const predicateName of DEFAULT_PREDICATES) {
       const existing = await this.deps.predicateRepository.findByName(predicateName, tenantId);
-      if (existing.ok && !existing.value) {
+      if (!existing.ok) {
+        return existing;
+      }
+      if (!existing.value) {
         const predicate = {
           id: crypto.randomUUID(),
           tenantId,
@@ -240,7 +249,10 @@ export class ExtractionService {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-        await this.deps.predicateRepository.create(predicate);
+        const createResult = await this.deps.predicateRepository.create(predicate);
+        if (!createResult.ok) {
+          return createResult;
+        }
       }
     }
 

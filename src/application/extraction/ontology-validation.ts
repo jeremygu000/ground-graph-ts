@@ -5,6 +5,7 @@ import type {
   ValidationRule,
   ValidationWarning,
 } from "./ontology-validation.types";
+import { DEFAULT_ONTOLOGY_TYPES, DEFAULT_PREDICATES } from "../../../ontology/types";
 
 export class OntologyValidationService {
   private rules: ValidationRule[] = [
@@ -13,6 +14,7 @@ export class OntologyValidationService {
     new EntityUniquenessRule(),
     new AliasUniquenessRule(),
     new FactCardinalityRule(),
+    new VocabularyRule(),
   ];
 
   validate(entity: CanonicalEntity, facts: KnowledgeFact[]): ValidationResult {
@@ -171,6 +173,37 @@ class FactCardinalityRule implements ValidationRule {
             message: `Multiple active facts for ${key}`,
           });
         }
+      }
+    }
+
+    return { valid: errors.length === 0, errors, warnings };
+  }
+}
+
+class VocabularyRule implements ValidationRule {
+  name = "vocabulary";
+
+  validate(entity: CanonicalEntity, facts: KnowledgeFact[]): ValidationResult {
+    const errors: ValidationError[] = [];
+    const warnings: ValidationWarning[] = [];
+
+    const entityTypeLower = entity.entityType.toLowerCase();
+    if (!DEFAULT_ONTOLOGY_TYPES.map((t) => t.toLowerCase()).includes(entityTypeLower)) {
+      errors.push({
+        code: "UNKNOWN_ENTITY_TYPE",
+        message: `Entity type "${entity.entityType}" is not in the default ontology`,
+        entityId: entity.id,
+      });
+    }
+
+    for (const fact of facts) {
+      const predicateLower = fact.predicate.toLowerCase();
+      if (!DEFAULT_PREDICATES.map((p) => p.toLowerCase()).includes(predicateLower)) {
+        errors.push({
+          code: "UNKNOWN_PREDICATE",
+          message: `Predicate "${fact.predicate}" is not in the default ontology`,
+          factId: fact.id,
+        });
       }
     }
 

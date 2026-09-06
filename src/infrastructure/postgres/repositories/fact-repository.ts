@@ -16,7 +16,7 @@ export class PostgresFactRepository implements FactRepository {
         .insert(facts)
         .values(fact as any)
         .returning();
-      return { ok: true, value: result as unknown as KnowledgeFact };
+      return { ok: true, value: mapFactRow(result as Record<string, unknown>) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -30,7 +30,7 @@ export class PostgresFactRepository implements FactRepository {
         .insert(facts)
         .values(factsToCreate as any)
         .returning();
-      return { ok: true, value: results as unknown as KnowledgeFact[] };
+      return { ok: true, value: results.map((r) => mapFactRow(r as Record<string, unknown>)) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -165,16 +165,10 @@ export class PostgresFactRepository implements FactRepository {
     status: KnowledgeFact["status"],
   ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
     try {
-      await this.db.drizzle.transaction(async (tx) => {
-        await tx
-          .update(facts)
-          .set({ status: status as any })
-          .where(and(eq(facts.id, id), eq(facts.tenantId, tenantId)));
-        await tx
-          .update(facts)
-          .set({ supersededBy: supersededById })
-          .where(and(eq(facts.id, id), eq(facts.tenantId, tenantId)));
-      });
+      await this.db.drizzle
+        .update(facts)
+        .set({ status: status as any, supersededBy: supersededById })
+        .where(and(eq(facts.id, id), eq(facts.tenantId, tenantId)));
       return { ok: true, value: undefined };
     } catch (error) {
       return { ok: false, error: error as Error };

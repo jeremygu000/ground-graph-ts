@@ -42,7 +42,7 @@ export class GraphReconciliationService {
     return { ok: true, value: undefined };
   }
 
-  async reconcileAll(tenantId: string): Promise<ReconciliationReport> {
+  async reconcileAll(tenantId: string): Promise<Result<ReconciliationReport>> {
     const report: ReconciliationReport = {
       factsReconciled: 0,
       factsFailed: 0,
@@ -53,7 +53,12 @@ export class GraphReconciliationService {
 
     const factsResult = await this.factRepo.findByStatus("verified", tenantId);
     if (!factsResult.ok) {
-      return report;
+      return {
+        ok: false,
+        error: new InternalError("Failed to fetch verified facts for reconciliation", {
+          cause: factsResult.error,
+        }),
+      };
     }
 
     for (const fact of factsResult.value) {
@@ -69,7 +74,7 @@ export class GraphReconciliationService {
       }
     }
 
-    return report;
+    return { ok: true, value: report };
   }
 }
 

@@ -81,6 +81,7 @@ export const DEFAULT_ONTOLOGY_TYPES = [
   "Incident",
   "Change",
   "Deployment",
+  "EnvironmentVariable",
 ] as const;
 
 export const DEFAULT_PREDICATES = [
@@ -97,4 +98,14 @@ export const DEFAULT_PREDICATES = [
   "resolves",
   "supersedes",
   "references",
+  "has_value",
+  "has_title",
+  "has_status",
+  "knows",
+  "works_at",
+  "related_to",
+  "connected_to",
+  "works_for",
+  "uses",
+  "mentions",
 ] as const;

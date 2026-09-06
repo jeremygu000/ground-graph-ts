@@ -85,22 +85,23 @@ describe("GraphReconciliationService", () => {
       factRepo as any,
       entityRepo as any,
     ).reconcileAll("tenant");
-    expect(report).toMatchObject({ factsReconciled: 1, factsFailed: 1 });
-    expect(report.errors[0]?.factId).toBe(facts[1]?.id);
+    expect(report.ok).toBe(true);
+    if (report.ok) {
+      expect(report.value).toMatchObject({ factsReconciled: 1, factsFailed: 1 });
+      expect(report.value.errors[0]?.factId).toBe(facts[1]?.id);
+    }
   });
 
-  it("returns an empty report when fact lookup fails", async () => {
+  it("returns an error report when fact lookup fails", async () => {
     const service = new GraphReconciliationService(
       {} as any,
       { findByStatus: vi.fn().mockResolvedValue({ ok: false, error: new Error("db") }) } as any,
       {} as any,
     );
-    expect(await service.reconcileAll("tenant")).toEqual({
-      factsReconciled: 0,
-      factsFailed: 0,
-      entitiesCreated: 0,
-      entitiesFailed: 0,
-      errors: [],
-    });
+    const result = await service.reconcileAll("tenant");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain("Failed to fetch verified facts");
+    }
   });
 });
