@@ -166,12 +166,6 @@ export class ConfigExtractor implements DeterministicExtractor {
           type: "EnvironmentVariable",
           confidence: 1.0,
         });
-        candidate.facts.push({
-          subjectName: key,
-          predicate: "has_value",
-          objectValue: value,
-          confidence: 1.0,
-        });
       }
     }
 
