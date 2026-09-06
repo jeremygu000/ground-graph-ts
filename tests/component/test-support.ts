@@ -38,7 +38,7 @@ async function bootstrapSchema(db: Database): Promise<void> {
   }
 }
 
-export async function createComponentDb(bootstrap = true, managed = true): Promise<ComponentDb> {
+export async function createComponentDb(bootstrap = true, _managed = true): Promise<ComponentDb> {
   const container = await new GenericContainer(COMPONENT_POSTGRES_IMAGE)
     .withEnvironment({
       POSTGRES_USER: "test",
@@ -55,18 +55,6 @@ export async function createComponentDb(bootstrap = true, managed = true): Promi
   const db = new Database({ url: connectionString, maxConnections: 4 });
 
   const close = async (): Promise<void> => {
-    if (!managed) {
-      await db.close();
-      await container.stop();
-      return;
-    }
-
-    sharedContextRefs = Math.max(0, sharedContextRefs - 1);
-    if (sharedContextRefs > 0) {
-      return;
-    }
-
-    sharedContext = undefined;
     await db.close();
     await container.stop();
   };
