@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { outboxEvents, sources } from "../../src/infrastructure/postgres/schema";
+import { eq } from "drizzle-orm";
+import { indexVersions, outboxEvents, sources } from "../../src/infrastructure/postgres/schema";
 import { DefaultUnitOfWorkFactory } from "../../src/infrastructure/unit-of-work";
 import { assertContainerRuntime, startComponentDatabase } from "./test-support";
 
@@ -108,5 +109,44 @@ describe("TransactionalUnitOfWork", () => {
     const outboxRows = await ctx.db.drizzle.select().from(outboxEvents);
     expect(sourceRows).toHaveLength(1);
     expect(outboxRows).toHaveLength(1);
+  });
+
+  it("deactivates old version when new version is activated", async () => {
+    const v1Result = await uowFactory.transaction(async (uow) => {
+      const result = await uow.vectorIndexRepository.activateIndexVersion({
+        tenantId,
+        versionNumber: 1,
+        embeddingModel: "text-embedding-3-small",
+        embeddingDimension: 1536,
+        isActive: true,
+      });
+      if (!result.ok) throw result.error;
+      return result.value;
+    });
+
+    expect(v1Result.indexVersionId).toBeDefined();
+
+    const v2Result = await uowFactory.transaction(async (uow) => {
+      const result = await uow.vectorIndexRepository.activateIndexVersion({
+        tenantId,
+        versionNumber: 2,
+        embeddingModel: "text-embedding-3-small",
+        embeddingDimension: 1536,
+        isActive: true,
+      });
+      if (!result.ok) throw result.error;
+      return result.value;
+    });
+
+    expect(v2Result.indexVersionId).toBeDefined();
+    expect(v2Result.indexVersionId).not.toBe(v1Result.indexVersionId);
+
+    const activeVersions = await ctx.db.drizzle
+      .select()
+      .from(indexVersions)
+      .where(eq(indexVersions.isActive, true));
+
+    expect(activeVersions).toHaveLength(1);
+    expect(Number(activeVersions[0]!.versionNumber)).toBe(2);
   });
 });

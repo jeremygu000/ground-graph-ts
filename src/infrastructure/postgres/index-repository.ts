@@ -12,45 +12,41 @@ export class PostgresVectorIndexRepository implements VectorIndexRepository {
   async activateIndexVersion(
     info: Omit<IndexVersionInfo, "indexVersionId">,
   ): Promise<Result<IndexVersionInfo>> {
-    try {
-      await this.db.drizzle
-        .update(indexVersions)
-        .set({ isActive: false })
-        .where(
-          and(
-            eq(indexVersions.tenantId, info.tenantId),
-            eq(indexVersions.indexType, "vector"),
-            eq(indexVersions.isActive, true),
-          ),
-        );
+    await this.db.drizzle
+      .update(indexVersions)
+      .set({ isActive: false })
+      .where(
+        and(
+          eq(indexVersions.tenantId, info.tenantId),
+          eq(indexVersions.indexType, "vector"),
+          eq(indexVersions.isActive, true),
+        ),
+      );
 
-      const [row] = await this.db.drizzle
-        .insert(indexVersions)
-        .values({
-          tenantId: info.tenantId,
-          indexType: "vector",
-          versionNumber: info.versionNumber,
-          embeddingModel: info.embeddingModel,
-          embeddingDimension: info.embeddingDimension,
-          isActive: info.isActive,
-        })
-        .returning();
+    const [row] = await this.db.drizzle
+      .insert(indexVersions)
+      .values({
+        tenantId: info.tenantId,
+        indexType: "vector",
+        versionNumber: info.versionNumber,
+        embeddingModel: info.embeddingModel,
+        embeddingDimension: info.embeddingDimension,
+        isActive: info.isActive,
+      })
+      .returning();
 
-      if (!row) {
-        return failure(new DatabaseError("Index version row not returned after insert"));
-      }
-
-      return success({
-        indexVersionId: String(row.id),
-        versionNumber: row.versionNumber,
-        embeddingModel: row.embeddingModel ?? info.embeddingModel,
-        embeddingDimension: row.embeddingDimension ?? info.embeddingDimension,
-        isActive: row.isActive,
-        tenantId: row.tenantId,
-      });
-    } catch (err) {
-      return failure(new DatabaseError("Failed to activate index version", err));
+    if (!row) {
+      return failure(new DatabaseError("Index version row not returned after insert"));
     }
+
+    return success({
+      indexVersionId: String(row.id),
+      versionNumber: row.versionNumber,
+      embeddingModel: row.embeddingModel ?? info.embeddingModel,
+      embeddingDimension: row.embeddingDimension ?? info.embeddingDimension,
+      isActive: row.isActive,
+      tenantId: row.tenantId,
+    });
   }
 
   async getActiveIndexVersion(tenantId: string): Promise<Result<IndexVersionInfo | null>> {
