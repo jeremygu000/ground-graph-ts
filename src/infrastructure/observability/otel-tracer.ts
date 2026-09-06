@@ -51,12 +51,10 @@ class OTelSpanAdapter implements Span {
     safeSetAttribute(this.span, key, value);
   }
 
-  setStatus(code: "OK" | "ERROR", message?: string): void {
+  setStatus(code: "OK" | "ERROR", _message?: string): void {
     const mapped = mapStatus(code);
     if (mapped.code === SpanStatusCode.ERROR) {
-      const safeMessage =
-        message && !message.startsWith("AppError:") ? "[error]" : (message ?? "[error]");
-      this.span.setStatus({ code: mapped.code, message: safeMessage });
+      this.span.setStatus({ code: mapped.code, message: "[error]" });
     } else {
       this.span.setStatus(mapped);
     }

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const IngestDocumentRequestSchema = z.object({
   sourceUri: z.string().url(),
-  sourceType: z.enum(["file", "url", "git", "api"]),
+  sourceType: z.enum(["file", "url", "git", "api", "s3"]),
   mimeType: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   chunkingStrategy: z.enum(["heading", "recursive", "page", "semantic"]).default("heading"),

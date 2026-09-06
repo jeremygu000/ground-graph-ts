@@ -14,7 +14,7 @@ import { computeContentHash } from "../../application/ingestion/hash";
 
 export interface IngestionWorkflowInput {
   sourceUri: string;
-  sourceType: "file" | "url" | "git" | "api";
+  sourceType: "file" | "url" | "git" | "api" | "s3";
   mimeType?: string;
   metadata?: Record<string, unknown>;
   tenantId: string;

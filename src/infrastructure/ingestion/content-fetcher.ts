@@ -2,6 +2,8 @@ import type {
   ContentFetcher,
   ContentFetcherFactory,
 } from "../../application/ingestion/content-fetcher-port";
+import https from "node:https";
+import type http from "node:http";
 
 export class FileContentFetcher implements ContentFetcher {
   async fetch(uri: string): Promise<Buffer> {
@@ -60,7 +62,7 @@ function isPrivateIp(addr: string): boolean {
   return isPrivateIPv4(addr) || isPrivateIPv6(addr);
 }
 
-async function validateResolvedIps(hostname: string): Promise<void> {
+async function resolveAndValidateHostname(hostname: string): Promise<string> {
   const dns = await import("node:dns");
   const { promisify } = await import("util");
 
@@ -89,6 +91,10 @@ async function validateResolvedIps(hostname: string): Promise<void> {
     if (result) allAddresses.push(result.address);
   }
 
+  if (allAddresses.length === 0) {
+    throw new Error(`UrlContentFetcher: could not resolve hostname ${hostname}`);
+  }
+
   for (const addr of allAddresses) {
     if (isPrivateIp(addr)) {
       throw new Error(
@@ -96,6 +102,18 @@ async function validateResolvedIps(hostname: string): Promise<void> {
       );
     }
   }
+
+  const ipv4 = allAddresses.find((a) => !a.includes(":"));
+  if (ipv4) return ipv4;
+
+  const ipv6 = allAddresses.find((a) => a.includes(":"));
+  if (ipv6) return ipv6;
+
+  throw new Error(`UrlContentFetcher: no valid address for ${hostname}`);
+}
+
+async function validateResolvedIps(hostname: string): Promise<void> {
+  await resolveAndValidateHostname(hostname);
 }
 
 function validateUrl(url: URL): void {
@@ -119,6 +137,153 @@ export class UrlContentFetcher implements ContentFetcher {
     private maxBytes: number = DEFAULT_MAX_BYTES,
   ) {}
 
+  private async httpsRequest(
+    hostname: string,
+    path: string,
+    validatedIp: string,
+    isRedirect: boolean = false,
+  ): Promise<{
+    statusCode: number;
+    headers: Record<string, string | string[] | undefined>;
+    body: Buffer;
+  }> {
+    const port = 443;
+
+    return new Promise((resolve, reject) => {
+      let req: http.ClientRequest;
+
+      const timeoutId = setTimeout(() => {
+        if (req) req.destroy();
+        reject(new Error("UrlContentFetcher: request timeout"));
+      }, this.timeoutMs);
+
+      const options: https.RequestOptions = {
+        hostname: validatedIp,
+        port,
+        path,
+        method: "GET",
+        headers: {
+          Host: hostname,
+          "User-Agent": "GroundGraph-Ts/1.0",
+          ...(isRedirect ? { Connection: "close" } : {}),
+        },
+        servername: hostname,
+        rejectUnauthorized: true,
+      };
+
+      req = https.request(options, (res) => {
+        const chunks: Buffer[] = [];
+        let totalSize = 0;
+
+        res.on("data", (chunk: Buffer) => {
+          totalSize += chunk.length;
+          if (totalSize > this.maxBytes) {
+            req.destroy();
+            clearTimeout(timeoutId);
+            reject(
+              new Error(
+                `UrlContentFetcher: received ${totalSize} bytes exceeds max ${this.maxBytes}`,
+              ),
+            );
+            return;
+          }
+          chunks.push(chunk);
+        });
+
+        res.on("end", () => {
+          clearTimeout(timeoutId);
+          const headers: Record<string, string | string[] | undefined> = {};
+          for (const [key, value] of Object.entries(res.headers)) {
+            if (value !== undefined) headers[key] = value;
+          }
+          resolve({
+            statusCode: res.statusCode ?? 0,
+            headers,
+            body: Buffer.concat(chunks),
+          });
+        });
+
+        res.on("error", (err) => {
+          clearTimeout(timeoutId);
+          reject(err);
+        });
+      });
+
+      req.on("error", (err) => {
+        clearTimeout(timeoutId);
+        reject(err);
+      });
+
+      req.end();
+    });
+  }
+
+  private async fetchWithPinnedIp(originalUrl: URL): Promise<{ body: Buffer; finalUrl: URL }> {
+    const validatedIp = await resolveAndValidateHostname(originalUrl.hostname);
+
+    const { statusCode, headers, body } = await this.httpsRequest(
+      originalUrl.hostname,
+      originalUrl.pathname + originalUrl.search,
+      validatedIp,
+    );
+
+    if (statusCode >= 300 && statusCode < 400) {
+      const location = headers.location;
+      if (!location || typeof location !== "string") {
+        throw new Error(`UrlContentFetcher: redirect without Location header from ${originalUrl}`);
+      }
+
+      const redirectUrl = new URL(location, originalUrl);
+      validateUrl(redirectUrl);
+
+      const redirectIp = await resolveAndValidateHostname(redirectUrl.hostname);
+      const {
+        statusCode: redirectStatus,
+        headers: redirectHeaders,
+        body: redirectBody,
+      } = await this.httpsRequest(
+        redirectUrl.hostname,
+        redirectUrl.pathname + redirectUrl.search,
+        redirectIp,
+        true,
+      );
+
+      if (redirectStatus >= 300 && redirectStatus < 400) {
+        throw new Error(
+          `UrlContentFetcher: too many redirects from ${originalUrl}, final: ${redirectUrl}`,
+        );
+      } else if (redirectStatus >= 400) {
+        throw new Error(`UrlContentFetcher failed to fetch ${originalUrl}: ${redirectStatus}`);
+      }
+
+      const contentLength = redirectHeaders["content-length"];
+      if (contentLength && typeof contentLength === "string") {
+        const size = parseInt(contentLength, 10);
+        if (size > this.maxBytes) {
+          throw new Error(
+            `UrlContentFetcher: content-length ${size} exceeds max ${this.maxBytes} from ${redirectUrl}`,
+          );
+        }
+      }
+
+      return { body: redirectBody, finalUrl: redirectUrl };
+    } else if (statusCode >= 400) {
+      throw new Error(`UrlContentFetcher failed to fetch ${originalUrl}: ${statusCode}`);
+    }
+
+    const contentLength = headers["content-length"];
+    if (contentLength && typeof contentLength === "string") {
+      const size = parseInt(contentLength, 10);
+      if (size > this.maxBytes) {
+        throw new Error(
+          `UrlContentFetcher: content-length ${size} exceeds max ${this.maxBytes} from ${originalUrl}`,
+        );
+      }
+    }
+
+    return { body, finalUrl: originalUrl };
+  }
+
   async fetch(uri: string): Promise<Buffer> {
     if (!uri.startsWith("http://") && !uri.startsWith("https://")) {
       throw new Error(`UrlContentFetcher only supports http/https URIs, got: ${uri}`);
@@ -128,91 +293,8 @@ export class UrlContentFetcher implements ContentFetcher {
     validateUrl(url);
     await validateResolvedIps(url.hostname);
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
-
-    let response: Response;
-    let finalUrl = url;
-
-    try {
-      response = await fetch(url, {
-        signal: controller.signal,
-        redirect: "manual",
-      });
-
-      if (response.status >= 300 && response.status < 400) {
-        const locationHeader = response.headers.get("location");
-        if (!locationHeader) {
-          throw new Error(`UrlContentFetcher: redirect without Location header from ${uri}`);
-        }
-
-        const redirectUrl = new URL(locationHeader, url);
-        validateUrl(redirectUrl);
-        await validateResolvedIps(redirectUrl.hostname);
-        finalUrl = redirectUrl;
-
-        clearTimeout(timeoutId);
-        const redirectTimeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
-
-        try {
-          response = await fetch(redirectUrl, {
-            signal: controller.signal,
-            redirect: "manual",
-          });
-
-          if (response.status >= 300 && response.status < 400) {
-            throw new Error(
-              `UrlContentFetcher: too many redirects from ${uri}, final: ${redirectUrl}`,
-            );
-          }
-        } finally {
-          clearTimeout(redirectTimeoutId);
-        }
-      } else if (response.status >= 300) {
-        throw new Error(
-          `UrlContentFetcher failed to fetch ${uri}: ${response.status} ${response.statusText}`,
-        );
-      }
-    } finally {
-      clearTimeout(timeoutId);
-    }
-
-    const contentLength = response.headers.get("content-length");
-    if (contentLength) {
-      const size = parseInt(contentLength, 10);
-      if (size > this.maxBytes) {
-        throw new Error(
-          `UrlContentFetcher: content-length ${size} exceeds max ${this.maxBytes} bytes from ${finalUrl}`,
-        );
-      }
-    }
-
-    const chunks: Uint8Array[] = [];
-    const reader = response.body?.getReader();
-    if (!reader) {
-      throw new Error(`UrlContentFetcher: no response body from ${finalUrl}`);
-    }
-
-    let totalSize = 0;
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        totalSize += value.byteLength;
-        if (totalSize > this.maxBytes) {
-          throw new Error(
-            `UrlContentFetcher: received ${totalSize} bytes exceeds max ${this.maxBytes} from ${finalUrl}`,
-          );
-        }
-        chunks.push(value);
-      }
-    } finally {
-      reader.releaseLock();
-    }
-
-    const result = Buffer.concat(chunks.map((c) => Buffer.from(c)));
-    return result;
+    const { body } = await this.fetchWithPinnedIp(url);
+    return body;
   }
 }
 

@@ -160,7 +160,11 @@ async function runBaseline(): Promise<BaselineReport> {
     .map((r) => r.citationCorrectness)
     .filter((v): v is number => v !== null);
   const refusalCorrectness = completedResults.filter((r) => r.refusalCorrectness !== null);
+  const refusalCorrectCount = refusalCorrectness.filter(
+    (r) => r.refusalCorrectness === true,
+  ).length;
   const aclLeakage = completedResults.filter((r) => r.aclLeakage !== null);
+  const aclLeakCount = aclLeakage.filter((r) => r.aclLeakage === true).length;
   const latencies = completedResults.map((r) => r.latencyMs).filter((v): v is number => v !== null);
   const costs = completedResults
     .map((r) => r.estimatedCostUSD)
@@ -197,12 +201,10 @@ async function runBaseline(): Promise<BaselineReport> {
         : null,
     refusalCorrectness:
       refusalCorrectness.length > 0
-        ? { percentage: (refusalCorrectness.length / completedResults.length) * 100 }
+        ? { percentage: (refusalCorrectCount / refusalCorrectness.length) * 100 }
         : null,
     aclLeakage:
-      aclLeakage.length > 0
-        ? { percentage: (aclLeakage.length / completedResults.length) * 100 }
-        : null,
+      aclLeakage.length > 0 ? { percentage: (aclLeakCount / aclLeakage.length) * 100 } : null,
     latencyMs:
       latencies.length > 0
         ? { p50: computePercentile(latencies, 50), p95: computePercentile(latencies, 95) }
