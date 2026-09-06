@@ -1,6 +1,6 @@
 {
   "version": "0.1.0",
-  "generatedAt": "2026-09-06T04:22:55.219Z",
+  "generatedAt": "2026-09-06T04:40:05.754Z",
   "datasetVersion": "0.1.0",
   "evaluationMode": "offline-deterministic-retrieval-only",
   "embeddingModel": null,
@@ -18,7 +18,7 @@
       "citationCorrectness": null,
       "refusalCorrectness": null,
       "aclLeakage": null,
-      "latencyMs": 3,
+      "latencyMs": 2,
       "promptTokens": null,
       "inputTokens": null,
       "outputTokens": null,
@@ -642,7 +642,7 @@
       "citationCorrectness": null,
       "refusalCorrectness": null,
       "aclLeakage": null,
-      "latencyMs": 1,
+      "latencyMs": 0,
       "promptTokens": null,
       "inputTokens": null,
       "outputTokens": null,
@@ -668,6 +668,6 @@
       "p50": 0,
       "p95": 1
     },
-    "totalCostUSD": 0
+    "totalCostUSD": null
   }
 }

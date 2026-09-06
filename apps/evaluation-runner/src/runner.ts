@@ -84,7 +84,7 @@ export interface BaselineSummary {
   refusalCorrectness: { percentage: number } | null;
   aclLeakage: { percentage: number } | null;
   latencyMs: { p50: number; p95: number } | null;
-  totalCostUSD: number;
+  totalCostUSD: number | null;
 }
 
 interface DatasetMetadata {
@@ -410,7 +410,7 @@ async function runBaseline(): Promise<BaselineReport> {
       latencies.length > 0
         ? { p50: computePercentile(latencies, 50), p95: computePercentile(latencies, 95) }
         : null,
-    totalCostUSD: costs.reduce((a, b) => a + b, 0),
+    totalCostUSD: costs.length > 0 ? costs.reduce((a, b) => a + b, 0) : null,
   };
 
   const report: BaselineReport = {
