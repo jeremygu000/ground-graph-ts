@@ -1,5 +1,6 @@
 import type { DocumentParser, ParsedContent } from "../../application/ingestion/parser-port";
 import type { SourceDescriptor } from "../../domain/documents/types";
+import { IngestionParserError } from "../../application/ingestion/errors";
 
 export class MarkdownParser implements DocumentParser {
   canParse(descriptor: SourceDescriptor): boolean {
@@ -258,7 +259,10 @@ export class CompositeParser implements DocumentParser {
   async parse(content: Buffer, descriptor: SourceDescriptor): Promise<ParsedContent> {
     const parser = this.findParser(descriptor);
     if (!parser) {
-      throw new Error(`No parser available for ${descriptor.mimeType} (${descriptor.uri})`);
+      throw new IngestionParserError(
+        "UNSUPPORTED_FORMAT",
+        `No parser available for ${descriptor.mimeType} (${descriptor.uri})`,
+      );
     }
     return parser.parse(content, descriptor);
   }

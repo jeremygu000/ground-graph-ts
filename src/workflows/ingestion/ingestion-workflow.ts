@@ -50,12 +50,34 @@ export class IngestionWorkflow {
       try {
         return await this.uowFactory.transaction(async (uow) => {
           return await this.tracer.startActiveSpan("ingestion.transaction", async (txSpan) => {
+            let syncStateSource: Source | undefined;
             try {
               const source = await this.upsertSource(uow, input);
+              syncStateSource = source;
+              const syncRepo = uow.sourceSyncStateRepository;
+              if (syncRepo) {
+                const existingSyncState = await syncRepo.findBySourceId(source.id, input.tenantId);
+                if (!existingSyncState.ok) throw existingSyncState.error;
+                if (existingSyncState.value) {
+                  const updated = await syncRepo.update(source.id, input.tenantId, {
+                    syncStatus: "syncing",
+                  });
+                  if (!updated.ok) throw updated.error;
+                } else {
+                  const created = await syncRepo.create({
+                    id: source.id,
+                    sourceId: source.id,
+                    tenantId: input.tenantId,
+                    syncStatus: "syncing",
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                  });
+                  if (!created.ok) throw created.error;
+                }
+              }
               txSpan.setAttribute("source.id", source.id);
 
               const { parsed, raw } = await this.runParser(input, source);
-              txSpan.setAttribute("document.title", parsed.title ?? "(none)");
 
               const { document, version, versionNumber, isNewVersion } =
                 await this.upsertDocumentAndVersion(uow, input, source, parsed);
@@ -120,6 +142,14 @@ export class IngestionWorkflow {
               );
 
               txSpan.setStatus("OK");
+              if (syncRepo) {
+                const completed = await syncRepo.update(source.id, input.tenantId, {
+                  syncStatus: "idle",
+                  lastSyncedAt: new Date().toISOString(),
+                  lastChangeHash: computeContentHash(parsed.content),
+                });
+                if (!completed.ok) throw completed.error;
+              }
               let status: "created" | "updated" | "unchanged";
               if (versionNumber === 1) {
                 status = "created";
@@ -137,6 +167,17 @@ export class IngestionWorkflow {
                 qualityReport,
               };
             } catch (err) {
+              const syncRepo = uow.sourceSyncStateRepository;
+              if (syncRepo && syncStateSource) {
+                try {
+                  await syncRepo.update(syncStateSource.id, input.tenantId, {
+                    syncStatus: "error",
+                    errorMessage: err instanceof Error ? err.message : String(err),
+                  });
+                } catch {
+                  // Preserve the original ingestion failure if state recording also fails.
+                }
+              }
               txSpan.setStatus("ERROR", err instanceof Error ? err.message : String(err));
               throw err;
             } finally {
@@ -153,13 +194,20 @@ export class IngestionWorkflow {
     });
   }
 
+  async deactivateSource(sourceId: string, tenantId: string): Promise<void> {
+    await this.uowFactory.transaction(async (uow) => {
+      const result = await uow.sourceRepository.deactivate(sourceId, tenantId);
+      if (!result.ok) throw result.error;
+    });
+  }
+
   private async upsertSource(
     uow: Parameters<Parameters<UnitOfWorkFactory["transaction"]>[0]>[0],
     input: IngestionWorkflowInput,
   ): Promise<Source> {
     return await this.tracer.startActiveSpan("ingestion.upsertSource", async (span) => {
       try {
-        span.setAttribute("source.uri", input.sourceUri);
+        span.setAttribute("source.type", input.sourceType);
         span.setAttribute("principal.id", input.principalId);
 
         const existingSource = await uow.sourceRepository.findByUri(

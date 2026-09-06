@@ -104,6 +104,7 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
           system: prompt.system,
           prompt: prompt.user,
           schema,
+          abortSignal: controller.signal,
           temperature: this.config.defaultGeneration?.temperature ?? 0,
           maxOutputTokens: this.config.defaultGeneration?.maxTokens ?? 1024,
         });

@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { validateOrThrow } from "../domain/validation";
 import { ParsedDocumentSchema } from "../domain/documents/types";
+import { SourceTypeSchema } from "../domain/documents/types";
+import type { Document } from "./ingestion/ports";
 import type { DocumentVersion } from "./ingestion/ports";
 
 function toISOString(val: unknown): string {
@@ -24,7 +26,7 @@ export const SourceSchema = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid(),
   principalId: z.string().uuid(),
-  type: z.enum(["file", "url", "git", "api"]),
+  type: SourceTypeSchema,
   uri: z.string().url(),
   mimeType: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
@@ -63,6 +65,21 @@ export const DocumentSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
 });
+
+export function mapToDocument(row: Record<string, unknown>): Document {
+  const result = {
+    id: String(row.id),
+    tenantId: String(row.tenantId),
+    principalId: String(row.principalId),
+    sourceId: String(row.sourceId),
+    title: undefinedIfNull(row.title as string | null | undefined),
+    metadata: undefinedIfNull(row.metadata as Record<string, unknown> | null | undefined),
+    isActive: Boolean(row.isActive),
+    createdAt: toISOString(row.createdAt),
+    updatedAt: toISOString(row.updatedAt),
+  };
+  return validateOrThrow(DocumentSchema, result, "Document") as Document;
+}
 
 export const DocumentVersionSchema = z.object({
   id: z.string().uuid(),

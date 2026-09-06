@@ -1,7 +1,9 @@
 import { z } from "zod";
 
+export const SourceTypeSchema = z.enum(["file", "url", "git", "api", "s3"]);
+
 export const SourceDescriptorSchema = z.object({
-  type: z.enum(["file", "url", "git", "api", "s3"]),
+  type: SourceTypeSchema,
   uri: z.string().min(1),
   mimeType: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),

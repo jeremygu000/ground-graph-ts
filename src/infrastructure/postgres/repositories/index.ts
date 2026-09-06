@@ -6,3 +6,4 @@ export * from "./entity-repository";
 export * from "./fact-repository";
 export * from "./execution-repository";
 export * from "./outbox-repository";
+export * from "./source-sync-state-repository";

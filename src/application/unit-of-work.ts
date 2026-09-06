@@ -4,6 +4,7 @@ import type {
   DocumentVersionRepository,
   ChunkRepository,
   VectorIndexRepository,
+  SourceSyncStateRepository,
 } from "./ingestion/ports";
 import type { EntityRepository, FactRepository } from "./extraction/ports";
 import type { ExecutionRunRepository, ExecutionStepRepository } from "./execution/ports";
@@ -21,6 +22,7 @@ export interface UnitOfWork {
   readonly executionStepRepository: ExecutionStepRepository;
   readonly outboxRepository: OutboxRepository;
   readonly vectorIndexRepository: VectorIndexRepository;
+  readonly sourceSyncStateRepository: SourceSyncStateRepository;
 
   commit(): Promise<void>;
   rollback(): Promise<void>;

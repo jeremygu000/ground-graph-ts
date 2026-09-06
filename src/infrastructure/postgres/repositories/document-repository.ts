@@ -6,6 +6,7 @@ import type {
   Document,
   CreateDocumentInput,
 } from "../../../application/ingestion/ports";
+import { mapToDocument } from "../../../application/validation";
 
 export class PostgresDocumentRepository implements DocumentRepository {
   constructor(private db: Database) {}
@@ -27,7 +28,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
           isActive: true,
         })
         .returning();
-      return { ok: true, value: result as unknown as Document };
+      return { ok: true, value: mapToDocument(result as unknown as Record<string, unknown>) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -42,7 +43,10 @@ export class PostgresDocumentRepository implements DocumentRepository {
         .select()
         .from(documents)
         .where(and(eq(documents.id, id), eq(documents.tenantId, tenantId)));
-      return { ok: true, value: (result ?? null) as unknown as Document | null };
+      return {
+        ok: true,
+        value: result ? mapToDocument(result as unknown as Record<string, unknown>) : null,
+      };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -57,7 +61,10 @@ export class PostgresDocumentRepository implements DocumentRepository {
         .select()
         .from(documents)
         .where(and(eq(documents.sourceId, sourceId), eq(documents.tenantId, tenantId)));
-      return { ok: true, value: (result ?? null) as unknown as Document | null };
+      return {
+        ok: true,
+        value: result ? mapToDocument(result as unknown as Record<string, unknown>) : null,
+      };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -77,7 +84,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
       if (!result) {
         return { ok: false, error: new Error("Document not found") };
       }
-      return { ok: true, value: result as unknown as Document };
+      return { ok: true, value: mapToDocument(result as unknown as Record<string, unknown>) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -96,7 +103,10 @@ export class PostgresDocumentRepository implements DocumentRepository {
         .limit(limit)
         .offset(offset)
         .orderBy(desc(documents.createdAt));
-      return { ok: true, value: results as unknown as Document[] };
+      return {
+        ok: true,
+        value: results.map((row) => mapToDocument(row as unknown as Record<string, unknown>)),
+      };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
