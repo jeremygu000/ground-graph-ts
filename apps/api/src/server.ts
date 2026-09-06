@@ -135,7 +135,26 @@ console.log(`Server listening on ${HOST}:${PORT}`);
 
 async function gracefulShutdown(): Promise<void> {
   console.log("Shutting down gracefully...");
-  await app.close();
+  try {
+    await app.close();
+  } catch (err) {
+    console.error("Error closing app:", err);
+  }
+  try {
+    await db.close();
+  } catch (err) {
+    console.error("Error closing database:", err);
+  }
+  try {
+    await neo4j.close();
+  } catch (err) {
+    console.error("Error closing Neo4j:", err);
+  }
+  try {
+    await minio.close?.();
+  } catch (err) {
+    console.error("Error closing MinIO:", err);
+  }
   await shutdownTelemetry();
   process.exit(0);
 }

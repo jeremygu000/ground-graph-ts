@@ -149,7 +149,9 @@ describe("telemetry", () => {
       }),
     ).rejects.toThrow("boom");
 
-    expect(mocks.activeSpan.recordException).toHaveBeenCalled();
+    expect(mocks.activeSpan.setStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 2, message: "INTERNAL_ERROR" }),
+    );
 
     initTelemetry({
       serviceName: "ground-graph",

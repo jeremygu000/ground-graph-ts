@@ -23,6 +23,12 @@ const PRIVATE_IP_PATTERNS = [
   /^0\./,
   /^224\./,
   /^240\./,
+  /^::1$/,
+  /^fc00:/,
+  /^fd00:/,
+  /^fe80:/,
+  /^ff00:/,
+  /^::ffff:/,
 ];
 
 const BLOCKED_HOSTNAMES = [
@@ -38,6 +44,34 @@ const DEFAULT_MAX_BYTES = 10 * 1024 * 1024;
 
 function isPrivateIp(hostname: string): boolean {
   return PRIVATE_IP_PATTERNS.some((pattern) => pattern.test(hostname));
+}
+
+async function validateResolvedIps(hostname: string): Promise<void> {
+  const dns = await import("node:dns");
+  const { promisify } = await import("util");
+
+  const resolve4 = promisify(dns.resolve4);
+  const resolve6 = promisify(dns.resolve6);
+
+  let addresses: string[] = [];
+  try {
+    addresses = (await resolve4(hostname)) ?? [];
+  } catch {
+    try {
+      addresses = (await resolve6(hostname)) ?? [];
+    } catch {
+      // If neither A nor AAAA records exist, that's fine - the fetch will fail anyway
+      return;
+    }
+  }
+
+  for (const addr of addresses) {
+    if (isPrivateIp(addr)) {
+      throw new Error(
+        `UrlContentFetcher: DNS resolved to private IP ${addr} for hostname ${hostname}`,
+      );
+    }
+  }
 }
 
 function validateUrl(url: URL): void {
@@ -68,6 +102,7 @@ export class UrlContentFetcher implements ContentFetcher {
 
     const url = new URL(uri);
     validateUrl(url);
+    await validateResolvedIps(url.hostname);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -89,6 +124,7 @@ export class UrlContentFetcher implements ContentFetcher {
 
         const redirectUrl = new URL(locationHeader, url);
         validateUrl(redirectUrl);
+        await validateResolvedIps(redirectUrl.hostname);
         finalUrl = redirectUrl;
 
         clearTimeout(timeoutId);
@@ -194,6 +230,7 @@ export class DefaultContentFetcherFactory implements ContentFetcherFactory {
     fetcher.register("file", new FileContentFetcher());
     fetcher.register("http", new UrlContentFetcher());
     fetcher.register("https", new UrlContentFetcher());
+    fetcher.register("s3", new S3ContentFetcher("raw"));
     return fetcher;
   }
 }

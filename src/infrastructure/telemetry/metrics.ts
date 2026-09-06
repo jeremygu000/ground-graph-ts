@@ -23,6 +23,11 @@ export function initMetrics(config: MetricsConfig): Meter {
     return meter;
   }
 
+  if (!config.enabled) {
+    meter = metrics.getMeter(config.serviceName, config.serviceVersion);
+    return meter;
+  }
+
   const exporter = new OTLPMetricExporter({
     url: `${config.otlpEndpoint}/v1/metrics`,
   });

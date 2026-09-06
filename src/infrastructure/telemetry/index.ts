@@ -71,6 +71,32 @@ export function getTracer(name: string): Tracer {
   return trace.getTracer(name);
 }
 
+function safeSetSpanAttribute(span: Span, key: string, value: string): void {
+  if (key === "source.uri" || key.endsWith(".uri")) {
+    try {
+      const url = new URL(value);
+      span.setAttribute(key, `${url.protocol}//${url.host}/...`);
+    } catch {
+      span.setAttribute(key, "[redacted]");
+    }
+  } else if (
+    key === "principal.id" ||
+    key.endsWith(".principalId") ||
+    key.endsWith(".principal_id")
+  ) {
+    span.setAttribute(key, "[redacted]");
+  } else if (
+    key.includes("token") ||
+    key.includes("secret") ||
+    key.includes("key") ||
+    key.includes("password")
+  ) {
+    span.setAttribute(key, "[redacted]");
+  } else {
+    span.setAttribute(key, value);
+  }
+}
+
 export async function withSpan<T>(
   name: string,
   fn: (span: Span) => Promise<T>,
@@ -84,7 +110,7 @@ export async function withSpan<T>(
       try {
         if (options?.attributes) {
           for (const [key, value] of Object.entries(options.attributes)) {
-            span.setAttribute(key, value);
+            safeSetSpanAttribute(span, key, value);
           }
         }
         const result = await fn(span);
@@ -93,9 +119,6 @@ export async function withSpan<T>(
       } catch (error) {
         const errorCode = error instanceof AppError ? error.code : "INTERNAL_ERROR";
         span.setStatus({ code: SpanStatusCode.ERROR, message: errorCode });
-        if (!(error instanceof AppError)) {
-          span.recordException(error as Error);
-        }
         throw error;
       } finally {
         span.end();
