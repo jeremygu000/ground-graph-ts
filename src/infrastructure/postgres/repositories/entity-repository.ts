@@ -3,6 +3,7 @@ import type { Database } from "../client";
 import { entities } from "../schema";
 import type { EntityRepository } from "../../../application/extraction/ports.types";
 import type { CanonicalEntity } from "../../../domain/knowledge/knowledge.schema";
+import { mapEntityRow } from "../mappers/entity.mapper";
 
 export class PostgresEntityRepository implements EntityRepository {
   constructor(private db: Database) {}
@@ -15,7 +16,7 @@ export class PostgresEntityRepository implements EntityRepository {
         .insert(entities)
         .values(entity as any)
         .returning();
-      return { ok: true, value: result as unknown as CanonicalEntity };
+      return { ok: true, value: mapEntityRow(result as Record<string, unknown>) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -30,7 +31,7 @@ export class PostgresEntityRepository implements EntityRepository {
         .select()
         .from(entities)
         .where(and(eq(entities.id, id), eq(entities.tenantId, tenantId)));
-      return { ok: true, value: (result ?? null) as unknown as CanonicalEntity | null };
+      return { ok: true, value: result ? mapEntityRow(result as Record<string, unknown>) : null };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -45,7 +46,7 @@ export class PostgresEntityRepository implements EntityRepository {
         .select()
         .from(entities)
         .where(and(eq(entities.canonicalName, name), eq(entities.tenantId, tenantId)));
-      return { ok: true, value: (result ?? null) as unknown as CanonicalEntity | null };
+      return { ok: true, value: result ? mapEntityRow(result as Record<string, unknown>) : null };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -61,7 +62,7 @@ export class PostgresEntityRepository implements EntityRepository {
         .from(entities)
         .where(and(eq(entities.tenantId, tenantId)));
       const filtered = results.filter((e) => (e.aliases as string[]).includes(alias));
-      return { ok: true, value: filtered as unknown as CanonicalEntity[] };
+      return { ok: true, value: filtered.map((e) => mapEntityRow(e as Record<string, unknown>)) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -81,7 +82,7 @@ export class PostgresEntityRepository implements EntityRepository {
       if (!result) {
         return { ok: false, error: new Error("Entity not found") };
       }
-      return { ok: true, value: result as unknown as CanonicalEntity };
+      return { ok: true, value: mapEntityRow(result as Record<string, unknown>) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -116,7 +117,7 @@ export class PostgresEntityRepository implements EntityRepository {
         .where(and(eq(entities.entityType, entityType), eq(entities.tenantId, tenantId)))
         .limit(limit)
         .offset(offset);
-      return { ok: true, value: results as unknown as CanonicalEntity[] };
+      return { ok: true, value: results.map((e) => mapEntityRow(e as Record<string, unknown>)) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -135,7 +136,7 @@ export class PostgresEntityRepository implements EntityRepository {
         .limit(limit)
         .offset(offset)
         .orderBy(desc(entities.createdAt));
-      return { ok: true, value: results as unknown as CanonicalEntity[] };
+      return { ok: true, value: results.map((e) => mapEntityRow(e as Record<string, unknown>)) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }

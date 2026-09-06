@@ -14,11 +14,6 @@ export class GraphReconciliationService {
   ) {}
 
   async reconcileFact(fact: KnowledgeFact, tenantId: string): Promise<Result<void>> {
-    const projectResult = await this.graphRepo.projectFact(fact);
-    if (!projectResult.ok) {
-      return projectResult;
-    }
-
     if (fact.status === "verified") {
       const subjectEntity = await this.entityRepo.findById(fact.subjectId, tenantId);
       if (!subjectEntity.ok || !subjectEntity.value) {
@@ -37,6 +32,11 @@ export class GraphReconciliationService {
           };
         }
       }
+    }
+
+    const projectResult = await this.graphRepo.projectFact(fact);
+    if (!projectResult.ok) {
+      return projectResult;
     }
 
     return { ok: true, value: undefined };
@@ -101,17 +101,7 @@ export class SupersessionService {
       return { ok: false, error: new InternalError("Fact cannot supersede itself") };
     }
 
-    const updateResult = await this.factRepo.updateStatus(factId, tenantId, "superseded");
-    if (!updateResult.ok) {
-      return updateResult;
-    }
-
-    const supersedeResult = await this.factRepo.supersede(factId, tenantId, supersededById);
-    if (!supersedeResult.ok) {
-      return supersedeResult;
-    }
-
-    return { ok: true, value: undefined };
+    return this.factRepo.supersedeWithStatus(factId, tenantId, supersededById, "superseded");
   }
 
   async supersedeEntity(

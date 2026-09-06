@@ -89,7 +89,7 @@ export const EntityMentionSchema = z.object({
   tenantId: z.string().uuid(),
   mentionText: z.string().min(1),
   normalizedForm: z.string(),
-  entityId: z.string().uuid(),
+  entityId: z.string().uuid().optional(),
   sourceChunkId: z.string().uuid(),
   position: z.object({
     startChar: z.number().int().nonnegative(),

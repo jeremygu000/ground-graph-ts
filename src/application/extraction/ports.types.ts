@@ -44,6 +44,12 @@ export interface FactRepository {
     status: KnowledgeFact["status"],
   ): Promise<Result<KnowledgeFact>>;
   supersede(id: string, tenantId: string, supersededById: string): Promise<Result<void>>;
+  supersedeWithStatus(
+    id: string,
+    tenantId: string,
+    supersededById: string,
+    status: KnowledgeFact["status"],
+  ): Promise<Result<void>>;
 }
 
 export interface MentionRepository {

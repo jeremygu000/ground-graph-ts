@@ -61,13 +61,16 @@ export const OntologyVersionSchema = z.object({
 export type OntologyVersion = z.infer<typeof OntologyVersionSchema>;
 
 export const DEFAULT_ONTOLOGY_TYPES = [
+  "Module",
+  "Function",
+  "Class",
+  "URL",
   "Service",
   "API",
   "Database",
   "Queue",
   "Topic",
   "Bucket",
-  "Function",
   "Container",
   "Cluster",
   "Repository",
@@ -81,6 +84,7 @@ export const DEFAULT_ONTOLOGY_TYPES = [
 ] as const;
 
 export const DEFAULT_PREDICATES = [
+  "exports",
   "depends_on",
   "implements",
   "connects_to",

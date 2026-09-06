@@ -53,7 +53,7 @@ Change `[ ]` to `[x]` only after all acceptance criteria pass.
 - [x] M2 — Domain contracts and persistence model
 - [ ] M3 — Document ingestion and versioning
 - [ ] M4 — Vector RAG baseline
-- [x] M5 — Knowledge graph construction
+- [ ] M5 — Knowledge graph construction
 - [ ] M6 — Hybrid GraphRAG retrieval
 - [ ] M7 — Query workflow, citations, and API
 - [ ] M8 — Evaluation system and CI quality gates

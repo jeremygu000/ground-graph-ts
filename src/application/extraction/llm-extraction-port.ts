@@ -11,6 +11,6 @@ export function classifyMention(
   confidence: number,
   bands: ResolutionBand[] = DEFAULT_RESOLUTION_BANDS,
 ): ResolutionBand {
-  const band = bands.find((b) => confidence >= b.minConfidence && confidence < b.maxConfidence);
+  const band = bands.find((b) => confidence >= b.minConfidence && confidence <= b.maxConfidence);
   return band ?? bands[bands.length - 1]!;
 }

@@ -1,8 +1,9 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { facts } from "../schema";
 import type { FactRepository } from "../../../application/extraction/ports.types";
 import type { KnowledgeFact } from "../../../domain/knowledge/knowledge.schema";
+import { mapFactRow } from "../mappers/fact.mapper";
 
 export class PostgresFactRepository implements FactRepository {
   constructor(private db: Database) {}
@@ -44,7 +45,7 @@ export class PostgresFactRepository implements FactRepository {
         .select()
         .from(facts)
         .where(and(eq(facts.id, id), eq(facts.tenantId, tenantId)));
-      return { ok: true, value: (result ?? null) as unknown as KnowledgeFact | null };
+      return { ok: true, value: result ? mapFactRow(result as Record<string, unknown>) : null };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -59,7 +60,7 @@ export class PostgresFactRepository implements FactRepository {
         .select()
         .from(facts)
         .where(and(eq(facts.subjectId, subjectId), eq(facts.tenantId, tenantId)));
-      return { ok: true, value: results as unknown as KnowledgeFact[] };
+      return { ok: true, value: results.map((r) => mapFactRow(r as Record<string, unknown>)) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -74,7 +75,7 @@ export class PostgresFactRepository implements FactRepository {
         .select()
         .from(facts)
         .where(and(eq(facts.predicate, predicate), eq(facts.tenantId, tenantId)));
-      return { ok: true, value: results as unknown as KnowledgeFact[] };
+      return { ok: true, value: results.map((r) => mapFactRow(r as Record<string, unknown>)) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -89,7 +90,7 @@ export class PostgresFactRepository implements FactRepository {
         .select()
         .from(facts)
         .where(and(eq(facts.status, status as any), eq(facts.tenantId, tenantId)));
-      return { ok: true, value: results as unknown as KnowledgeFact[] };
+      return { ok: true, value: results.map((r) => mapFactRow(r as Record<string, unknown>)) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -99,9 +100,10 @@ export class PostgresFactRepository implements FactRepository {
     subjectId: string,
     predicate: string,
     tenantId: string,
-    _asOf: string,
+    asOf: string,
   ): Promise<{ ok: true; value: KnowledgeFact | null } | { ok: false; error: Error }> {
     try {
+      const asOfDate = new Date(asOf);
       const [result] = await this.db.drizzle
         .select()
         .from(facts)
@@ -110,9 +112,11 @@ export class PostgresFactRepository implements FactRepository {
             eq(facts.subjectId, subjectId),
             eq(facts.predicate, predicate),
             eq(facts.tenantId, tenantId),
+            sql`${facts.validFrom} <= ${asOfDate}`,
+            sql`(${facts.validTo} IS NULL OR ${facts.validTo} > ${asOfDate})`,
           ),
         );
-      return { ok: true, value: (result ?? null) as unknown as KnowledgeFact | null };
+      return { ok: true, value: result ? mapFactRow(result as Record<string, unknown>) : null };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -132,7 +136,7 @@ export class PostgresFactRepository implements FactRepository {
       if (!result) {
         return { ok: false, error: new Error("Fact not found") };
       }
-      return { ok: true, value: result as unknown as KnowledgeFact };
+      return { ok: true, value: mapFactRow(result as Record<string, unknown>) };
     } catch (error) {
       return { ok: false, error: error as Error };
     }
@@ -148,6 +152,29 @@ export class PostgresFactRepository implements FactRepository {
         .update(facts)
         .set({ supersededBy: supersededById })
         .where(and(eq(facts.id, id), eq(facts.tenantId, tenantId)));
+      return { ok: true, value: undefined };
+    } catch (error) {
+      return { ok: false, error: error as Error };
+    }
+  }
+
+  async supersedeWithStatus(
+    id: string,
+    tenantId: string,
+    supersededById: string,
+    status: KnowledgeFact["status"],
+  ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
+    try {
+      await this.db.drizzle.transaction(async (tx) => {
+        await tx
+          .update(facts)
+          .set({ status: status as any })
+          .where(and(eq(facts.id, id), eq(facts.tenantId, tenantId)));
+        await tx
+          .update(facts)
+          .set({ supersededBy: supersededById })
+          .where(and(eq(facts.id, id), eq(facts.tenantId, tenantId)));
+      });
       return { ok: true, value: undefined };
     } catch (error) {
       return { ok: false, error: error as Error };

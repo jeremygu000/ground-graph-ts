@@ -3,6 +3,7 @@ import type { Database } from "../client";
 import { entityMentions } from "../schema";
 import type { MentionRepository } from "../../../application/extraction/ports.types";
 import type { EntityMention } from "../../../domain/knowledge/knowledge.schema";
+import { mapMentionRow } from "../mappers/mention.mapper";
 
 export class PostgresMentionRepository implements MentionRepository {
   constructor(private db: Database) {}
@@ -106,16 +107,6 @@ export class PostgresMentionRepository implements MentionRepository {
   }
 
   private mapToDomain(row: typeof entityMentions.$inferSelect): EntityMention {
-    return {
-      id: row.id,
-      tenantId: row.tenantId,
-      mentionText: row.mentionText,
-      normalizedForm: row.normalizedForm,
-      entityId: row.entityId ?? "",
-      sourceChunkId: row.sourceChunkId ?? "",
-      position: row.position as EntityMention["position"],
-      confidence: parseFloat(row.confidence ?? "0"),
-      createdAt: row.createdAt.toISOString(),
-    };
+    return mapMentionRow(row as Record<string, unknown>);
   }
 }

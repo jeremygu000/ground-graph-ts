@@ -181,6 +181,7 @@ describe("SupersessionService", () => {
     findById: vi.fn(),
     updateStatus: vi.fn(),
     supersede: vi.fn(),
+    supersedeWithStatus: vi.fn(),
   };
   const mockEntityRepo = {
     supersede: vi.fn(),
@@ -245,8 +246,7 @@ describe("SupersessionService", () => {
     mockFactRepo.findById
       .mockResolvedValueOnce({ ok: true, value: { id: "fact1" } })
       .mockResolvedValueOnce({ ok: true, value: { id: "fact2" } });
-    mockFactRepo.updateStatus.mockResolvedValue({ ok: true, value: {} as any });
-    mockFactRepo.supersede.mockResolvedValue({ ok: true, value: undefined });
+    mockFactRepo.supersedeWithStatus.mockResolvedValue({ ok: true, value: undefined });
     const service = new SupersessionService(mockFactRepo as any, mockEntityRepo as any);
     const tenantId = crypto.randomUUID();
 
@@ -260,16 +260,15 @@ describe("SupersessionService", () => {
     mockFactRepo.findById
       .mockResolvedValueOnce({ ok: true, value: { id: "fact1" } })
       .mockResolvedValueOnce({ ok: true, value: { id: "fact2" } });
-    mockFactRepo.updateStatus.mockResolvedValue({ ok: false, error: new Error("status") });
+    mockFactRepo.supersedeWithStatus.mockResolvedValue({ ok: false, error: new Error("status") });
     const service = new SupersessionService(mockFactRepo as any, mockEntityRepo as any);
     expect((await service.supersedeFact("fact1", "fact2", "tenant")).ok).toBe(false);
 
-    mockFactRepo.updateStatus.mockResolvedValue({ ok: true, value: undefined });
-    mockFactRepo.supersede.mockResolvedValue({ ok: false, error: new Error("supersede") });
+    mockFactRepo.supersedeWithStatus.mockResolvedValue({ ok: true, value: undefined });
     mockFactRepo.findById
       .mockResolvedValueOnce({ ok: true, value: { id: "fact1" } })
       .mockResolvedValueOnce({ ok: true, value: { id: "fact2" } });
-    expect((await service.supersedeFact("fact1", "fact2", "tenant")).ok).toBe(false);
+    expect((await service.supersedeFact("fact1", "fact2", "tenant")).ok).toBe(true);
     mockEntityRepo.supersede.mockResolvedValue({ ok: false, error: new Error("entity") });
     expect((await service.supersedeEntity("entity1", "entity2", "tenant")).ok).toBe(false);
   });

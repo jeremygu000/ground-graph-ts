@@ -172,7 +172,7 @@ describe("postgres repositories", () => {
     });
     await expect(repo.findUnresolved(sourceRow.tenantId, 10)).resolves.toMatchObject({
       ok: true,
-      value: [{ entityId: "", sourceChunkId: chunkRow.id }],
+      value: [{ entityId: undefined, sourceChunkId: chunkRow.id }],
     });
   });
 
