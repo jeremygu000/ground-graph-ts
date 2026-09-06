@@ -1,33 +1,73 @@
 import { trace, SpanStatusCode, SpanKind, type Span as OTelSpan } from "@opentelemetry/api";
 import type { Span, TracerPort } from "../../application/observability/tracer-port";
 
-function mapStatus(code: "OK" | "ERROR"): { code: SpanStatusCode; message?: string } {
+function mapStatus(code: "OK" | "ERROR"): { code: SpanStatusCode } {
   if (code === "OK") {
     return { code: SpanStatusCode.OK };
   }
   return { code: SpanStatusCode.ERROR };
 }
 
+function safeSetAttribute(
+  span: OTelSpan,
+  key: string,
+  value: string | number | boolean | undefined,
+): void {
+  if (value === undefined) return;
+
+  if (key === "source.uri" || key.endsWith(".uri")) {
+    if (typeof value === "string") {
+      try {
+        const url = new URL(value);
+        span.setAttribute(key, `${url.protocol}//${url.host}/...`);
+      } catch {
+        span.setAttribute(key, "[redacted]");
+      }
+    } else {
+      span.setAttribute(key, "[redacted]");
+    }
+  } else if (
+    key === "principal.id" ||
+    key.endsWith(".principalId") ||
+    key.endsWith(".principal_id")
+  ) {
+    span.setAttribute(key, "[redacted]");
+  } else if (
+    key.includes("token") ||
+    key.includes("secret") ||
+    key.includes("key") ||
+    key.includes("password")
+  ) {
+    span.setAttribute(key, "[redacted]");
+  } else {
+    span.setAttribute(key, value);
+  }
+}
+
 class OTelSpanAdapter implements Span {
   constructor(private readonly span: OTelSpan) {}
 
   setAttribute(key: string, value: string | number | boolean | undefined): void {
-    if (value !== undefined) {
-      this.span.setAttribute(key, value);
-    }
+    safeSetAttribute(this.span, key, value);
   }
 
   setStatus(code: "OK" | "ERROR", message?: string): void {
     const mapped = mapStatus(code);
-    this.span.setStatus({ code: mapped.code, ...(message !== undefined ? { message } : {}) });
+    if (mapped.code === SpanStatusCode.ERROR) {
+      const safeMessage =
+        message && !message.startsWith("AppError:") ? "[error]" : (message ?? "[error]");
+      this.span.setStatus({ code: mapped.code, message: safeMessage });
+    } else {
+      this.span.setStatus(mapped);
+    }
   }
 
   end(): void {
     this.span.end();
   }
 
-  recordException(error: Error): void {
-    this.span.recordException(error);
+  recordException(_error: Error): void {
+    // Intentionally empty - raw exceptions should not be recorded per telemetry privacy policy
   }
 }
 

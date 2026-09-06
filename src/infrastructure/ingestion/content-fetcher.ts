@@ -14,23 +14,6 @@ export class FileContentFetcher implements ContentFetcher {
   }
 }
 
-const PRIVATE_IP_PATTERNS = [
-  /^127\./,
-  /^10\./,
-  /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
-  /^192\.168\./,
-  /^169\.254\./,
-  /^0\./,
-  /^224\./,
-  /^240\./,
-  /^::1$/,
-  /^fc00:/,
-  /^fd00:/,
-  /^fe80:/,
-  /^ff00:/,
-  /^::ffff:/,
-];
-
 const BLOCKED_HOSTNAMES = [
   "localhost",
   "metadata.google.internal",
@@ -42,8 +25,39 @@ const BLOCKED_HOSTNAMES = [
 const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024;
 
-function isPrivateIp(hostname: string): boolean {
-  return PRIVATE_IP_PATTERNS.some((pattern) => pattern.test(hostname));
+function isPrivateIPv4(addr: string): boolean {
+  const parts = addr.split(".").map(Number);
+  if (parts.length !== 4) return false;
+  const a = parts[0]!;
+  const b = parts[1]!;
+
+  if (a === 127) return true;
+  if (a === 10) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 0) return true;
+  if (a === 224) return true;
+  if (a === 240) return true;
+  return false;
+}
+
+function isPrivateIPv6(addr: string): boolean {
+  const lower = addr.toLowerCase();
+  if (lower === "::1") return true;
+  if (lower === "fc00::" || lower.startsWith("fc")) return true;
+  if (lower === "fd00::" || lower.startsWith("fd")) return true;
+  if (lower === "fe80::" || lower.startsWith("fe80")) return true;
+  if (lower === "ff00::" || lower.startsWith("ff")) return true;
+  if (lower.startsWith("::ffff:")) {
+    const mapped = lower.slice(7);
+    if (isPrivateIPv4(mapped)) return true;
+  }
+  return false;
+}
+
+function isPrivateIp(addr: string): boolean {
+  return isPrivateIPv4(addr) || isPrivateIPv6(addr);
 }
 
 async function validateResolvedIps(hostname: string): Promise<void> {
@@ -52,20 +66,30 @@ async function validateResolvedIps(hostname: string): Promise<void> {
 
   const resolve4 = promisify(dns.resolve4);
   const resolve6 = promisify(dns.resolve6);
+  const lookup = promisify(dns.lookup);
 
-  let addresses: string[] = [];
+  const allAddresses: string[] = [];
+
   try {
-    addresses = (await resolve4(hostname)) ?? [];
+    const v4 = await resolve4(hostname);
+    if (v4) allAddresses.push(...v4);
   } catch {
-    try {
-      addresses = (await resolve6(hostname)) ?? [];
-    } catch {
-      // If neither A nor AAAA records exist, that's fine - the fetch will fail anyway
-      return;
-    }
+    // ignore
   }
 
-  for (const addr of addresses) {
+  try {
+    const v6 = await resolve6(hostname);
+    if (v6) allAddresses.push(...v6);
+  } catch {
+    // ignore
+  }
+
+  if (allAddresses.length === 0) {
+    const result = await lookup(hostname);
+    if (result) allAddresses.push(result.address);
+  }
+
+  for (const addr of allAddresses) {
     if (isPrivateIp(addr)) {
       throw new Error(
         `UrlContentFetcher: DNS resolved to private IP ${addr} for hostname ${hostname}`,
