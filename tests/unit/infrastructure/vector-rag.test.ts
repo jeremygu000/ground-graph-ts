@@ -719,7 +719,6 @@ describe("M4 vector RAG baseline", () => {
   });
 
   describe("golden evaluation dataset (M4)", () => {
-    const expectedStatuses = new Map(dataset.map((c) => [c.id, c.expectedStatus]));
     const requiredClaims = new Map(dataset.map((c) => [c.id, c.requiredClaimText]));
     const forbiddenClaims = new Map(dataset.map((c) => [c.id, c.forbiddenClaimText]));
 
@@ -780,7 +779,125 @@ describe("M4 vector RAG baseline", () => {
             ).toBe(false);
           }
         }
-        expect(expectedStatuses.get(c.id)).toBe("insufficient_evidence");
+      }
+    });
+
+    it("refusal policy triggers when evidence is insufficient with generation enabled", async () => {
+      const refusalGen = {
+        async generateStructured(request: {
+          question: string;
+          evidence: Array<{ snippet: string; citationId: string }>;
+        }) {
+          if (request.evidence.length === 0) {
+            return success({
+              structured: {
+                answer: "",
+                status: "insufficient_evidence",
+                claims: [],
+                refusalReason: "deterministic-no-evidence",
+              },
+              model: "test-stub",
+              promptTokens: 0,
+              completionTokens: 0,
+              totalTokens: 0,
+              finishReason: "stop",
+              repairAttempts: 0,
+            });
+          }
+          return success({
+            structured: {
+              answer: `[DETERMINISTIC] answered based on ${request.evidence.length} citations`,
+              status: "answered",
+              claims: [
+                {
+                  claimId: crypto.randomUUID(),
+                  claimText: "test claim",
+                  citations: request.evidence.map((e) => ({
+                    citationId: e.citationId,
+                    evidenceId: crypto.randomUUID(),
+                    chunkId: "",
+                    documentVersionId: "",
+                    locatorPath: "",
+                    snippet: e.snippet,
+                    startChar: 0,
+                    endChar: 0,
+                    score: 1,
+                  })),
+                  confidence: 1,
+                  supportedBy: request.evidence.map((e) => e.citationId),
+                },
+              ],
+              refusalReason: "",
+            },
+            model: "test-stub",
+            promptTokens: 0,
+            completionTokens: 0,
+            totalTokens: 0,
+            finishReason: "stop",
+            repairAttempts: 0,
+          });
+        },
+        getModel() {
+          return "test-stub";
+        },
+      };
+
+      const serviceWithGen = new DefaultVectorQueryService({
+        embedding,
+        vector: {
+          async getActiveIndexVersion(tenantId: string) {
+            if (tenantId !== tenantId) return success(null);
+            return success({
+              indexVersionId,
+              versionNumber: 1,
+              embeddingModel: MODEL,
+              embeddingDimension: EMBEDDING_DIM,
+              isActive: true,
+              tenantId,
+            });
+          },
+          async search() {
+            return success([]);
+          },
+          async upsertEmbeddings() {
+            return success({ upserted: 0, indexVersionId });
+          },
+          async deleteByDocumentVersion() {
+            return success({ deleted: 0 });
+          },
+        } as unknown as VectorIndexPort,
+        fulltext: null,
+        reranker: null,
+        fusion: new ReciprocalRankFusion(),
+        generator: refusalGen as unknown as GeneratorPort,
+        citationBuilder: new CitationBuilder(),
+        config: {
+          embedding: { provider: "openai", model: MODEL, dimension: EMBEDDING_DIM },
+          reranker: { provider: "none", model: "lexical-blend" },
+          generator: { model: "test-stub" },
+          maxCandidates: 10,
+          enableFullText: false,
+          enableRerank: false,
+          enableGeneration: true,
+          fusionWeights: { vector: 1 },
+          refusalMinCitations: 1,
+          refusalMinConfidence: 0.5,
+        },
+        clock: () => new Date(),
+        idGen: () => crypto.randomUUID(),
+      });
+
+      const emptyResult = await serviceWithGen.query({
+        question: "totally unrelated query with no corpus match",
+        tenantId,
+        principalId: "00000000-0000-4000-8000-0000000000a1",
+        strategy: "vector",
+        maxResults: 5,
+      });
+
+      expect(emptyResult.ok).toBe(true);
+      if (emptyResult.ok) {
+        expect(emptyResult.value.generatedAnswer?.status).toBe("insufficient_evidence");
       }
     });
 

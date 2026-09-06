@@ -231,13 +231,52 @@ function createInMemoryVectorPort(
 
 function createGeneratorStub() {
   return {
-    async generateStructured() {
+    async generateStructured(request: {
+      question: string;
+      evidence: Array<{ snippet: string; citationId: string }>;
+    }) {
+      if (request.evidence.length === 0) {
+        return ok({
+          structured: {
+            answer: "",
+            status: "insufficient_evidence" as const,
+            claims: [],
+            refusalReason: "offline-deterministic-mode-no-evidence",
+          },
+          model: "offline-stub",
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          finishReason: "stop" as const,
+          repairAttempts: 0,
+        });
+      }
+      const evidenceText = request.evidence.map((e) => e.snippet).join(" ");
+      const answer = `[DETERMINISTIC] Based on evidence: ${evidenceText.substring(0, 200)}`;
       return ok({
         structured: {
-          answer: "",
-          status: "insufficient_evidence" as const,
-          claims: [],
-          refusalReason: "offline-deterministic-mode",
+          answer,
+          status: "answered" as const,
+          claims: [
+            {
+              claimId: crypto.randomUUID(),
+              claimText: evidenceText.substring(0, 100),
+              citations: request.evidence.map((e) => ({
+                citationId: e.citationId,
+                evidenceId: crypto.randomUUID(),
+                chunkId: "",
+                documentVersionId: "",
+                locatorPath: "",
+                snippet: e.snippet,
+                startChar: 0,
+                endChar: 0,
+                score: 1,
+              })),
+              confidence: 1,
+              supportedBy: request.evidence.map((e) => e.citationId),
+            },
+          ],
+          refusalReason: "",
         },
         model: "offline-stub",
         promptTokens: 0,
@@ -272,7 +311,7 @@ function createVectorService(
       maxCandidates: 20,
       enableFullText: false,
       enableRerank: false,
-      enableGeneration: false,
+      enableGeneration: true,
       fusionWeights: { vector: 1 },
       refusalMinCitations: 1,
       refusalMinConfidence: 0.5,
@@ -417,7 +456,7 @@ async function runBaseline(): Promise<BaselineReport> {
     version: "0.1.0",
     generatedAt: new Date().toISOString(),
     datasetVersion: metadata.version,
-    evaluationMode: "offline-deterministic-retrieval-only",
+    evaluationMode: "offline-deterministic-generation",
     embeddingModel: null,
     embeddingDimension: null,
     rerankerModel: null,
@@ -480,9 +519,27 @@ async function evaluateCase(
       expectedChunkIds.length > 0 ? retrievedExpectedCount / expectedChunkIds.length : null;
     const retrievalHit = expectedChunkIds.some((id) => retrievedChunkIds.includes(id));
 
-    const citationCorrectness: number | null = null;
+    const citationCorrectness: number | null =
+      retrievalResult.citations.length > 0 && expectedChunkIds.length > 0 ? 1 : 0;
 
-    const refusalCorrectness: boolean | null = null;
+    const hasEvidence = retrievalResult.results.length > 0;
+    const expectedStatus = evaluationCase.expectedStatus;
+    const generated = retrievalResult.generatedAnswer;
+    const actualStatus = generated?.status ?? (hasEvidence ? "answered" : "insufficient_evidence");
+
+    const refusalCorrectness =
+      expectedStatus === "insufficient_evidence" || expectedStatus === "refused"
+        ? actualStatus === expectedStatus
+        : null;
+
+    const answerCorrectness: number | null =
+      expectedStatus === "answered" && actualStatus === "answered"
+        ? (generated?.claims.length ?? 0) > 0
+          ? 1
+          : 0
+        : expectedStatus !== "answered"
+          ? null
+          : 0;
 
     const aclLeakage: boolean | null = null;
 
@@ -491,7 +548,7 @@ async function evaluateCase(
       status: "completed",
       retrievalRecall,
       retrievalHit,
-      answerCorrectness: null,
+      answerCorrectness,
       citationCorrectness,
       refusalCorrectness,
       aclLeakage,

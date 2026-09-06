@@ -54,7 +54,7 @@ export class IngestionWorkflow {
               const source = await this.upsertSource(uow, input);
               txSpan.setAttribute("source.id", source.id);
 
-              const parsed = await this.runParser(input, source);
+              const { parsed, raw } = await this.runParser(input, source);
               txSpan.setAttribute("document.title", parsed.title ?? "(none)");
 
               const { document, version, versionNumber, isNewVersion } =
@@ -70,6 +70,12 @@ export class IngestionWorkflow {
               const rawChunks: import("../../application/ingestion/chunker-port").ChunkFragment[] =
                 [];
               if (isNewVersion) {
+                if (this.objectStorage) {
+                  const rawKey = `raw/${source.id}/${version.id}`;
+                  await this.objectStorage.upload(rawKey, raw, "raw");
+                  txSpan.setAttribute("object_storage.raw_key", rawKey);
+                }
+
                 const runChunkerResult = await this.runChunker(input, version.id, parsed);
                 txSpan.setAttribute("chunk.count", runChunkerResult.length);
 
@@ -179,22 +185,19 @@ export class IngestionWorkflow {
     });
   }
 
-  private async runParser(input: IngestionWorkflowInput, source: Source): Promise<ParsedContent> {
+  private async runParser(
+    input: IngestionWorkflowInput,
+    source: Source,
+  ): Promise<{ parsed: ParsedContent; raw: Buffer }> {
     return await this.tracer.startActiveSpan("ingestion.parse", async (span) => {
       try {
         span.setAttribute("source.id", source.id);
         span.setAttribute("mimeType", input.mimeType ?? source.mimeType ?? "unknown");
 
-        const content = await this.contentFetcher.fetch(input.sourceUri);
-        span.setAttribute("content.size_bytes", content.byteLength);
+        const raw = await this.contentFetcher.fetch(input.sourceUri);
+        span.setAttribute("content.size_bytes", raw.byteLength);
 
-        if (this.objectStorage) {
-          const rawKey = `raw/${source.id}/${input.tenantId}/${crypto.randomUUID()}`;
-          await this.objectStorage.upload(rawKey, content, "raw");
-          span.setAttribute("object_storage.raw_key", rawKey);
-        }
-
-        const parsed = await this.parser.parse(content, {
+        const parsed = await this.parser.parse(raw, {
           type: input.sourceType,
           uri: input.sourceUri,
           mimeType: input.mimeType,
@@ -202,7 +205,7 @@ export class IngestionWorkflow {
 
         span.setAttribute("parse.sections", parsed.sections.length);
         span.setAttribute("parse.content_length", parsed.content.length);
-        return parsed;
+        return { parsed, raw };
       } finally {
         span.end();
       }
