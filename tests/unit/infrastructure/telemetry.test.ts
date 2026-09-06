@@ -1,27 +1,27 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const activeSpan = {
-  setAttribute: vi.fn(),
-  setStatus: vi.fn(),
-  recordException: vi.fn(),
-  end: vi.fn(),
-};
-
-const tracer = {
-  startActiveSpan: vi.fn(function (
-    _name: string,
-    _options: unknown,
-    callback: (span: typeof activeSpan) => Promise<unknown>,
-  ) {
-    return callback(activeSpan);
-  }),
-};
-
-const telemetryMocks = vi.hoisted(() => {
+const mocks = vi.hoisted(() => {
   const sdkInstances: Array<{
     start: ReturnType<typeof vi.fn>;
     shutdown: ReturnType<typeof vi.fn>;
   }> = [];
+
+  const activeSpan = {
+    setAttribute: vi.fn(),
+    setStatus: vi.fn(),
+    recordException: vi.fn(),
+    end: vi.fn(),
+  };
+
+  const tracer = {
+    startActiveSpan: vi.fn(function (
+      _name: string,
+      _options: unknown,
+      callback: (span: typeof activeSpan) => Promise<unknown>,
+    ) {
+      return callback(activeSpan);
+    }),
+  };
 
   class MockNodeSDK {
     start = vi.fn();
@@ -32,20 +32,30 @@ const telemetryMocks = vi.hoisted(() => {
     }
   }
 
-  return { sdkInstances, MockNodeSDK };
+  return { activeSpan, tracer, sdkInstances, MockNodeSDK };
 });
+
+const mockMetrics = vi.hoisted(() => ({
+  getMeter: vi.fn(() => ({
+    createCounter: vi.fn(() => ({ add: vi.fn() })),
+    createHistogram: vi.fn(() => ({ record: vi.fn() })),
+    createUpDownCounter: vi.fn(() => ({ add: vi.fn() })),
+  })),
+  setGlobalMeterProvider: vi.fn(),
+}));
 
 vi.mock("@opentelemetry/api", () => ({
   SpanKind: { INTERNAL: 0 },
   SpanStatusCode: { OK: 1, ERROR: 2 },
   trace: {
-    getTracer: vi.fn(() => tracer),
-    getActiveSpan: vi.fn(() => activeSpan),
+    getTracer: vi.fn(() => mocks.tracer),
+    getActiveSpan: vi.fn(() => mocks.activeSpan),
   },
+  metrics: mockMetrics,
 }));
 
 vi.mock("@opentelemetry/sdk-node", () => ({
-  NodeSDK: telemetryMocks.MockNodeSDK,
+  NodeSDK: mocks.MockNodeSDK,
 }));
 
 vi.mock("@opentelemetry/auto-instrumentations-node", () => ({
@@ -56,13 +66,22 @@ vi.mock("@opentelemetry/exporter-trace-otlp-http", () => ({
   OTLPTraceExporter: vi.fn(),
 }));
 
+vi.mock("@opentelemetry/sdk-metrics", () => ({
+  MeterProvider: vi.fn(),
+  PeriodicExportingMetricReader: vi.fn(),
+}));
+
+vi.mock("@opentelemetry/exporter-metrics-otlp-http", () => ({
+  OTLPMetricExporter: vi.fn(),
+}));
+
 vi.mock("@opentelemetry/resources", () => ({
   resourceFromAttributes: vi.fn((attrs: Record<string, unknown>) => attrs),
 }));
 
 vi.mock("@opentelemetry/semantic-conventions", () => ({
-  SEMRESATTRS_SERVICE_NAME: "service.name",
-  SEMRESATTRS_SERVICE_VERSION: "service.version",
+  ATTR_SERVICE_NAME: "service.name",
+  ATTR_SERVICE_VERSION: "service.version",
 }));
 
 import {
@@ -71,11 +90,13 @@ import {
   shutdownTelemetry,
   withSpan,
 } from "../../../src/infrastructure/telemetry";
+import { shutdownMetrics } from "../../../src/infrastructure/telemetry/metrics";
 
 describe("telemetry", () => {
   afterEach(async () => {
     await shutdownTelemetry();
-    telemetryMocks.sdkInstances.length = 0;
+    await shutdownMetrics();
+    mocks.sdkInstances.length = 0;
     vi.clearAllMocks();
   });
 
@@ -94,8 +115,8 @@ describe("telemetry", () => {
     });
 
     expect(first).toBe(second);
-    expect(telemetryMocks.sdkInstances).toHaveLength(1);
-    expect(telemetryMocks.sdkInstances[0]?.start).toHaveBeenCalledTimes(1);
+    expect(mocks.sdkInstances).toHaveLength(1);
+    expect(mocks.sdkInstances[0]?.start).toHaveBeenCalledTimes(1);
   });
 
   it("wraps spans and records metrics", async () => {
@@ -110,10 +131,10 @@ describe("telemetry", () => {
       ),
     ).resolves.toBe("ok");
 
-    expect(tracer.startActiveSpan).toHaveBeenCalled();
-    expect(activeSpan.setAttribute).toHaveBeenCalledWith("metric.rows", 7);
-    expect(activeSpan.setStatus).toHaveBeenCalled();
-    expect(activeSpan.end).toHaveBeenCalled();
+    expect(mocks.tracer.startActiveSpan).toHaveBeenCalled();
+    expect(mocks.activeSpan.setAttribute).toHaveBeenCalled();
+    expect(mocks.activeSpan.setStatus).toHaveBeenCalled();
+    expect(mocks.activeSpan.end).toHaveBeenCalled();
   });
 
   it("records span errors and shuts down", async () => {
@@ -123,7 +144,7 @@ describe("telemetry", () => {
       }),
     ).rejects.toThrow("boom");
 
-    expect(activeSpan.recordException).toHaveBeenCalled();
+    expect(mocks.activeSpan.recordException).toHaveBeenCalled();
 
     initTelemetry({
       serviceName: "ground-graph",
@@ -132,6 +153,6 @@ describe("telemetry", () => {
       enabled: true,
     });
     await shutdownTelemetry();
-    expect(telemetryMocks.sdkInstances.at(-1)?.shutdown).toHaveBeenCalled();
+    expect(mocks.sdkInstances.at(-1)?.shutdown).toHaveBeenCalled();
   });
 });

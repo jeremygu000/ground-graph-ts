@@ -5,9 +5,10 @@ import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentation
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import {
-  SEMRESATTRS_SERVICE_NAME,
-  SEMRESATTRS_SERVICE_VERSION,
+  ATTR_SERVICE_NAME,
+  ATTR_SERVICE_VERSION,
 } from "@opentelemetry/semantic-conventions";
+import { createCounter, createHistogram, createUpDownCounter } from "./metrics";
 
 let sdk: NodeSDK | undefined;
 
@@ -24,8 +25,8 @@ export function initTelemetry(config: TelemetryConfig): NodeSDK {
   }
 
   const resource = resourceFromAttributes({
-    [SEMRESATTRS_SERVICE_NAME]: config.serviceName,
-    [SEMRESATTRS_SERVICE_VERSION]: config.serviceVersion,
+    [ATTR_SERVICE_NAME]: config.serviceName,
+    [ATTR_SERVICE_VERSION]: config.serviceVersion,
   });
 
   sdk = new NodeSDK({
@@ -78,7 +79,8 @@ export async function withSpan<T>(
         span.setStatus({ code: SpanStatusCode.OK });
         return result;
       } catch (error) {
-        span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) });
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        span.setStatus({ code: SpanStatusCode.ERROR, message: errorMessage });
         span.recordException(error as Error);
         throw error;
       } finally {
@@ -88,9 +90,31 @@ export async function withSpan<T>(
   );
 }
 
-export function recordMetric(name: string, value: number, _unit?: string): void {
-  const currentSpan = trace.getActiveSpan();
-  if (currentSpan) {
-    currentSpan.setAttribute(`metric.${name}`, value);
+const metricCounters = new Map<string, ReturnType<typeof createCounter>>();
+const metricHistograms = new Map<string, ReturnType<typeof createHistogram>>();
+const metricUpDownCounters = new Map<string, ReturnType<typeof createUpDownCounter>>();
+
+export function recordMetric(name: string, value: number, type: "counter" | "histogram" | "updown" = "counter"): void {
+  if (type === "counter") {
+    let counter = metricCounters.get(name);
+    if (!counter) {
+      counter = createCounter(name);
+      metricCounters.set(name, counter);
+    }
+    counter.add(value);
+  } else if (type === "histogram") {
+    let histogram = metricHistograms.get(name);
+    if (!histogram) {
+      histogram = createHistogram(name);
+      metricHistograms.set(name, histogram);
+    }
+    histogram.record(value);
+  } else {
+    let updown = metricUpDownCounters.get(name);
+    if (!updown) {
+      updown = createUpDownCounter(name);
+      metricUpDownCounters.set(name, updown);
+    }
+    updown.add(value);
   }
 }
