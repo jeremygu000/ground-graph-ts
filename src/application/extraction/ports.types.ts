@@ -1,4 +1,8 @@
-import type { CanonicalEntity, KnowledgeFact, EntityMention } from "../../domain/knowledge/types";
+import type {
+  CanonicalEntity,
+  KnowledgeFact,
+  EntityMention,
+} from "../../domain/knowledge/knowledge.schema";
 import type { Result } from "../../domain/result";
 
 export interface EntityRepository {

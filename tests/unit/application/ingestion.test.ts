@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   IngestDocumentRequestSchema,
   IngestDocumentResponseSchema,
-} from "../../../src/application/ingestion/types";
+} from "../../../src/application/ingestion/ingestion.schema";
 
 describe("application ingestion types", () => {
   it("validates ingest document requests", () => {

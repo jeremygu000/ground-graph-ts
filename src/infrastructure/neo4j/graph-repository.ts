@@ -1,7 +1,7 @@
 import neo4j from "neo4j-driver";
 import { Neo4jClient } from "./client";
 import { encodeNeo4jDateTime, encodeNeo4jJsonProperty } from "./codec";
-import { KnowledgeFactSchema, type KnowledgeFact } from "../../domain/knowledge/types";
+import { KnowledgeFactSchema, type KnowledgeFact } from "../../domain/knowledge/knowledge.schema";
 import type {
   GraphTraversalPort,
   TraversalParams,
@@ -9,7 +9,7 @@ import type {
   PathFindingParams,
   PathResult,
   ConnectedEntity,
-} from "../../application/retrieval/ports";
+} from "../../application/retrieval/ports.types";
 
 export class Neo4jGraphRepository implements GraphTraversalPort {
   constructor(private client: Neo4jClient) {}

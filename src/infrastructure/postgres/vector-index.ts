@@ -9,7 +9,7 @@ import {
   indexVersions,
   sources,
 } from "./schema";
-import type { Chunk } from "../../domain/documents/types";
+import type { Chunk } from "../../domain/documents/documents.schema";
 import { success, failure, type Result } from "../../domain/result";
 import { DatabaseError, ValidationError } from "../../domain/errors";
 import type {

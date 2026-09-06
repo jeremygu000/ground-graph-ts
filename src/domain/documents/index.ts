@@ -1,1 +1,1 @@
-export * from "./types";
+export * from "./documents.schema";

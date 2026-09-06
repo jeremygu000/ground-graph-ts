@@ -5,7 +5,7 @@ import type {
   ChunkingOptions,
   ChunkFragment,
   ContentSection,
-} from "../../application/ingestion/chunker-port";
+} from "../../application/ingestion/chunker-port.types";
 
 export class HeadingChunker implements Chunker {
   async chunk(content: ChunkableContent, options: ChunkingOptions): Promise<ChunkFragment[]> {

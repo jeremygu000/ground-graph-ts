@@ -1,9 +1,9 @@
 import { eq, and, desc } from "drizzle-orm";
 import type { Database } from "../client";
 import { sources } from "../schema";
-import type { SourceRepository } from "../../../application/ingestion/ports";
-import type { Source } from "../../../application/ingestion/ports";
-import type { SourceDescriptor } from "../../../domain/documents/types";
+import type { SourceRepository } from "../../../application/ingestion/ports.types";
+import type { Source } from "../../../application/ingestion/ports.types";
+import type { SourceDescriptor } from "../../../domain/documents/documents.schema";
 import { SourceSchema, mapToSource } from "../../../application/validation";
 import { validateOrThrow } from "../../../domain/validation";
 

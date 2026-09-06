@@ -1,10 +1,13 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import type { Chunker } from "../../../src/application/ingestion/chunker-port";
-import type { ContentFetcher } from "../../../src/application/ingestion/content-fetcher-port";
-import type { DocumentParser, ParsedContent } from "../../../src/application/ingestion/parser-port";
+import type { Chunker } from "../../../src/application/ingestion/chunker-port.types";
+import type { ContentFetcher } from "../../../src/application/ingestion/content-fetcher-port.types";
+import type {
+  DocumentParser,
+  ParsedContent,
+} from "../../../src/application/ingestion/parser-port.types";
 import type { UnitOfWorkFactory } from "../../../src/application/unit-of-work";
-import type { TracerPort } from "../../../src/application/observability/tracer-port";
+import type { TracerPort } from "../../../src/application/observability/tracer-port.types";
 import { IngestionWorkflow } from "../../../src/workflows/ingestion/ingestion-workflow";
 
 function createMockTracer(): TracerPort {

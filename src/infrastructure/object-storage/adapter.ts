@@ -1,4 +1,4 @@
-import type { ObjectStoragePort } from "../../application/ingestion/object-storage-port";
+import type { ObjectStoragePort } from "../../application/ingestion/object-storage-port.types";
 import { ObjectStorageClient } from "./client";
 
 export class ObjectStorageAdapter implements ObjectStoragePort {

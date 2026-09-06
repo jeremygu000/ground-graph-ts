@@ -5,7 +5,10 @@ import {
   traceFusion,
   ensureFusionOptions,
 } from "../../../../src/infrastructure/postgres/fusion";
-import type { RetrievalResult, RetrievalStrategy } from "../../../../src/domain/retrieval/types";
+import type {
+  RetrievalResult,
+  RetrievalStrategy,
+} from "../../../../src/domain/retrieval/retrieval.schema";
 
 function makeResult(id: string, score: number, chunkId = `chunk-${id}`): RetrievalResult {
   return {

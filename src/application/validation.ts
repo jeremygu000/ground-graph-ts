@@ -1,9 +1,8 @@
 import { z } from "zod";
 import { validateOrThrow } from "../domain/validation";
-import { ParsedDocumentSchema } from "../domain/documents/types";
-import { SourceTypeSchema } from "../domain/documents/types";
-import type { Document } from "./ingestion/ports";
-import type { DocumentVersion } from "./ingestion/ports";
+import { ParsedDocumentSchema, SourceTypeSchema } from "../domain/documents/documents.schema";
+import type { Document } from "./ingestion/ports.types";
+import type { DocumentVersion } from "./ingestion/ports.types";
 
 function toISOString(val: unknown): string {
   if (val instanceof Date) return val.toISOString();

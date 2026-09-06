@@ -1,4 +1,4 @@
-import type { SourceDescriptor } from "../../domain/documents/types";
+import type { SourceDescriptor } from "../../domain/documents/documents.schema";
 
 export interface DocumentParser {
   parse(content: Buffer, descriptor: SourceDescriptor): Promise<ParsedContent>;

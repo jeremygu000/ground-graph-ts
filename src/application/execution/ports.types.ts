@@ -1,8 +1,5 @@
-import type { ExecutionRun, ExecutionStep } from "../../domain/execution/types";
+import type { ExecutionRun, ExecutionStep } from "../../domain/execution/execution.schema";
 import type { Result } from "../../domain/result";
-import type { OutboxEvent, OutboxRepository } from "../events/ports";
-
-export type { OutboxEvent, OutboxRepository };
 
 export interface ExecutionRunRepository {
   create(run: ExecutionRun): Promise<Result<ExecutionRun>>;

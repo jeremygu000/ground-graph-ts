@@ -1,4 +1,4 @@
-import type { CanonicalEntity, KnowledgeFact } from "../../domain/knowledge/types";
+import type { CanonicalEntity, KnowledgeFact } from "../../domain/knowledge/knowledge.schema";
 
 export interface ValidationRule {
   name: string;

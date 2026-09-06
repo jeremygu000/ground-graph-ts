@@ -4,7 +4,7 @@ import { sourceSyncState } from "../schema";
 import type {
   SourceSyncState,
   SourceSyncStateRepository,
-} from "../../../application/ingestion/ports";
+} from "../../../application/ingestion/ports.types";
 import { z } from "zod";
 
 const SourceSyncStateSchema = z.object({

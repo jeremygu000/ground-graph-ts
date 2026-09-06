@@ -11,7 +11,7 @@ import {
 import { PostgresVectorIndexAdapter } from "../../src/infrastructure/postgres/vector-index";
 import { deterministicLocalEmbedding } from "../../src/infrastructure/models/embedding-adapter";
 import { assertContainerRuntime, startComponentDatabase } from "./test-support";
-import type { Chunk } from "../../src/domain/documents/types";
+import type { Chunk } from "../../src/domain/documents/documents.schema";
 
 await assertContainerRuntime();
 

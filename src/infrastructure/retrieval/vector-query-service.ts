@@ -17,7 +17,7 @@ import type {
   RetrievalQuery,
   RetrievalResult,
   RetrievalStrategy,
-} from "../../domain/retrieval/types";
+} from "../../domain/retrieval/retrieval.schema";
 import type { StructuredAnswer } from "../../application/models/ports";
 import { success, failure, type Result } from "../../domain/result";
 import { NotFoundError, ValidationError, InternalError } from "../../domain/errors";

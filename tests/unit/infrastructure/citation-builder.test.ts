@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CitationBuilder } from "../../../src/infrastructure/retrieval/citation-builder";
-import type { RetrievalResult } from "../../../src/domain/retrieval/types";
+import type { RetrievalResult } from "../../../src/domain/retrieval/retrieval.schema";
 
 describe("CitationBuilder", () => {
   const builder = new CitationBuilder();

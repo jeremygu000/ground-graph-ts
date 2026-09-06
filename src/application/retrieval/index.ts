@@ -1,1 +1,2 @@
-export * from "./ports";
+export * from "./ports.types";
+export * from "./entity-resolver";

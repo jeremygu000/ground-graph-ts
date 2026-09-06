@@ -1,8 +1,8 @@
 import { eq, and, isNull, desc } from "drizzle-orm";
 import type { Database } from "../client";
 import { entityMentions } from "../schema";
-import type { MentionRepository } from "../../../application/extraction/ports";
-import type { EntityMention } from "../../../domain/knowledge/types";
+import type { MentionRepository } from "../../../application/extraction/ports.types";
+import type { EntityMention } from "../../../domain/knowledge/knowledge.schema";
 
 export class PostgresMentionRepository implements MentionRepository {
   constructor(private db: Database) {}

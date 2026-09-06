@@ -5,9 +5,12 @@ import { executionRuns, executionSteps, executionStepDependencies } from "../sch
 import type {
   ExecutionRunRepository,
   ExecutionStepRepository,
-} from "../../../application/execution/ports";
-import type { ExecutionRun, ExecutionStep } from "../../../domain/execution/types";
-import { ExecutionRunSchema, ExecutionStepSchema } from "../../../domain/execution/types";
+} from "../../../application/execution/ports.types";
+import type { ExecutionRun, ExecutionStep } from "../../../domain/execution/execution.schema";
+import {
+  ExecutionRunSchema,
+  ExecutionStepSchema,
+} from "../../../domain/execution/execution.schema";
 import { validateOrThrow } from "../../../domain/validation";
 
 function undefinedIfNull<T>(value: T | null | undefined): T | undefined {

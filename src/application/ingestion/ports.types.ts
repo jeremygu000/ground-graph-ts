@@ -1,4 +1,8 @@
-import type { SourceDescriptor, ParsedDocument, Chunk } from "../../domain/documents/types";
+import type {
+  SourceDescriptor,
+  ParsedDocument,
+  Chunk,
+} from "../../domain/documents/documents.schema";
 import type { Result } from "../../domain/result";
 import type { IndexVersionInfo } from "../models/ports";
 
@@ -128,7 +132,6 @@ export interface CreateDocumentVersionInput {
 }
 
 export type CreateChunkInput = Omit<Chunk, "id">;
-export type { Chunk };
 
 export interface VectorIndexRepository {
   activateIndexVersion(

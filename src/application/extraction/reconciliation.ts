@@ -1,6 +1,6 @@
-import type { GraphProjectionPort } from "../../application/extraction/ports";
-import type { FactRepository, EntityRepository } from "../../application/extraction/ports";
-import type { KnowledgeFact } from "../../domain/knowledge/types";
+import type { GraphProjectionPort } from "../../application/extraction/ports.types";
+import type { FactRepository, EntityRepository } from "../../application/extraction/ports.types";
+import type { KnowledgeFact } from "../../domain/knowledge/knowledge.schema";
 import type { Result } from "../../domain/result";
 import { InternalError } from "../../domain/errors";
 

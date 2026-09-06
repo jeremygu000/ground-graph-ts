@@ -3,7 +3,7 @@ import type {
   FusionTrace,
   RetrievalFusionPort,
 } from "../../application/models/ports";
-import type { RetrievalResult, RetrievalStrategy } from "../../domain/retrieval/types";
+import type { RetrievalResult, RetrievalStrategy } from "../../domain/retrieval/retrieval.schema";
 import { success, failure, type Result } from "../../domain/result";
 import { ValidationError } from "../../domain/errors";
 

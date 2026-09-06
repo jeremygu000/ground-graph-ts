@@ -17,9 +17,9 @@ export default defineConfig({
       exclude: [
         "**/dist/**",
         "**/*.d.ts",
+        "**/*.types.ts",
         "**/*.test.ts",
         "**/index.ts",
-        "**/ports.ts",
         "src/application/health.ts",
         "src/application/unit-of-work.ts",
         "src/infrastructure/postgres/schema.ts",

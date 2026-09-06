@@ -1,2 +1,2 @@
-export * from "./ports";
-export * from "./types";
+export * from "./ports.types";
+export * from "./ingestion.schema";

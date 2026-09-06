@@ -1,16 +1,16 @@
 import type { UnitOfWorkFactory } from "../../application/unit-of-work";
-import type { DocumentParser, ParsedContent } from "../../application/ingestion/parser-port";
+import type { DocumentParser, ParsedContent } from "../../application/ingestion/parser-port.types";
 import type {
   Chunker,
   ChunkableContent,
   ChunkingOptions,
   ChunkFragment,
-} from "../../application/ingestion/chunker-port";
-import type { IngestionQualityReport } from "../../application/ingestion/types";
-import type { Document, Source } from "../../application/ingestion/ports";
-import type { ContentFetcher } from "../../application/ingestion/content-fetcher-port";
-import type { ObjectStoragePort } from "../../application/ingestion/object-storage-port";
-import type { TracerPort } from "../../application/observability/tracer-port";
+} from "../../application/ingestion/chunker-port.types";
+import type { IngestionQualityReport } from "../../application/ingestion/ingestion.schema";
+import type { Document, Source } from "../../application/ingestion/ports.types";
+import type { ContentFetcher } from "../../application/ingestion/content-fetcher-port.types";
+import type { ObjectStoragePort } from "../../application/ingestion/object-storage-port.types";
+import type { TracerPort } from "../../application/observability/tracer-port.types";
 import { computeContentHash } from "../../application/ingestion/hash";
 
 export interface IngestionWorkflowInput {
@@ -79,7 +79,7 @@ export class IngestionWorkflow {
               });
 
               let chunksCreated = 0;
-              const rawChunks: import("../../application/ingestion/chunker-port").ChunkFragment[] =
+              const rawChunks: import("../../application/ingestion/chunker-port.types").ChunkFragment[] =
                 [];
               if (isNewVersion) {
                 let uploadedRawKey: string | undefined;
@@ -193,7 +193,7 @@ export class IngestionWorkflow {
   private async recordSyncState(
     sourceId: string,
     input: IngestionWorkflowInput,
-    updates: Partial<import("../../application/ingestion/ports").SourceSyncState>,
+    updates: Partial<import("../../application/ingestion/ports.types").SourceSyncState>,
     createIfMissing: boolean,
   ): Promise<void> {
     const stateUow = await this.uowFactory.create();
@@ -305,7 +305,7 @@ export class IngestionWorkflow {
     parsed: ParsedContent,
   ): Promise<{
     document: Document;
-    version: import("../../application/ingestion/ports").DocumentVersion;
+    version: import("../../application/ingestion/ports.types").DocumentVersion;
     versionNumber: number;
     isNewVersion: boolean;
   }> {

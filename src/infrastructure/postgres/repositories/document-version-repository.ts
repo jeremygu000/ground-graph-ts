@@ -5,7 +5,7 @@ import type {
   DocumentVersionRepository,
   DocumentVersion,
   CreateDocumentVersionInput,
-} from "../../../application/ingestion/ports";
+} from "../../../application/ingestion/ports.types";
 import { mapToDocumentVersion } from "../../../application/validation";
 
 export class PostgresDocumentVersionRepository implements DocumentVersionRepository {

@@ -1,5 +1,5 @@
-import type { DocumentParser, ParsedContent } from "../../application/ingestion/parser-port";
-import type { SourceDescriptor } from "../../domain/documents/types";
+import type { DocumentParser, ParsedContent } from "../../application/ingestion/parser-port.types";
+import type { SourceDescriptor } from "../../domain/documents/documents.schema";
 import { IngestionParserError } from "../../application/ingestion/errors";
 
 export class MarkdownParser implements DocumentParser {

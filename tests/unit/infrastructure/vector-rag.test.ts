@@ -28,8 +28,11 @@ import { CitationBuilder } from "../../../src/infrastructure/retrieval/citation-
 import { DefaultVectorQueryService } from "../../../src/infrastructure/retrieval/vector-query-service";
 import { StructuredAnswerSchema } from "../../../src/application/models/ports";
 import { success } from "../../../src/domain/result";
-import type { Chunk } from "../../../src/domain/documents/types";
-import type { RetrievalResult, RetrievalStrategy } from "../../../src/domain/retrieval/types";
+import type { Chunk } from "../../../src/domain/documents/documents.schema";
+import type {
+  RetrievalResult,
+  RetrievalStrategy,
+} from "../../../src/domain/retrieval/retrieval.schema";
 import type {
   EmbeddingPort,
   FullTextSearchPort,

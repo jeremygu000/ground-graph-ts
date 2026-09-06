@@ -4,35 +4,35 @@ import {
   EvidenceReferenceSchema,
   ParsedDocumentSchema,
   SourceDescriptorSchema,
-} from "../../../src/domain/documents/types";
+} from "../../../src/domain/documents/documents.schema";
 import {
   ClaimSchema,
   CitationSchema,
   EvidenceSchema,
   EvidenceStatusSchema,
-} from "../../../src/domain/evidence/types";
+} from "../../../src/domain/evidence/evidence.schema";
 import {
   ExecutionRunSchema,
   ExecutionStepDependencySchema,
   ExecutionStepSchema,
   RunStatusSchema,
   StepStatusSchema,
-} from "../../../src/domain/execution/types";
+} from "../../../src/domain/execution/execution.schema";
 import {
   EvaluationCaseSchema,
   EvaluationDatasetSchema,
   EvaluationMetricSchema,
   EvaluationResultSchema,
   EvaluationStatusSchema,
-} from "../../../src/domain/evaluation/types";
-import { OutboxEventSchema as DomainOutboxEventSchema } from "../../../src/domain/events/types";
+} from "../../../src/domain/evaluation/evaluation.schema";
+import { OutboxEventSchema as DomainOutboxEventSchema } from "../../../src/domain/events/events.schema";
 import {
   RetrievalQuerySchema,
   RetrievalResponseSchema,
   RetrievalResultSchema,
   RetrievalStrategySchema,
   QueryResponseSchema,
-} from "../../../src/domain/retrieval/types";
+} from "../../../src/domain/retrieval/retrieval.schema";
 
 describe("domain schemas", () => {
   it("validates document schemas", () => {

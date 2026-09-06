@@ -281,14 +281,14 @@ describe("architecture boundaries", () => {
     const workflowViolations = scanSource(
       path.join(repoRoot, "src/workflows/ingestion/fixture.ts"),
       [
-        'import type { Chunk } from "../../domain/documents/types";',
+        'import type { Chunk } from "../../domain/documents/documents.schema";',
         'import { createHash } from "crypto";',
       ].join("\n"),
     );
 
     expect(workflowViolations).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ importSpecifier: "../../domain/documents/types" }),
+        expect.objectContaining({ importSpecifier: "../../domain/documents/documents.schema" }),
         expect.objectContaining({ importSpecifier: "crypto" }),
       ]),
     );
@@ -296,14 +296,14 @@ describe("architecture boundaries", () => {
     const appViolations = scanSource(
       path.join(repoRoot, "apps/api/src/fixture.ts"),
       [
-        'import type { Chunk } from "@/domain/documents/types";',
+        'import type { Chunk } from "@/domain/documents/documents.schema";',
         'import { IngestionWorkflow } from "@/workflows/ingestion/ingestion-workflow";',
       ].join("\n"),
     );
 
     expect(appViolations).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ importSpecifier: "@/domain/documents/types" }),
+        expect.objectContaining({ importSpecifier: "@/domain/documents/documents.schema" }),
         expect.objectContaining({ importSpecifier: "@/workflows/ingestion/ingestion-workflow" }),
       ]),
     );

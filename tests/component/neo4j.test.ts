@@ -11,7 +11,7 @@ import {
   encodeNeo4jJsonProperty,
   encodeNeo4jJsonValue,
 } from "../../src/infrastructure/neo4j";
-import { KnowledgeFactSchema } from "../../src/domain/knowledge/types";
+import { KnowledgeFactSchema } from "../../src/domain/knowledge/knowledge.schema";
 import { assertContainerRuntime } from "./test-support";
 
 await assertContainerRuntime();

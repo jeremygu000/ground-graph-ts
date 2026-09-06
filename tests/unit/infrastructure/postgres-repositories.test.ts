@@ -6,6 +6,7 @@ import { PostgresChunkRepository } from "../../../src/infrastructure/postgres/re
 import { PostgresEntityRepository } from "../../../src/infrastructure/postgres/repositories/entity-repository";
 import { PostgresFactRepository } from "../../../src/infrastructure/postgres/repositories/fact-repository";
 import { PostgresSourceSyncStateRepository } from "../../../src/infrastructure/postgres/repositories/source-sync-state-repository";
+import { PostgresMentionRepository } from "../../../src/infrastructure/postgres/repositories/mention-repository";
 
 type QueueMap = {
   select?: unknown[];
@@ -133,7 +134,68 @@ const factRow = {
   provenance: { sourceVersionId: versionRow.id, chunkId: chunkRow.id, evidenceText: "evidence" },
 };
 
+const mentionRow = {
+  id: "99999999-9999-4999-8999-999999999999",
+  tenantId: sourceRow.tenantId,
+  mentionText: "Acme",
+  normalizedForm: "acme",
+  entityId: entityRow.id,
+  sourceChunkId: chunkRow.id,
+  position: { startChar: 0, endChar: 4 },
+  confidence: "0.9",
+  createdAt: new Date("2024-01-01T00:00:00.000Z"),
+};
+
 describe("postgres repositories", () => {
+  it("covers mention repository CRUD and unresolved queries", async () => {
+    const db = createDbMock({
+      insert: [[mentionRow], [mentionRow]],
+      select: [[mentionRow], [mentionRow], [{ ...mentionRow, entityId: null }]],
+    });
+    const repo = new PostgresMentionRepository(db as never);
+    const mention = {
+      ...mentionRow,
+      confidence: 0.9,
+      createdAt: mentionRow.createdAt.toISOString(),
+    } as any;
+    await expect(repo.create(mention)).resolves.toMatchObject({
+      ok: true,
+      value: { normalizedForm: "acme", confidence: 0.9 },
+    });
+    await expect(repo.createMany([mention])).resolves.toMatchObject({ ok: true });
+    await expect(repo.createMany([])).resolves.toEqual({ ok: true, value: [] });
+    await expect(repo.findByChunk(chunkRow.id, sourceRow.tenantId)).resolves.toMatchObject({
+      ok: true,
+    });
+    await expect(repo.findByEntity(entityRow.id, sourceRow.tenantId)).resolves.toMatchObject({
+      ok: true,
+    });
+    await expect(repo.findUnresolved(sourceRow.tenantId, 10)).resolves.toMatchObject({
+      ok: true,
+      value: [{ entityId: "", sourceChunkId: chunkRow.id }],
+    });
+  });
+
+  it("returns failures for mention database errors", async () => {
+    const error = new Error("mention db down");
+    const db = {
+      drizzle: {
+        insert: vi.fn().mockRejectedValue(error),
+        select: vi.fn().mockRejectedValue(error),
+      },
+    };
+    const repo = new PostgresMentionRepository(db as never);
+    const mention = {
+      ...mentionRow,
+      confidence: 0.9,
+      createdAt: mentionRow.createdAt.toISOString(),
+    } as any;
+    expect(await repo.create(mention)).toMatchObject({ ok: false });
+    expect(await repo.createMany([mention])).toMatchObject({ ok: false });
+    expect(await repo.findByChunk(chunkRow.id, sourceRow.tenantId)).toMatchObject({ ok: false });
+    expect(await repo.findByEntity(entityRow.id, sourceRow.tenantId)).toMatchObject({ ok: false });
+    expect(await repo.findUnresolved(sourceRow.tenantId)).toMatchObject({ ok: false });
+  });
   it("covers source repository", async () => {
     const db = createDbMock({
       insert: [[sourceRow]],

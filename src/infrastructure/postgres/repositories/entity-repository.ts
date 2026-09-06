@@ -1,8 +1,8 @@
 import { eq, and, desc } from "drizzle-orm";
 import type { Database } from "../client";
 import { entities } from "../schema";
-import type { EntityRepository } from "../../../application/extraction/ports";
-import type { CanonicalEntity } from "../../../domain/knowledge/types";
+import type { EntityRepository } from "../../../application/extraction/ports.types";
+import type { CanonicalEntity } from "../../../domain/knowledge/knowledge.schema";
 
 export class PostgresEntityRepository implements EntityRepository {
   constructor(private db: Database) {}

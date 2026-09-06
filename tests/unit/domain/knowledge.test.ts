@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { CanonicalEntitySchema, KnowledgeFactSchema } from "../../../src/domain/knowledge/types";
+import {
+  CanonicalEntitySchema,
+  KnowledgeFactSchema,
+} from "../../../src/domain/knowledge/knowledge.schema";
 
 describe("knowledge domain schemas", () => {
   it("accepts nested JSON entity attributes", () => {

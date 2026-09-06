@@ -1,7 +1,7 @@
 import type {
   ContentFetcher,
   ContentFetcherFactory,
-} from "../../application/ingestion/content-fetcher-port";
+} from "../../application/ingestion/content-fetcher-port.types";
 import https from "node:https";
 import http from "node:http";
 

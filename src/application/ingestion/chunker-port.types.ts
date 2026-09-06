@@ -1,4 +1,4 @@
-import type { Chunk } from "../../domain/documents/types";
+import type { Chunk } from "../../domain/documents/documents.schema";
 
 export type ChunkFragment = Omit<Chunk, "id" | "documentVersionId" | "principalId">;
 

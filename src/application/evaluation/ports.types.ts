@@ -2,9 +2,9 @@ import type {
   EvaluationCase,
   EvaluationResult,
   EvaluationDataset,
-} from "../../domain/evaluation/types";
+} from "../../domain/evaluation/evaluation.schema";
 import type { Result } from "../../domain/result";
-import type { QueryResponse } from "../../domain/retrieval/types";
+import type { QueryResponse } from "../../domain/retrieval/retrieval.schema";
 
 export interface EvaluationPort {
   evaluateCase(

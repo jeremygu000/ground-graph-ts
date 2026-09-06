@@ -1,5 +1,5 @@
 import { trace, SpanStatusCode, SpanKind, type Span as OTelSpan } from "@opentelemetry/api";
-import type { Span, TracerPort } from "../../application/observability/tracer-port";
+import type { Span, TracerPort } from "../../application/observability/tracer-port.types";
 
 function mapStatus(code: "OK" | "ERROR"): { code: SpanStatusCode } {
   if (code === "OK") {

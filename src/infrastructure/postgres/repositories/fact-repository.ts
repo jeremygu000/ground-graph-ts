@@ -1,8 +1,8 @@
 import { eq, and } from "drizzle-orm";
 import type { Database } from "../client";
 import { facts } from "../schema";
-import type { FactRepository } from "../../../application/extraction/ports";
-import type { KnowledgeFact } from "../../../domain/knowledge/types";
+import type { FactRepository } from "../../../application/extraction/ports.types";
+import type { KnowledgeFact } from "../../../domain/knowledge/knowledge.schema";
 
 export class PostgresFactRepository implements FactRepository {
   constructor(private db: Database) {}

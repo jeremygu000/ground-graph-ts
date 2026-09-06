@@ -1,7 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ValidationRule } from "../../../src/application/extraction/ontology-validation";
 import { OntologyValidationService } from "../../../src/application/extraction/ontology-validation";
-import type { CanonicalEntity, KnowledgeFact } from "../../../src/domain/knowledge/types";
+import type {
+  CanonicalEntity,
+  KnowledgeFact,
+} from "../../../src/domain/knowledge/knowledge.schema";
 import {
   classifyMention,
   type ResolutionBand,
@@ -251,6 +254,26 @@ describe("SupersessionService", () => {
 
     const result = await service.supersedeFact("fact1", "fact2", tenantId);
     expect(result.ok).toBe(true);
+  });
+
+  it("propagates status and supersede failures", async () => {
+    const { SupersessionService } =
+      await import("../../../src/application/extraction/reconciliation");
+    mockFactRepo.findById
+      .mockResolvedValueOnce({ ok: true, value: { id: "fact1" } })
+      .mockResolvedValueOnce({ ok: true, value: { id: "fact2" } });
+    mockFactRepo.updateStatus.mockResolvedValue({ ok: false, error: new Error("status") });
+    const service = new SupersessionService(mockFactRepo as any, mockEntityRepo as any);
+    expect((await service.supersedeFact("fact1", "fact2", "tenant")).ok).toBe(false);
+
+    mockFactRepo.updateStatus.mockResolvedValue({ ok: true, value: undefined });
+    mockFactRepo.supersede.mockResolvedValue({ ok: false, error: new Error("supersede") });
+    mockFactRepo.findById
+      .mockResolvedValueOnce({ ok: true, value: { id: "fact1" } })
+      .mockResolvedValueOnce({ ok: true, value: { id: "fact2" } });
+    expect((await service.supersedeFact("fact1", "fact2", "tenant")).ok).toBe(false);
+    mockEntityRepo.supersede.mockResolvedValue({ ok: false, error: new Error("entity") });
+    expect((await service.supersedeEntity("entity1", "entity2", "tenant")).ok).toBe(false);
   });
 
   it("successfully supersedes entity", async () => {

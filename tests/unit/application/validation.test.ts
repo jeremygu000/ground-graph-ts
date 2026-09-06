@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ParsedDocumentSchema } from "../../../src/domain/documents/types";
+import { ParsedDocumentSchema } from "../../../src/domain/documents/documents.schema";
 import {
   ChunkSchema,
   DocumentSchema,

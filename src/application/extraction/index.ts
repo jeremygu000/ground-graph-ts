@@ -1,5 +1,5 @@
 import type { Result } from "../../domain/result";
-import type { Chunk } from "../../domain/documents/types";
+import type { Chunk } from "../../domain/documents/documents.schema";
 import type { EntityTypeRepository, PredicateRepository } from "../../../ontology/ports";
 import { DEFAULT_ONTOLOGY_TYPES, DEFAULT_PREDICATES } from "../../../ontology/types";
 

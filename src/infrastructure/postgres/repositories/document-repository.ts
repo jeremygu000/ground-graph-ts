@@ -5,7 +5,7 @@ import type {
   DocumentRepository,
   Document,
   CreateDocumentInput,
-} from "../../../application/ingestion/ports";
+} from "../../../application/ingestion/ports.types";
 import { mapToDocument } from "../../../application/validation";
 
 export class PostgresDocumentRepository implements DocumentRepository {

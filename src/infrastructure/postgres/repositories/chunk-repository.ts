@@ -1,8 +1,8 @@
 import { eq, and, inArray } from "drizzle-orm";
 import type { Database } from "../client";
 import { chunks } from "../schema";
-import type { ChunkRepository } from "../../../application/ingestion/ports";
-import type { Chunk } from "../../../domain/documents/types";
+import type { ChunkRepository } from "../../../application/ingestion/ports.types";
+import type { Chunk } from "../../../domain/documents/documents.schema";
 import { mapToChunk } from "../../../application/validation";
 
 export class PostgresChunkRepository implements ChunkRepository {

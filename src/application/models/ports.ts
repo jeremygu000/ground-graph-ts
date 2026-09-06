@@ -1,11 +1,11 @@
 import { z } from "zod";
 import type { Result } from "../../domain/result";
-import type { Chunk, EvidenceReference } from "../../domain/documents/types";
+import type { Chunk, EvidenceReference } from "../../domain/documents/documents.schema";
 import type {
   RetrievalQuery,
   RetrievalResult,
   RetrievalStrategy,
-} from "../../domain/retrieval/types";
+} from "../../domain/retrieval/retrieval.schema";
 
 export type EmbeddingProvider = "openai" | "local";
 export type RerankerProvider = "openai" | "local" | "none";

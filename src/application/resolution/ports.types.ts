@@ -1,4 +1,4 @@
-import type { CanonicalEntity, KnowledgeFact } from "../../domain/knowledge/types";
+import type { CanonicalEntity, KnowledgeFact } from "../../domain/knowledge/knowledge.schema";
 import type { Result } from "../../domain/result";
 
 export interface ResolutionCandidate {

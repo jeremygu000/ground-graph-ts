@@ -1,5 +1,5 @@
 import type { RerankPort, RerankRequest, RerankerConfig } from "../../application/models/ports";
-import type { RetrievalResult } from "../../domain/retrieval/types";
+import type { RetrievalResult } from "../../domain/retrieval/retrieval.schema";
 import type { Result } from "../../domain/result";
 import { success, failure } from "../../domain/result";
 import { InternalError, ValidationError } from "../../domain/errors";

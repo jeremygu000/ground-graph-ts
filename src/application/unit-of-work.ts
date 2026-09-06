@@ -5,10 +5,10 @@ import type {
   ChunkRepository,
   VectorIndexRepository,
   SourceSyncStateRepository,
-} from "./ingestion/ports";
-import type { EntityRepository, FactRepository } from "./extraction/ports";
-import type { ExecutionRunRepository, ExecutionStepRepository } from "./execution/ports";
-import type { OutboxRepository } from "./events/ports";
+} from "./ingestion/ports.types";
+import type { EntityRepository, FactRepository } from "./extraction/ports.types";
+import type { ExecutionRunRepository, ExecutionStepRepository } from "./execution/ports.types";
+import type { OutboxRepository } from "./events/ports.types";
 
 export interface UnitOfWork {
   readonly sourceRepository: SourceRepository;

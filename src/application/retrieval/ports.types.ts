@@ -1,34 +1,5 @@
 import type { Result } from "../../domain/result";
-import type { Chunk } from "../../domain/documents/types";
-import type {
-  CitationOutput,
-  FullTextSearchOptions,
-  FullTextSearchPort,
-  FullTextSearchResultRow,
-  FusionOptions,
-  FusionTrace,
-  IndexVersionInfo,
-  RetrievalExecutionResult,
-  RetrievalFusionPort,
-  VectorIndexPort,
-  VectorSearchOptions,
-  VectorSearchResultRow,
-} from "../models/ports";
-
-export type {
-  CitationOutput,
-  FullTextSearchOptions,
-  FullTextSearchPort,
-  FullTextSearchResultRow,
-  FusionOptions,
-  FusionTrace,
-  IndexVersionInfo,
-  RetrievalExecutionResult,
-  RetrievalFusionPort,
-  VectorIndexPort,
-  VectorSearchOptions,
-  VectorSearchResultRow,
-};
+import type { Chunk } from "../../domain/documents/documents.schema";
 
 export interface ChunksWithEmbeddings {
   chunk: Chunk;

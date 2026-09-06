@@ -1,5 +1,5 @@
 import type { Result } from "../../domain/result";
-import type { Chunk } from "../../domain/documents/types";
+import type { Chunk } from "../../domain/documents/documents.schema";
 
 export interface LlmExtractorPort {
   extract(content: Chunk, options: ExtractionOptions): Promise<Result<LlmExtractionResult>>;
