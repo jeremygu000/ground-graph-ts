@@ -9,7 +9,7 @@ export interface SourceRepository {
     principalId: string,
   ): Promise<Result<Source>>;
   findById(id: string, tenantId: string): Promise<Result<Source | null>>;
-  findByUri(uri: string, tenantId: string): Promise<Result<Source | null>>;
+  findByUri(uri: string, tenantId: string, principalId: string): Promise<Result<Source | null>>;
   update(id: string, tenantId: string, updates: Partial<Source>): Promise<Result<Source>>;
   deactivate(id: string, tenantId: string): Promise<Result<void>>;
   list(tenantId: string, limit?: number, offset?: number): Promise<Result<Source[]>>;

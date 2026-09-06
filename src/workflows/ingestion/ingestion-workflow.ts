@@ -29,7 +29,7 @@ export interface IngestionWorkflowResult {
   documentId: string;
   versionId: string;
   versionNumber: number;
-  status: "created" | "unchanged";
+  status: "created" | "updated" | "unchanged";
   chunksCreated: number;
   qualityReport: IngestionQualityReport;
 }
@@ -55,7 +55,7 @@ export class IngestionWorkflow {
               const parsed = await this.runParser(input, source);
               txSpan.setAttribute("document.title", parsed.title ?? "(none)");
 
-              const { document, version, versionNumber } = await this.upsertDocumentAndVersion(
+              const { document, version, versionNumber, isNewVersion } = await this.upsertDocumentAndVersion(
                 uow,
                 input,
                 source,
@@ -70,23 +70,27 @@ export class IngestionWorkflow {
                 });
               }
 
-              const rawChunks = await this.runChunker(input, version.id, parsed);
-              txSpan.setAttribute("chunk.count", rawChunks.length);
+              let chunksCreated = 0;
+              if (isNewVersion) {
+                const rawChunks = await this.runChunker(input, version.id, parsed);
+                txSpan.setAttribute("chunk.count", rawChunks.length);
 
-              await this.deactivateStaleVersions(uow, document.id, version.id, input.tenantId);
+                await this.deactivateStaleVersions(uow, document.id, version.id, input.tenantId);
 
-              if (rawChunks.length > 0) {
-                const chunksForStorage = rawChunks.map((c) => ({
-                  ...c,
-                  documentVersionId: version.id,
-                  principalId: input.principalId,
-                }));
-                const chunkResult = await uow.chunkRepository.createMany(
-                  chunksForStorage,
-                  input.tenantId,
-                );
-                if (!chunkResult.ok) {
-                  throw new Error(`Failed to create chunks: ${chunkResult.error.message}`);
+                if (rawChunks.length > 0) {
+                  const chunksForStorage = rawChunks.map((c) => ({
+                    ...c,
+                    documentVersionId: version.id,
+                    principalId: input.principalId,
+                  }));
+                  const chunkResult = await uow.chunkRepository.createMany(
+                    chunksForStorage,
+                    input.tenantId,
+                  );
+                  if (!chunkResult.ok) {
+                    throw new Error(`Failed to create chunks: ${chunkResult.error.message}`);
+                  }
+                  chunksCreated = rawChunks.length;
                 }
               }
 
@@ -94,17 +98,25 @@ export class IngestionWorkflow {
                 document.id,
                 version.id,
                 input.sourceUri,
-                rawChunks,
+                [],
                 input.principalId,
               );
 
               txSpan.setStatus("OK");
+              let status: "created" | "updated" | "unchanged";
+              if (versionNumber === 1) {
+                status = "created";
+              } else if (isNewVersion) {
+                status = "updated";
+              } else {
+                status = "unchanged";
+              }
               return {
                 documentId: document.id,
                 versionId: version.id,
                 versionNumber,
-                status: versionNumber === 1 ? ("created" as const) : ("unchanged" as const),
-                chunksCreated: rawChunks.length,
+                status,
+                chunksCreated,
                 qualityReport,
               };
             } catch (err) {
@@ -136,6 +148,7 @@ export class IngestionWorkflow {
         const existingSource = await uow.sourceRepository.findByUri(
           input.sourceUri,
           input.tenantId,
+          input.principalId,
         );
 
         if (existingSource.ok && existingSource.value) {
@@ -200,6 +213,7 @@ export class IngestionWorkflow {
     document: Document;
     version: import("../../application/ingestion/ports").DocumentVersion;
     versionNumber: number;
+    isNewVersion: boolean;
   }> {
     return await this.tracer.startActiveSpan("ingestion.upsertDocument", async (span) => {
       try {
@@ -226,6 +240,7 @@ export class IngestionWorkflow {
                 document,
                 version: latestVersion.value,
                 versionNumber: latestVersion.value.versionNumber,
+                isNewVersion: false,
               };
             }
             versionNumber = latestVersion.value.versionNumber + 1;
@@ -276,7 +291,7 @@ export class IngestionWorkflow {
           throw new Error(`Failed to create document version: ${versionResult.error.message}`);
         }
 
-        return { document, version: versionResult.value, versionNumber };
+        return { document, version: versionResult.value, versionNumber, isNewVersion: true };
       } finally {
         span.end();
       }

@@ -156,7 +156,7 @@ describe("postgres repositories", () => {
     await expect(repo.findById(sourceRow.id, sourceRow.tenantId)).resolves.toMatchObject({
       ok: true,
     });
-    await expect(repo.findByUri(sourceRow.uri, sourceRow.tenantId)).resolves.toMatchObject({
+    await expect(repo.findByUri(sourceRow.uri, sourceRow.tenantId, sourceRow.principalId)).resolves.toMatchObject({
       ok: true,
     });
     await expect(
@@ -426,7 +426,7 @@ describe("postgres repositories", () => {
 
   it("covers additional empty-result branches across repositories", async () => {
     const sourceRepo = new PostgresSourceRepository(createDbMock({ select: [[], []] }) as never);
-    await expect(sourceRepo.findByUri(sourceRow.uri, sourceRow.tenantId)).resolves.toMatchObject({
+    await expect(sourceRepo.findByUri(sourceRow.uri, sourceRow.tenantId, sourceRow.principalId)).resolves.toMatchObject({
       ok: true,
       value: null,
     });
