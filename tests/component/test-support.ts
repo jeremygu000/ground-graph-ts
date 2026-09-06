@@ -41,7 +41,7 @@ async function bootstrapSchema(db: Database): Promise<void> {
   }
 }
 
-async function createComponentDb(bootstrap = true, managed = true): Promise<ComponentDb> {
+export async function createComponentDb(bootstrap = true, managed = true): Promise<ComponentDb> {
   const container = await new GenericContainer(COMPONENT_POSTGRES_IMAGE)
     .withEnvironment({
       POSTGRES_USER: "test",

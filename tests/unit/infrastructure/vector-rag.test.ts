@@ -123,21 +123,6 @@ function buildService(opts: {
   documentIds?: string[];
 }): VectorQueryService {
   const vector: VectorIndexPort = {
-    async createIndexVersion(info) {
-      opts.index.registerVersion(opts.tenantId, crypto.randomUUID(), {
-        versionNumber: info.versionNumber,
-        model: info.embeddingModel,
-        dimension: info.embeddingDimension,
-      });
-      return success({
-        indexVersionId: opts.indexVersionId,
-        versionNumber: info.versionNumber,
-        embeddingModel: info.embeddingModel,
-        embeddingDimension: info.embeddingDimension,
-        isActive: true,
-        tenantId: info.tenantId,
-      });
-    },
     async getActiveIndexVersion(tenantId) {
       if (tenantId !== opts.tenantId) return success(null);
       return success({

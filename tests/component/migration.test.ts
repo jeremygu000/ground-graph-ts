@@ -49,6 +49,22 @@ async function appliedMigrationCount(
   return Number(row?.count ?? 0);
 }
 
+async function columnExists(
+  ctx: Awaited<ReturnType<typeof startRawComponentDatabase>>,
+  tableName: string,
+  columnName: string,
+): Promise<boolean> {
+  const [row] = await ctx.db.client.unsafe<{ exists: boolean }[]>(`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_name = '${tableName}'
+        AND column_name = '${columnName}'
+    ) AS exists
+  `);
+  return row?.exists ?? false;
+}
+
 describe("Database migrations", () => {
   let ctx: Awaited<ReturnType<typeof startRawComponentDatabase>>;
 
@@ -94,5 +110,27 @@ describe("Database migrations", () => {
     `);
 
     expect(row?.column_type).toBe("vector(1536)");
+  });
+
+  it("migration is idempotent when re-run on already-migrated database", async () => {
+    await runCommand("pnpm", ["db:migrate"], {
+      ...process.env,
+      DATABASE_URL: ctx.connectionString,
+    });
+
+    expect(await appliedMigrationCount(ctx)).toBe(5);
+
+    await runCommand("pnpm", ["db:migrate"], {
+      ...process.env,
+      DATABASE_URL: ctx.connectionString,
+    });
+
+    expect(await appliedMigrationCount(ctx)).toBe(5);
+
+    expect(await columnExists(ctx, "sources", "principal_id")).toBe(true);
+    expect(await columnExists(ctx, "documents", "principal_id")).toBe(true);
+    expect(await columnExists(ctx, "document_versions", "principal_id")).toBe(true);
+    expect(await columnExists(ctx, "chunks", "principal_id")).toBe(true);
+    expect(await columnExists(ctx, "chunk_embeddings", "principal_id")).toBe(true);
   });
 });

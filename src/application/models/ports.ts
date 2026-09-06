@@ -188,9 +188,6 @@ export interface IndexVersionInfo {
 }
 
 export interface VectorIndexPort {
-  createIndexVersion(
-    info: Omit<IndexVersionInfo, "indexVersionId">,
-  ): Promise<Result<IndexVersionInfo>>;
   getActiveIndexVersion(tenantId: string): Promise<Result<IndexVersionInfo | null>>;
   upsertEmbeddings(
     chunks: Chunk[],
