@@ -9,6 +9,7 @@ import type {
 import type { IngestionQualityReport } from "../../application/ingestion/types";
 import type { Document, Source } from "../../application/ingestion/ports";
 import type { ContentFetcher } from "../../application/ingestion/content-fetcher-port";
+import type { ObjectStoragePort } from "../../application/ingestion/object-storage-port";
 import type { TracerPort } from "../../application/observability/tracer-port";
 import { computeContentHash } from "../../application/ingestion/hash";
 
@@ -41,6 +42,7 @@ export class IngestionWorkflow {
     private chunker: Chunker,
     private contentFetcher: ContentFetcher,
     private tracer: TracerPort,
+    private objectStorage?: ObjectStoragePort,
   ) {}
 
   async execute(input: IngestionWorkflowInput): Promise<IngestionWorkflowResult> {
@@ -185,6 +187,12 @@ export class IngestionWorkflow {
 
         const content = await this.contentFetcher.fetch(input.sourceUri);
         span.setAttribute("content.size_bytes", content.byteLength);
+
+        if (this.objectStorage) {
+          const rawKey = `raw/${source.id}/${input.tenantId}/${crypto.randomUUID()}`;
+          await this.objectStorage.upload(rawKey, content, "raw");
+          span.setAttribute("object_storage.raw_key", rawKey);
+        }
 
         const parsed = await this.parser.parse(content, {
           type: input.sourceType,
