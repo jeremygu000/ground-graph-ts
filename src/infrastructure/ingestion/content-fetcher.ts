@@ -14,6 +14,20 @@ export class FileContentFetcher implements ContentFetcher {
   }
 }
 
+export class UrlContentFetcher implements ContentFetcher {
+  async fetch(uri: string): Promise<Buffer> {
+    if (!uri.startsWith("http://") && !uri.startsWith("https://")) {
+      throw new Error(`UrlContentFetcher only supports http/https URIs, got: ${uri}`);
+    }
+    const response = await fetch(uri);
+    if (!response.ok) {
+      throw new Error(`UrlContentFetcher failed to fetch ${uri}: ${response.status} ${response.statusText}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
+}
+
 export class S3ContentFetcher implements ContentFetcher {
   constructor(private keyPrefix: "raw" | "processed" = "raw") {}
 
@@ -50,6 +64,8 @@ export class DefaultContentFetcherFactory implements ContentFetcherFactory {
   create(): ContentFetcher {
     const fetcher = new CompositeContentFetcher();
     fetcher.register("file", new FileContentFetcher());
+    fetcher.register("http", new UrlContentFetcher());
+    fetcher.register("https", new UrlContentFetcher());
     return fetcher;
   }
 }
