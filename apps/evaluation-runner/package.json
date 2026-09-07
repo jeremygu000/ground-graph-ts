@@ -2,6 +2,7 @@
   "name": "ground-graph-evaluation-runner",
   "version": "0.1.0",
   "type": "module",
+  "main": "dist/apps/evaluation-runner/src/runner.js",
   "scripts": {
     "dev": "tsx watch src/runner.ts",
     "build": "tsc",
