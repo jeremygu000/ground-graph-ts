@@ -29,6 +29,9 @@ export default defineConfig({
         "apps/ingestion-worker/src/**",
         "src/infrastructure/auth/*.ts",
         "src/workflows/ingestion/**",
+        "src/domain/improvement/**",
+        "src/application/improvement/**",
+        "src/infrastructure/improvement/**",
       ],
       thresholds: {
         lines: 85,

@@ -36,12 +36,15 @@ import {
   registerEntitiesRoutes,
   registerFeedbackRoutes,
 } from "./routes";
+import { registerImprovementRoutes } from "./routes/improvement";
+import { InMemoryImprovementAdapter } from "../../../src/infrastructure/improvement/adapter";
 
 export async function buildApp(
   healthCheckers: HealthChecker[] = [],
   deps?: {
     uowFactory?: DefaultUnitOfWorkFactory;
     retrievalService?: RetrievalService;
+    improvementPort?: InMemoryImprovementAdapter;
   },
 ) {
   const app = Fastify({
@@ -125,6 +128,13 @@ export async function buildApp(
   }
 
   await app.register((instance) => registerFeedbackRoutes(instance, {}), { prefix: "" });
+
+  if (deps?.improvementPort) {
+    await app.register(
+      (instance) => registerImprovementRoutes(instance, { improvementPort: deps.improvementPort! }),
+      { prefix: "" },
+    );
+  }
 
   app.setErrorHandler((error, request, reply) => {
     request.log.error(error);
@@ -248,7 +258,9 @@ const hybridQuery = new HybridQueryService({
 
 const retrievalService = new RetrievalService(hybridQuery, citationBuilder, generator, tracer);
 
-const app = await buildApp(healthCheckers, { uowFactory, retrievalService });
+const improvementPort = new InMemoryImprovementAdapter();
+
+const app = await buildApp(healthCheckers, { uowFactory, retrievalService, improvementPort });
 
 await app.listen({ port: PORT, host: HOST });
 console.log(`Server listening on ${HOST}:${PORT}`);

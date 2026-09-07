@@ -65,6 +65,7 @@ x-app-env: &app-env
 x-app-build: &app-build
   context: .
   dockerfile: Dockerfile
+  target: api
 
 x-dev-mem-api: &dev_mem_api
   mem_limit: 512m
@@ -314,7 +315,9 @@ services:
 
   ingestion-worker:
     build:
-      <<: *app-build
+      context: .
+      dockerfile: Dockerfile
+      target: ingestion-worker
     <<: [*restart, *logging, *dev_mem_api]
     environment:
       <<: *app-env
@@ -331,7 +334,9 @@ services:
 
   evaluation-runner:
     build:
-      <<: *app-build
+      context: .
+      dockerfile: Dockerfile
+      target: evaluation-runner
     <<: [*restart, *logging, *dev_mem_api]
     environment:
       <<: *app-env

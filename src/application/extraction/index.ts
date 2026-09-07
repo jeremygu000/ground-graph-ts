@@ -20,18 +20,29 @@ export class StructuredCodeExtractor implements DeterministicExtractor {
     const text = content.content;
 
     const moduleMap = new Map<string, { entities: string[]; classes: string[] }>();
-    let currentModule = "";
+    const CURRENT_FILE = "<<current-file>>";
+
+    candidate.entities.push({
+      name: CURRENT_FILE,
+      type: "Module",
+      confidence: 1.0,
+    });
 
     const importMatches = text.matchAll(/import\s+.*?from\s+['"]([^'"]+)['"]/g);
     for (const match of importMatches) {
       const module = match[1];
-      if (module) {
-        currentModule = module;
+      if (module && !module.startsWith(".") && !module.startsWith("/")) {
         if (!moduleMap.has(module)) {
           moduleMap.set(module, { entities: [], classes: [] });
           candidate.entities.push({
             name: module,
             type: "Module",
+            confidence: 1.0,
+          });
+          candidate.facts.push({
+            subjectName: CURRENT_FILE,
+            predicate: "depends_on",
+            objectName: module,
             confidence: 1.0,
           });
         }
@@ -48,15 +59,12 @@ export class StructuredCodeExtractor implements DeterministicExtractor {
           aliases: [`${funcName}()`],
           confidence: 1.0,
         });
-        if (currentModule && moduleMap.has(currentModule)) {
-          moduleMap.get(currentModule)!.entities.push(funcName);
-          candidate.facts.push({
-            subjectName: currentModule,
-            predicate: "exports",
-            objectName: funcName,
-            confidence: 1.0,
-          });
-        }
+        candidate.facts.push({
+          subjectName: CURRENT_FILE,
+          predicate: "exports",
+          objectName: funcName,
+          confidence: 1.0,
+        });
       }
     }
 
@@ -82,15 +90,12 @@ export class StructuredCodeExtractor implements DeterministicExtractor {
           type: "Class",
           confidence: 1.0,
         });
-        if (currentModule && moduleMap.has(currentModule)) {
-          moduleMap.get(currentModule)!.classes.push(className);
-          candidate.facts.push({
-            subjectName: currentModule,
-            predicate: "exports",
-            objectName: className,
-            confidence: 1.0,
-          });
-        }
+        candidate.facts.push({
+          subjectName: CURRENT_FILE,
+          predicate: "exports",
+          objectName: className,
+          confidence: 1.0,
+        });
       }
     }
 
@@ -144,32 +149,30 @@ export class UrlExtractor implements DeterministicExtractor {
       if (!url) continue;
       try {
         const parsed = new URL(url);
-        let redactedUrl = url;
-        const hasSecret = Array.from(parsed.searchParams.entries()).some(([key, value]) => {
+        let hasSecret = false;
+        const redactedParams = new URLSearchParams();
+        for (const [key, value] of parsed.searchParams.entries()) {
           if (this.looksLikeSecret(key, value)) {
-            return true;
+            hasSecret = true;
+            redactedParams.set(key, "***REDACTED***");
+          } else {
+            redactedParams.set(key, value);
           }
-          return false;
-        });
-
-        if (hasSecret) {
-          const redactedParams = new URLSearchParams();
-          for (const [key, value] of parsed.searchParams.entries()) {
-            if (this.looksLikeSecret(key, value)) {
-              redactedParams.set(key, "***REDACTED***");
-            } else {
-              redactedParams.set(key, value);
-            }
-          }
-          parsed.search = redactedParams.toString();
-          redactedUrl = parsed.toString();
         }
+
+        let redactedUrl = url;
+        if (hasSecret) {
+          const schemePlusRest = url.slice(parsed.protocol.length + 2);
+          redactedUrl = `${parsed.protocol}//${schemePlusRest.split("?")[0]}?${redactedParams.toString()}`;
+        }
+
+        const strippedUrl = `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
 
         candidate.entities.push({
           name: parsed.hostname,
           type: "URL",
-          aliases: [url],
-          confidence: 0.9,
+          aliases: [strippedUrl],
+          confidence: hasSecret ? 0.5 : 0.9,
         });
         candidate.facts.push({
           subjectName: parsed.hostname,
@@ -271,14 +274,6 @@ export class ConfigExtractor implements DeterministicExtractor {
           type: "EnvironmentVariable",
           confidence: isSecret ? 0.5 : 1.0,
         });
-        if (!isSecret) {
-          candidate.facts.push({
-            subjectName: key,
-            predicate: "has_value",
-            objectValue: value,
-            confidence: 1.0,
-          });
-        }
       }
     }
 

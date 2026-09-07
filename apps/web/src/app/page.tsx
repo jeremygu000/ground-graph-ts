@@ -31,12 +31,11 @@ interface QueryResponse {
   traceId?: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 export default function HomePage() {
+  const [token, setToken] = useState("");
   const [question, setQuestion] = useState("");
-  const [tenantId, setTenantId] = useState("");
-  const [principalId, setPrincipalId] = useState("");
   const [response, setResponse] = useState<QueryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -46,21 +45,28 @@ export default function HomePage() {
     setError(null);
     setLoading(true);
 
+    if (!token.trim()) {
+      setError("JWT token is required");
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch(`${API_URL}/v1/query`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token.trim()}`,
+        },
         body: JSON.stringify({
           question,
-          tenantId,
-          principalId,
           strategy: "hybrid",
         }),
       });
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.title || "Query failed");
+        throw new Error(data.title || `Query failed with status ${res.status}`);
       }
 
       const data: QueryResponse = await res.json();
@@ -82,27 +88,16 @@ export default function HomePage() {
         <div className="card">
           <form onSubmit={handleQuery}>
             <div className="form-group">
-              <label htmlFor="tenantId">Tenant ID</label>
+              <label htmlFor="token">JWT Token</label>
               <input
-                id="tenantId"
-                type="text"
-                value={tenantId}
-                onChange={(e) => setTenantId(e.target.value)}
-                placeholder="uuid"
+                id="token"
+                type="password"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder="eyJ..."
                 required
               />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="principalId">Principal ID</label>
-              <input
-                id="principalId"
-                type="text"
-                value={principalId}
-                onChange={(e) => setPrincipalId(e.target.value)}
-                placeholder="uuid"
-                required
-              />
+              <small>Tenant and principal are extracted from the JWT token</small>
             </div>
 
             <div className="form-group">
@@ -136,7 +131,7 @@ export default function HomePage() {
               <p style={{ fontSize: "0.875rem", color: "#666" }}>
                 Trace:{" "}
                 <a
-                  href={`http://localhost:6001/trace/${response.traceId}`}
+                  href={`http://localhost:6006/trace/${response.traceId}`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

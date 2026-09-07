@@ -16,10 +16,17 @@ export function mapFactRow(row: Record<string, unknown>): KnowledgeFact {
     chunkId?: string;
     evidenceText?: string;
   } | null;
+
+  if (!prov || !prov.sourceVersionId) {
+    throw new Error(
+      `Fact row ${row.id} is missing required provenance.sourceVersionId: database may contain corrupted data`,
+    );
+  }
+
   const provenance = {
-    sourceVersionId: prov?.sourceVersionId ?? String(row.id),
-    chunkId: prov?.chunkId,
-    evidenceText: prov?.evidenceText,
+    sourceVersionId: prov.sourceVersionId,
+    chunkId: prov.chunkId,
+    evidenceText: prov.evidenceText,
   };
   const result: z.input<typeof KnowledgeFactSchema> = {
     id: String(row.id),

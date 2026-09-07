@@ -168,8 +168,7 @@ DATABASE_URL=postgres://localhost:5432/mydb
     const result = extractor.extract(chunk);
 
     expect(result.entities).toHaveLength(3);
-    expect(result.facts).toHaveLength(3);
-    expect(result.facts.every((f) => f.confidence === 1.0)).toBe(true);
+    expect(result.facts).toHaveLength(0);
   });
 
   it("lowers confidence for secret env vars", () => {

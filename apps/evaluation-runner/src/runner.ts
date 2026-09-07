@@ -22,7 +22,7 @@ import { ok } from "./evaluation.utils";
 
 const SMOKE_THRESHOLDS = {
   retrievalRecallMin: 0.5,
-  citationCorrectnessMin: 0.6,
+  citationCorrectnessMin: 0.95,
   refusalCorrectnessMin: 90,
   aclLeakageMax: 0,
   latencyP95MaxMs: 5000,

@@ -20,9 +20,14 @@ export class HybridQueryService {
     return withSpan(
       "hybrid.query",
       async () => {
-        if (query.strategy !== "graph" && query.strategy !== "hybrid") {
+        if (
+          query.strategy !== "graph" &&
+          query.strategy !== "hybrid" &&
+          query.strategy !== "vector" &&
+          query.strategy !== "fulltext"
+        ) {
           return failure(
-            new ValidationError("Hybrid query service handles graph/hybrid strategies only", {
+            new ValidationError("Invalid strategy", {
               strategy: query.strategy,
             }),
           );
@@ -57,28 +62,35 @@ export class HybridQueryService {
 
         const resultsByStrategy = new Map<RetrievalStrategy, RetrievalResult[]>();
 
-        const vectorSearchMsBefore = this.deps.clock();
-        const searchOptions: VectorSearchOptions = {
-          limit: query.maxResults ?? 20,
-        };
-        if (indexVersion) {
-          searchOptions.indexVersionId = indexVersion.indexVersionId;
+        let vectorSearchMs = 0;
+        if (query.strategy === "vector" || query.strategy === "hybrid") {
+          const vectorSearchMsBefore = this.deps.clock();
+          const searchOptions: VectorSearchOptions = {
+            limit: query.maxResults ?? 20,
+          };
+          if (indexVersion) {
+            searchOptions.indexVersionId = indexVersion.indexVersionId;
+          }
+          const filter = this.buildFilter(query);
+          if (filter) {
+            searchOptions.filter = filter;
+          }
+          const vectorResult = await this.deps.vector.search(
+            queryEmbedding,
+            query.tenantId,
+            searchOptions,
+          );
+          if (!vectorResult.ok) return vectorResult;
+          resultsByStrategy.set("vector", this.toRetrievalResults(vectorResult.value, "vector"));
+          vectorSearchMs = this.deps.clock().getTime() - vectorSearchMsBefore.getTime();
         }
-        const filter = this.buildFilter(query);
-        if (filter) {
-          searchOptions.filter = filter;
-        }
-        const vectorResult = await this.deps.vector.search(
-          queryEmbedding,
-          query.tenantId,
-          searchOptions,
-        );
-        if (!vectorResult.ok) return vectorResult;
-        resultsByStrategy.set("vector", this.toRetrievalResults(vectorResult.value, "vector"));
-        const vectorSearchMs = this.deps.clock().getTime() - vectorSearchMsBefore.getTime();
 
         let fullTextSearchMs = 0;
-        if (this.deps.fulltext && this.deps.config.enableFullText) {
+        if (
+          (query.strategy === "fulltext" || query.strategy === "hybrid") &&
+          this.deps.fulltext &&
+          this.deps.config.enableFullText
+        ) {
           const fullTextSearchMsBefore = this.deps.clock();
           const ftFilter: { documentIds?: string[]; chunkIds?: string[]; principalId?: string[] } =
             {};
@@ -98,7 +110,11 @@ export class HybridQueryService {
         }
 
         let graphSearchMs = 0;
-        if (this.deps.graph && this.deps.config.enableGraph) {
+        if (
+          (query.strategy === "graph" || query.strategy === "hybrid") &&
+          this.deps.graph &&
+          this.deps.config.enableGraph
+        ) {
           const graphSearchMsBefore = this.deps.clock();
           const graphResults = await this.executeGraphRetrieval(entityResult.value, query);
           if (!graphResults.ok) return graphResults;

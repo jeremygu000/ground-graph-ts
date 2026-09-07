@@ -60,9 +60,9 @@ Keep each module organized by responsibility. These conventions are mandatory fo
 - [x] M2 — Domain contracts and persistence model
 - [x] M3 — Document ingestion and versioning
 - [x] M4 — Vector RAG baseline
-- [ ] M5 — Knowledge graph construction
+- [x] M5 — Knowledge graph construction
 - [x] M6 — Hybrid GraphRAG retrieval
-- [ ] M7 — Query workflow, citations, and API
+- [x] M7 — Query workflow, citations, and API
 - [x] M8 — Evaluation system and CI quality gates
 - [x] M9 — Governance, security, and adversarial testing
 - [x] M10 — Operator and review interfaces

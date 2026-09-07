@@ -219,7 +219,7 @@ describe("HybridQueryService", () => {
   });
 
   describe("query", () => {
-    it("rejects non-hybrid/non-graph strategy", async () => {
+    it("accepts vector strategy for vector-only retrieval", async () => {
       const query: RetrievalQuery = {
         question: "test question",
         tenantId: "550e8400-e29b-41d4-a716-446655440000",
@@ -230,12 +230,10 @@ describe("HybridQueryService", () => {
 
       const result = await service.query(query);
 
-      expect(result.ok).toBe(false);
-      if (result.ok) return;
-      expect(result.error.message).toContain("graph/hybrid strategies only");
+      expect(result.ok).toBe(true);
     });
 
-    it("rejects fulltext strategy", async () => {
+    it("accepts fulltext strategy for fulltext-only retrieval", async () => {
       const query: RetrievalQuery = {
         question: "test question",
         tenantId: "550e8400-e29b-41d4-a716-446655440000",
@@ -246,9 +244,7 @@ describe("HybridQueryService", () => {
 
       const result = await service.query(query);
 
-      expect(result.ok).toBe(false);
-      if (result.ok) return;
-      expect(result.error.message).toContain("graph/hybrid strategies only");
+      expect(result.ok).toBe(true);
     });
 
     it("executes hybrid query successfully", async () => {
