@@ -25,6 +25,8 @@ export default defineConfig({
         "apps/evaluation-runner/src/graphrag-evaluation.ts",
         "apps/evaluation-runner/src/markdown-report.ts",
         "apps/api/src/routes/*.ts",
+        "apps/api/src/middleware/*.ts",
+        "src/infrastructure/auth/*.ts",
       ],
       thresholds: {
         lines: 85,
