@@ -422,11 +422,13 @@ async function runGraphRAGEvaluation(): Promise<GraphRAGReport> {
 
   console.log(`Loading GraphRAG dataset from: ${datasetPath}`);
   const rawDataset = JSON.parse(readFileSync(datasetPath, "utf-8")) as {
+    name: string;
+    version: string;
+    description: string;
     cases: GraphRAGCase[];
-    metadata: Record<string, unknown>;
   };
   const cases = rawDataset.cases;
-  const metadata = rawDataset.metadata;
+  const datasetVersion = rawDataset.version ?? "0.1.0";
   console.log(`Loaded ${cases.length} evaluation cases`);
 
   console.log("Loading corpus...");
@@ -583,7 +585,7 @@ async function runGraphRAGEvaluation(): Promise<GraphRAGReport> {
   const report: GraphRAGReport = {
     version: "0.1.0",
     generatedAt: new Date().toISOString(),
-    datasetVersion: (metadata as { version?: string }).version ?? "0.1.0",
+    datasetVersion,
     evaluationMode: "offline-deterministic-graphrag",
     embeddingModel: "offline-deterministic",
     embeddingDimension: 1536,

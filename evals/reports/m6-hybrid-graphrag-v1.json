@@ -1,0 +1,740 @@
+{
+  "version": "0.1.0",
+  "generatedAt": "2026-09-07T02:07:19.974Z",
+  "datasetVersion": "0.1.0",
+  "evaluationMode": "offline-deterministic-graphrag",
+  "embeddingModel": "offline-deterministic",
+  "embeddingDimension": 1536,
+  "rerankerModel": null,
+  "generatorModel": "offline-stub",
+  "indexVersion": "00000000-0000-4000-8000-000000000001",
+  "cases": [
+    {
+      "caseId": "hg-001",
+      "status": "completed",
+      "retrievalRecall": null,
+      "retrievalHit": false,
+      "answerCorrectness": null,
+      "citationCorrectness": null,
+      "refusalCorrectness": null,
+      "aclLeakage": null,
+      "latencyMs": 5,
+      "promptTokens": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUSD": null,
+      "error": null,
+      "hybridRetrievalRecall": null,
+      "vectorOnlyRecall": null,
+      "graphImprovement": null,
+      "pathValidity": false,
+      "provenanceComplete": false,
+      "strategiesUsed": [
+        "multi-hop"
+      ],
+      "fusionTrace": [
+        {
+          "strategy": "vector",
+          "inputs": 10,
+          "fused": 10,
+          "weight": 0.4
+        },
+        {
+          "strategy": "graph",
+          "inputs": 6,
+          "fused": 2,
+          "weight": 0.4
+        }
+      ]
+    },
+    {
+      "caseId": "hg-002",
+      "status": "completed",
+      "retrievalRecall": null,
+      "retrievalHit": false,
+      "answerCorrectness": null,
+      "citationCorrectness": null,
+      "refusalCorrectness": null,
+      "aclLeakage": null,
+      "latencyMs": 0,
+      "promptTokens": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUSD": null,
+      "error": null,
+      "hybridRetrievalRecall": null,
+      "vectorOnlyRecall": null,
+      "graphImprovement": null,
+      "pathValidity": false,
+      "provenanceComplete": false,
+      "strategiesUsed": [
+        "path-finding"
+      ],
+      "fusionTrace": [
+        {
+          "strategy": "vector",
+          "inputs": 10,
+          "fused": 10,
+          "weight": 0.4
+        },
+        {
+          "strategy": "graph",
+          "inputs": 6,
+          "fused": 2,
+          "weight": 0.4
+        }
+      ]
+    },
+    {
+      "caseId": "hg-003",
+      "status": "completed",
+      "retrievalRecall": null,
+      "retrievalHit": false,
+      "answerCorrectness": null,
+      "citationCorrectness": null,
+      "refusalCorrectness": null,
+      "aclLeakage": null,
+      "latencyMs": 1,
+      "promptTokens": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUSD": null,
+      "error": null,
+      "hybridRetrievalRecall": null,
+      "vectorOnlyRecall": null,
+      "graphImprovement": null,
+      "pathValidity": true,
+      "provenanceComplete": false,
+      "strategiesUsed": [
+        "entity-resolution"
+      ],
+      "fusionTrace": [
+        {
+          "strategy": "vector",
+          "inputs": 10,
+          "fused": 10,
+          "weight": 0.4
+        },
+        {
+          "strategy": "graph",
+          "inputs": 6,
+          "fused": 2,
+          "weight": 0.4
+        }
+      ]
+    },
+    {
+      "caseId": "hg-004",
+      "status": "completed",
+      "retrievalRecall": null,
+      "retrievalHit": false,
+      "answerCorrectness": null,
+      "citationCorrectness": null,
+      "refusalCorrectness": null,
+      "aclLeakage": null,
+      "latencyMs": 0,
+      "promptTokens": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUSD": null,
+      "error": null,
+      "hybridRetrievalRecall": null,
+      "vectorOnlyRecall": null,
+      "graphImprovement": null,
+      "pathValidity": true,
+      "provenanceComplete": false,
+      "strategiesUsed": [
+        "temporal"
+      ],
+      "fusionTrace": [
+        {
+          "strategy": "vector",
+          "inputs": 10,
+          "fused": 10,
+          "weight": 0.4
+        },
+        {
+          "strategy": "graph",
+          "inputs": 6,
+          "fused": 2,
+          "weight": 0.4
+        }
+      ]
+    },
+    {
+      "caseId": "hg-005",
+      "status": "completed",
+      "retrievalRecall": null,
+      "retrievalHit": false,
+      "answerCorrectness": null,
+      "citationCorrectness": null,
+      "refusalCorrectness": null,
+      "aclLeakage": null,
+      "latencyMs": 1,
+      "promptTokens": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUSD": null,
+      "error": null,
+      "hybridRetrievalRecall": null,
+      "vectorOnlyRecall": null,
+      "graphImprovement": null,
+      "pathValidity": true,
+      "provenanceComplete": false,
+      "strategiesUsed": [
+        "acl"
+      ],
+      "fusionTrace": [
+        {
+          "strategy": "vector",
+          "inputs": 10,
+          "fused": 10,
+          "weight": 0.4
+        },
+        {
+          "strategy": "graph",
+          "inputs": 6,
+          "fused": 2,
+          "weight": 0.4
+        }
+      ]
+    },
+    {
+      "caseId": "hg-006",
+      "status": "completed",
+      "retrievalRecall": null,
+      "retrievalHit": false,
+      "answerCorrectness": null,
+      "citationCorrectness": null,
+      "refusalCorrectness": null,
+      "aclLeakage": null,
+      "latencyMs": 0,
+      "promptTokens": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUSD": null,
+      "error": null,
+      "hybridRetrievalRecall": null,
+      "vectorOnlyRecall": null,
+      "graphImprovement": null,
+      "pathValidity": false,
+      "provenanceComplete": false,
+      "strategiesUsed": [
+        "multi-hop"
+      ],
+      "fusionTrace": [
+        {
+          "strategy": "vector",
+          "inputs": 10,
+          "fused": 10,
+          "weight": 0.4
+        },
+        {
+          "strategy": "graph",
+          "inputs": 6,
+          "fused": 2,
+          "weight": 0.4
+        }
+      ]
+    },
+    {
+      "caseId": "hg-007",
+      "status": "completed",
+      "retrievalRecall": null,
+      "retrievalHit": false,
+      "answerCorrectness": null,
+      "citationCorrectness": null,
+      "refusalCorrectness": null,
+      "aclLeakage": null,
+      "latencyMs": 1,
+      "promptTokens": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUSD": null,
+      "error": null,
+      "hybridRetrievalRecall": null,
+      "vectorOnlyRecall": null,
+      "graphImprovement": null,
+      "pathValidity": true,
+      "provenanceComplete": false,
+      "strategiesUsed": [
+        "impact-analysis"
+      ],
+      "fusionTrace": [
+        {
+          "strategy": "vector",
+          "inputs": 10,
+          "fused": 10,
+          "weight": 0.4
+        },
+        {
+          "strategy": "graph",
+          "inputs": 6,
+          "fused": 2,
+          "weight": 0.4
+        }
+      ]
+    },
+    {
+      "caseId": "hg-008",
+      "status": "completed",
+      "retrievalRecall": null,
+      "retrievalHit": false,
+      "answerCorrectness": null,
+      "citationCorrectness": null,
+      "refusalCorrectness": null,
+      "aclLeakage": null,
+      "latencyMs": 0,
+      "promptTokens": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUSD": null,
+      "error": null,
+      "hybridRetrievalRecall": null,
+      "vectorOnlyRecall": null,
+      "graphImprovement": null,
+      "pathValidity": true,
+      "provenanceComplete": false,
+      "strategiesUsed": [
+        "causality"
+      ],
+      "fusionTrace": [
+        {
+          "strategy": "vector",
+          "inputs": 10,
+          "fused": 10,
+          "weight": 0.4
+        },
+        {
+          "strategy": "graph",
+          "inputs": 6,
+          "fused": 2,
+          "weight": 0.4
+        }
+      ]
+    },
+    {
+      "caseId": "hg-009",
+      "status": "completed",
+      "retrievalRecall": null,
+      "retrievalHit": false,
+      "answerCorrectness": null,
+      "citationCorrectness": null,
+      "refusalCorrectness": null,
+      "aclLeakage": null,
+      "latencyMs": 1,
+      "promptTokens": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUSD": null,
+      "error": null,
+      "hybridRetrievalRecall": null,
+      "vectorOnlyRecall": null,
+      "graphImprovement": null,
+      "pathValidity": true,
+      "provenanceComplete": false,
+      "strategiesUsed": [
+        "hybrid-fusion"
+      ],
+      "fusionTrace": [
+        {
+          "strategy": "vector",
+          "inputs": 10,
+          "fused": 10,
+          "weight": 0.4
+        },
+        {
+          "strategy": "graph",
+          "inputs": 6,
+          "fused": 2,
+          "weight": 0.4
+        }
+      ]
+    },
+    {
+      "caseId": "hg-010",
+      "status": "completed",
+      "retrievalRecall": null,
+      "retrievalHit": false,
+      "answerCorrectness": null,
+      "citationCorrectness": null,
+      "refusalCorrectness": null,
+      "aclLeakage": null,
+      "latencyMs": 0,
+      "promptTokens": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUSD": null,
+      "error": null,
+      "hybridRetrievalRecall": null,
+      "vectorOnlyRecall": null,
+      "graphImprovement": null,
+      "pathValidity": true,
+      "provenanceComplete": false,
+      "strategiesUsed": [
+        "contradiction"
+      ],
+      "fusionTrace": [
+        {
+          "strategy": "vector",
+          "inputs": 10,
+          "fused": 10,
+          "weight": 0.4
+        },
+        {
+          "strategy": "graph",
+          "inputs": 6,
+          "fused": 2,
+          "weight": 0.4
+        }
+      ]
+    },
+    {
+      "caseId": "hg-011",
+      "status": "completed",
+      "retrievalRecall": null,
+      "retrievalHit": false,
+      "answerCorrectness": null,
+      "citationCorrectness": null,
+      "refusalCorrectness": null,
+      "aclLeakage": null,
+      "latencyMs": 1,
+      "promptTokens": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUSD": null,
+      "error": null,
+      "hybridRetrievalRecall": null,
+      "vectorOnlyRecall": null,
+      "graphImprovement": null,
+      "pathValidity": true,
+      "provenanceComplete": false,
+      "strategiesUsed": [
+        "staleness"
+      ],
+      "fusionTrace": [
+        {
+          "strategy": "vector",
+          "inputs": 10,
+          "fused": 10,
+          "weight": 0.4
+        },
+        {
+          "strategy": "graph",
+          "inputs": 6,
+          "fused": 2,
+          "weight": 0.4
+        }
+      ]
+    },
+    {
+      "caseId": "hg-012",
+      "status": "completed",
+      "retrievalRecall": null,
+      "retrievalHit": false,
+      "answerCorrectness": null,
+      "citationCorrectness": null,
+      "refusalCorrectness": null,
+      "aclLeakage": null,
+      "latencyMs": 0,
+      "promptTokens": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUSD": null,
+      "error": null,
+      "hybridRetrievalRecall": null,
+      "vectorOnlyRecall": null,
+      "graphImprovement": null,
+      "pathValidity": true,
+      "provenanceComplete": false,
+      "strategiesUsed": [
+        "injection"
+      ],
+      "fusionTrace": [
+        {
+          "strategy": "vector",
+          "inputs": 10,
+          "fused": 10,
+          "weight": 0.4
+        },
+        {
+          "strategy": "graph",
+          "inputs": 6,
+          "fused": 2,
+          "weight": 0.4
+        }
+      ]
+    },
+    {
+      "caseId": "hg-013",
+      "status": "completed",
+      "retrievalRecall": null,
+      "retrievalHit": false,
+      "answerCorrectness": null,
+      "citationCorrectness": null,
+      "refusalCorrectness": null,
+      "aclLeakage": null,
+      "latencyMs": 1,
+      "promptTokens": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUSD": null,
+      "error": null,
+      "hybridRetrievalRecall": null,
+      "vectorOnlyRecall": null,
+      "graphImprovement": null,
+      "pathValidity": true,
+      "provenanceComplete": false,
+      "strategiesUsed": [
+        "depth-limit"
+      ],
+      "fusionTrace": [
+        {
+          "strategy": "vector",
+          "inputs": 10,
+          "fused": 10,
+          "weight": 0.4
+        },
+        {
+          "strategy": "graph",
+          "inputs": 6,
+          "fused": 2,
+          "weight": 0.4
+        }
+      ]
+    },
+    {
+      "caseId": "hg-014",
+      "status": "completed",
+      "retrievalRecall": null,
+      "retrievalHit": false,
+      "answerCorrectness": null,
+      "citationCorrectness": null,
+      "refusalCorrectness": null,
+      "aclLeakage": null,
+      "latencyMs": 0,
+      "promptTokens": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUSD": null,
+      "error": null,
+      "hybridRetrievalRecall": null,
+      "vectorOnlyRecall": null,
+      "graphImprovement": null,
+      "pathValidity": true,
+      "provenanceComplete": false,
+      "strategiesUsed": [
+        "expansion"
+      ],
+      "fusionTrace": [
+        {
+          "strategy": "vector",
+          "inputs": 10,
+          "fused": 10,
+          "weight": 0.4
+        },
+        {
+          "strategy": "graph",
+          "inputs": 6,
+          "fused": 2,
+          "weight": 0.4
+        }
+      ]
+    },
+    {
+      "caseId": "hg-015",
+      "status": "completed",
+      "retrievalRecall": null,
+      "retrievalHit": false,
+      "answerCorrectness": null,
+      "citationCorrectness": null,
+      "refusalCorrectness": null,
+      "aclLeakage": null,
+      "latencyMs": 0,
+      "promptTokens": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "estimatedCostUSD": null,
+      "error": null,
+      "hybridRetrievalRecall": null,
+      "vectorOnlyRecall": null,
+      "graphImprovement": null,
+      "pathValidity": true,
+      "provenanceComplete": false,
+      "strategiesUsed": [
+        " insufficiency"
+      ],
+      "fusionTrace": [
+        {
+          "strategy": "vector",
+          "inputs": 10,
+          "fused": 10,
+          "weight": 0.4
+        },
+        {
+          "strategy": "graph",
+          "inputs": 6,
+          "fused": 2,
+          "weight": 0.4
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "totalCases": 15,
+    "completedCases": 15,
+    "failedCases": 0,
+    "skippedCases": 0,
+    "retrievalRecall": null,
+    "answerCorrectness": null,
+    "citationCorrectness": null,
+    "refusalCorrectness": null,
+    "aclLeakage": null,
+    "latencyMs": null,
+    "totalCostUSD": null,
+    "hybridImprovement": null,
+    "pathValidityRate": {
+      "percentage": 80
+    },
+    "provenanceCompleteRate": {
+      "percentage": 0
+    }
+  },
+  "comparisonDetails": [
+    {
+      "caseId": "hg-001",
+      "type": "multi-hop",
+      "vectorOnlyRecall": null,
+      "hybridRecall": null,
+      "improvement": null,
+      "isMultiHop": true,
+      "isRelational": false
+    },
+    {
+      "caseId": "hg-002",
+      "type": "path-finding",
+      "vectorOnlyRecall": null,
+      "hybridRecall": null,
+      "improvement": null,
+      "isMultiHop": true,
+      "isRelational": false
+    },
+    {
+      "caseId": "hg-003",
+      "type": "entity-resolution",
+      "vectorOnlyRecall": null,
+      "hybridRecall": null,
+      "improvement": null,
+      "isMultiHop": false,
+      "isRelational": false
+    },
+    {
+      "caseId": "hg-004",
+      "type": "temporal",
+      "vectorOnlyRecall": null,
+      "hybridRecall": null,
+      "improvement": null,
+      "isMultiHop": false,
+      "isRelational": false
+    },
+    {
+      "caseId": "hg-005",
+      "type": "acl",
+      "vectorOnlyRecall": null,
+      "hybridRecall": null,
+      "improvement": null,
+      "isMultiHop": false,
+      "isRelational": false
+    },
+    {
+      "caseId": "hg-006",
+      "type": "multi-hop",
+      "vectorOnlyRecall": null,
+      "hybridRecall": null,
+      "improvement": null,
+      "isMultiHop": true,
+      "isRelational": false
+    },
+    {
+      "caseId": "hg-007",
+      "type": "impact-analysis",
+      "vectorOnlyRecall": null,
+      "hybridRecall": null,
+      "improvement": null,
+      "isMultiHop": false,
+      "isRelational": true
+    },
+    {
+      "caseId": "hg-008",
+      "type": "causality",
+      "vectorOnlyRecall": null,
+      "hybridRecall": null,
+      "improvement": null,
+      "isMultiHop": false,
+      "isRelational": true
+    },
+    {
+      "caseId": "hg-009",
+      "type": "hybrid-fusion",
+      "vectorOnlyRecall": null,
+      "hybridRecall": null,
+      "improvement": null,
+      "isMultiHop": false,
+      "isRelational": false
+    },
+    {
+      "caseId": "hg-010",
+      "type": "contradiction",
+      "vectorOnlyRecall": null,
+      "hybridRecall": null,
+      "improvement": null,
+      "isMultiHop": false,
+      "isRelational": false
+    },
+    {
+      "caseId": "hg-011",
+      "type": "staleness",
+      "vectorOnlyRecall": null,
+      "hybridRecall": null,
+      "improvement": null,
+      "isMultiHop": false,
+      "isRelational": false
+    },
+    {
+      "caseId": "hg-012",
+      "type": "injection",
+      "vectorOnlyRecall": null,
+      "hybridRecall": null,
+      "improvement": null,
+      "isMultiHop": false,
+      "isRelational": false
+    },
+    {
+      "caseId": "hg-013",
+      "type": "depth-limit",
+      "vectorOnlyRecall": null,
+      "hybridRecall": null,
+      "improvement": null,
+      "isMultiHop": false,
+      "isRelational": false
+    },
+    {
+      "caseId": "hg-014",
+      "type": "expansion",
+      "vectorOnlyRecall": null,
+      "hybridRecall": null,
+      "improvement": null,
+      "isMultiHop": false,
+      "isRelational": false
+    },
+    {
+      "caseId": "hg-015",
+      "type": " insufficiency",
+      "vectorOnlyRecall": null,
+      "hybridRecall": null,
+      "improvement": null,
+      "isMultiHop": false,
+      "isRelational": false
+    }
+  ]
+}
