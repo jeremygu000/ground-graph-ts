@@ -130,7 +130,7 @@ describe("InMemoryImprovementAdapter", () => {
     it("rejects a proposal with reason", async () => {
       const created = await adapter.createProposal(createValidProposalInput());
 
-      const rejected =       await adapter.rejectProposal({
+      const rejected = await adapter.rejectProposal({
         proposalId: created.id,
         tenantId,
         rejectedBy: "admin@example.com",

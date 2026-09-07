@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { StructuredCodeExtractor, UrlExtractor, ConfigExtractor } from "@/application/extraction";
 
-const createChunk = (content: string) =>
+const createChunk = (content: string, locatorPath = "src/index.ts") =>
   ({
     id: "00000000-0000-0000-0000-000000000001",
     documentVersionId: "00000000-0000-0000-0000-000000000002",
@@ -9,13 +9,35 @@ const createChunk = (content: string) =>
     sequenceNumber: 1,
     content,
     contentHash: "hash",
-    locator: { type: "line" as const, path: "test" },
+    locator: { type: "line" as const, path: locatorPath },
     metadata: {},
     createdAt: new Date().toISOString(),
   }) as Parameters<typeof StructuredCodeExtractor.prototype.extract>[0];
 
 describe("StructuredCodeExtractor", () => {
   const extractor = new StructuredCodeExtractor();
+
+  it("uses locator.path as the Module entity name instead of a global sentinel", () => {
+    const chunk = createChunk(`export function foo() {}`, "src/foo.ts");
+
+    const result = extractor.extract(chunk);
+
+    const moduleEntities = result.entities.filter((e) => e.type === "Module");
+    expect(moduleEntities).toHaveLength(1);
+    expect(moduleEntities[0]?.name).toBe("src/foo.ts");
+  });
+
+  it("produces different Module entities for different files", () => {
+    const chunkA = createChunk(`export function a() {}`, "src/a.ts");
+    const chunkB = createChunk(`export function b() {}`, "src/b.ts");
+
+    const resultA = extractor.extract(chunkA);
+    const resultB = extractor.extract(chunkB);
+
+    expect(resultA.entities[0]?.name).toBe("src/a.ts");
+    expect(resultB.entities[0]?.name).toBe("src/b.ts");
+    expect(resultA.entities[0]?.name).not.toBe(resultB.entities[0]?.name);
+  });
 
   it("extracts only exported functions as exports facts", () => {
     const chunk = createChunk(
@@ -150,6 +172,25 @@ describe("UrlExtractor", () => {
 
     expect(result.facts[0]?.objectValue).toBe("https://api.example.com?page=1&limit=10");
     expect(result.facts[0]?.confidence).toBe(0.9);
+  });
+
+  it("strips username:password from URLs", () => {
+    const chunk = createChunk("Connect to https://admin:secret123@db.example.com/data");
+
+    const result = extractor.extract(chunk);
+
+    expect(result.facts[0]?.objectValue).toBe("https://***REDACTED***@db.example.com/data");
+    expect(result.facts[0]?.confidence).toBe(0.5);
+  });
+
+  it("strips credentials even when no query params", () => {
+    const chunk = createChunk("https://user:pass@host/path");
+
+    const result = extractor.extract(chunk);
+
+    expect(result.facts[0]?.objectValue).not.toContain("user");
+    expect(result.facts[0]?.objectValue).not.toContain("pass");
+    expect(result.facts[0]?.objectValue).toContain("***REDACTED***");
   });
 });
 

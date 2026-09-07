@@ -1,4 +1,4 @@
-import type { VectorSearchOptions } from "../../application/models/models.types";
+import type { VectorSearchOptions, IndexVersionInfo } from "../../application/models/models.types";
 import type {
   RetrievalQuery,
   RetrievalResult,
@@ -33,29 +33,39 @@ export class HybridQueryService {
           );
         }
 
+        const needsEmbedding = query.strategy === "vector" || query.strategy === "hybrid";
+        const needsGraph = query.strategy === "graph" || query.strategy === "hybrid";
+
         const entityResolutionMs = this.deps.clock();
-        const entityResult = await this.deps.entityResolver.resolveEntitiesFromQuery(
-          query.question,
-          query.tenantId,
-        );
+        let entityResolution: EntityResolutionResult | undefined;
+        if (needsGraph) {
+          const entityResult = await this.deps.entityResolver.resolveEntitiesFromQuery(
+            query.question,
+            query.tenantId,
+          );
+          if (!entityResult.ok) {
+            return failure(entityResult.error);
+          }
+          entityResolution = entityResult.value;
+        }
         const entityResolutionElapsed = this.deps.clock().getTime() - entityResolutionMs.getTime();
 
-        if (!entityResult.ok) {
-          return failure(entityResult.error);
-        }
+        let indexVersion: IndexVersionInfo | null = null;
+        let queryEmbedding: number[] | undefined;
+        if (needsEmbedding) {
+          const indexResult = await this.deps.vector.getActiveIndexVersion(query.tenantId);
+          if (!indexResult.ok) return indexResult;
+          indexVersion = indexResult.value;
 
-        const indexResult = await this.deps.vector.getActiveIndexVersion(query.tenantId);
-        if (!indexResult.ok) return indexResult;
-        const indexVersion = indexResult.value;
-
-        const embedResult = await this.deps.embedding.embedBatch({
-          inputs: [query.question],
-          tenantId: query.tenantId,
-        });
-        if (!embedResult.ok) return embedResult;
-        const queryEmbedding = embedResult.value.embeddings[0]?.embedding;
-        if (!queryEmbedding) {
-          return failure(new InternalError("Embedding result missing for question"));
+          const embedResult = await this.deps.embedding.embedBatch({
+            inputs: [query.question],
+            tenantId: query.tenantId,
+          });
+          if (!embedResult.ok) return embedResult;
+          queryEmbedding = embedResult.value.embeddings[0]?.embedding;
+          if (!queryEmbedding) {
+            return failure(new InternalError("Embedding result missing for question"));
+          }
         }
         const embeddingMs =
           this.deps.clock().getTime() - startedAt.getTime() - entityResolutionElapsed;
@@ -63,7 +73,7 @@ export class HybridQueryService {
         const resultsByStrategy = new Map<RetrievalStrategy, RetrievalResult[]>();
 
         let vectorSearchMs = 0;
-        if (query.strategy === "vector" || query.strategy === "hybrid") {
+        if (needsEmbedding) {
           const vectorSearchMsBefore = this.deps.clock();
           const searchOptions: VectorSearchOptions = {
             limit: query.maxResults ?? 20,
@@ -76,7 +86,7 @@ export class HybridQueryService {
             searchOptions.filter = filter;
           }
           const vectorResult = await this.deps.vector.search(
-            queryEmbedding,
+            queryEmbedding!,
             query.tenantId,
             searchOptions,
           );
@@ -110,13 +120,9 @@ export class HybridQueryService {
         }
 
         let graphSearchMs = 0;
-        if (
-          (query.strategy === "graph" || query.strategy === "hybrid") &&
-          this.deps.graph &&
-          this.deps.config.enableGraph
-        ) {
+        if (needsGraph && this.deps.graph && this.deps.config.enableGraph) {
           const graphSearchMsBefore = this.deps.clock();
-          const graphResults = await this.executeGraphRetrieval(entityResult.value, query);
+          const graphResults = await this.executeGraphRetrieval(entityResolution!, query);
           if (!graphResults.ok) return graphResults;
           resultsByStrategy.set("graph", graphResults.value);
           graphSearchMs = this.deps.clock().getTime() - graphSearchMsBefore.getTime();
@@ -154,7 +160,7 @@ export class HybridQueryService {
           strategy: query.strategy,
           results: candidates,
           citations: [],
-          entityResolution: entityResult.value,
+          entityResolution: entityResolution ?? null,
           fusionTrace: traceFusion(resultsByStrategy, candidates, {
             weights: this.deps.config.fusionWeights,
           }),

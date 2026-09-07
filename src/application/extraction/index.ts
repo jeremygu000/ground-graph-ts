@@ -20,10 +20,10 @@ export class StructuredCodeExtractor implements DeterministicExtractor {
     const text = content.content;
 
     const moduleMap = new Map<string, { entities: string[]; classes: string[] }>();
-    const CURRENT_FILE = "<<current-file>>";
+    const currentFile = content.locator.path || "unknown";
 
     candidate.entities.push({
-      name: CURRENT_FILE,
+      name: currentFile,
       type: "Module",
       confidence: 1.0,
     });
@@ -40,7 +40,7 @@ export class StructuredCodeExtractor implements DeterministicExtractor {
             confidence: 1.0,
           });
           candidate.facts.push({
-            subjectName: CURRENT_FILE,
+            subjectName: currentFile,
             predicate: "depends_on",
             objectName: module,
             confidence: 1.0,
@@ -60,7 +60,7 @@ export class StructuredCodeExtractor implements DeterministicExtractor {
           confidence: 1.0,
         });
         candidate.facts.push({
-          subjectName: CURRENT_FILE,
+          subjectName: currentFile,
           predicate: "exports",
           objectName: funcName,
           confidence: 1.0,
@@ -91,7 +91,7 @@ export class StructuredCodeExtractor implements DeterministicExtractor {
           confidence: 1.0,
         });
         candidate.facts.push({
-          subjectName: CURRENT_FILE,
+          subjectName: currentFile,
           predicate: "exports",
           objectName: className,
           confidence: 1.0,
@@ -149,7 +149,8 @@ export class UrlExtractor implements DeterministicExtractor {
       if (!url) continue;
       try {
         const parsed = new URL(url);
-        let hasSecret = false;
+
+        let hasSecret = parsed.username.length > 0 || parsed.password.length > 0;
         const redactedParams = new URLSearchParams();
         for (const [key, value] of parsed.searchParams.entries()) {
           if (this.looksLikeSecret(key, value)) {
@@ -162,8 +163,14 @@ export class UrlExtractor implements DeterministicExtractor {
 
         let redactedUrl = url;
         if (hasSecret) {
-          const schemePlusRest = url.slice(parsed.protocol.length + 2);
-          redactedUrl = `${parsed.protocol}//${schemePlusRest.split("?")[0]}?${redactedParams.toString()}`;
+          redactedUrl = `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+          if (parsed.username.length > 0) {
+            redactedUrl = `${parsed.protocol}//***REDACTED***@${parsed.host}${parsed.pathname}`;
+          }
+          const search = redactedParams.toString();
+          if (search) {
+            redactedUrl += `?${search}`;
+          }
         }
 
         const strippedUrl = `${parsed.protocol}//${parsed.host}${parsed.pathname}`;

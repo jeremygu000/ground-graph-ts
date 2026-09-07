@@ -158,10 +158,7 @@ export async function registerImprovementRoutes(
         500: z.object({}).passthrough(),
       },
     },
-    handler: async (
-      request: FastifyRequest<{ Params: { id: string } }>,
-      reply: FastifyReply,
-    ) => {
+    handler: async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const authContext = request.authContext;
       if (!authContext) {
         return reply

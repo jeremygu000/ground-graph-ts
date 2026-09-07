@@ -68,7 +68,10 @@ export class SubmitProposalUseCase {
       return err("FORBIDDEN", "Access denied to the requested proposal");
     }
     if (proposal.status !== "draft") {
-      return err("PROPOSAL_NOT_DRAFT", `Proposal must be in draft status to submit, currently ${proposal.status}`);
+      return err(
+        "PROPOSAL_NOT_DRAFT",
+        `Proposal must be in draft status to submit, currently ${proposal.status}`,
+      );
     }
 
     const submitted = await this.port.submitProposal(input);
