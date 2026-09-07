@@ -26,6 +26,8 @@ import { ReciprocalRankFusion } from "@/infrastructure/postgres/fusion";
 import { CitationBuilder } from "@/infrastructure/retrieval/citation-builder";
 import { DefaultEntityResolver } from "@/application/retrieval/entity-resolver";
 import { RetrievalService } from "@/application/retrieval/retrieval-service";
+import { PostgresEntityRepository } from "@/infrastructure/postgres/repositories/entity-repository";
+import { EntityRepositoryAdapter } from "@/infrastructure/adapters/entity-repository-adapter";
 import { createAuthMiddleware } from "./middleware/auth-middleware";
 import {
   registerQueryRoutes,
@@ -206,12 +208,10 @@ const generator = new OpenAIGeneratorAdapter({
   apiKey: process.env.OPENAI_API_KEY ?? "",
 });
 
+const entityRepository = new PostgresEntityRepository(db);
+const entityRepositoryAdapter = new EntityRepositoryAdapter(entityRepository);
 const entityResolver = new DefaultEntityResolver({
-  entityRepository: {
-    findByCanonicalName: async () => ({ ok: true, value: [] }),
-    findByAlias: async () => ({ ok: true, value: [] }),
-    searchEntities: async () => ({ ok: true, value: [] }),
-  },
+  entityRepository: entityRepositoryAdapter,
   clock: () => new Date(),
 });
 

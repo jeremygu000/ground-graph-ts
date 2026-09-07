@@ -57,7 +57,7 @@ export class RetrievalService implements RetrievalWorkflowInterface {
     let generationResult = await this.generator.generateStructured({
       question: input.question,
       evidence: citationsResult.value,
-      schema: {} as any,
+      schema: StructuredAnswerSchema,
       allowedCitationIds,
       tenantId: input.tenantId,
     });

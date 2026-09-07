@@ -526,7 +526,7 @@ describe("postgres repositories", () => {
     ).resolves.toMatchObject({ ok: true, value: [] });
 
     const entityRepo = new PostgresEntityRepository(
-      createDbMock({ select: [[], [], []] }) as never,
+      createDbMock({ select: [[], [], [], []] }) as never,
     );
     await expect(
       entityRepo.findByCanonicalName(entityRow.canonicalName, entityRow.tenantId),
@@ -536,6 +536,10 @@ describe("postgres repositories", () => {
       value: [],
     });
     await expect(entityRepo.list(entityRow.tenantId)).resolves.toMatchObject({
+      ok: true,
+      value: [],
+    });
+    await expect(entityRepo.searchEntities("Acme", entityRow.tenantId, 5)).resolves.toMatchObject({
       ok: true,
       value: [],
     });

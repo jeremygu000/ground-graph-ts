@@ -141,4 +141,47 @@ export class PostgresEntityRepository implements EntityRepository {
       return { ok: false, error: error as Error };
     }
   }
+
+  async searchEntities(
+    query: string,
+    tenantId: string,
+    limit = 5,
+  ): Promise<
+    | {
+        ok: true;
+        value: Array<{ id: string; canonicalName: string; entityType: string; score: number }>;
+      }
+    | { ok: false; error: Error }
+  > {
+    try {
+      const results = await this.db.drizzle
+        .select()
+        .from(entities)
+        .where(eq(entities.tenantId, tenantId))
+        .limit(limit * 3);
+      const queryLower = query.toLowerCase();
+      const scored = results
+        .map((e) => {
+          const canonicalLower = e.canonicalName.toLowerCase();
+          const aliases = (e.aliases as string[] | null) ?? [];
+          let score = 0;
+          if (canonicalLower === queryLower) {
+            score = 1.0;
+          } else if (canonicalLower.includes(queryLower)) {
+            score = 0.8;
+          } else if (aliases.some((a) => a.toLowerCase() === queryLower)) {
+            score = 0.9;
+          } else if (aliases.some((a) => a.toLowerCase().includes(queryLower))) {
+            score = 0.7;
+          }
+          return { id: e.id, canonicalName: e.canonicalName, entityType: e.entityType, score };
+        })
+        .filter((e) => e.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit);
+      return { ok: true, value: scored };
+    } catch (error) {
+      return { ok: false, error: error as Error };
+    }
+  }
 }
