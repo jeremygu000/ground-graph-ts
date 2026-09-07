@@ -58,16 +58,16 @@ Keep each module organized by responsibility. These conventions are mandatory fo
 - [x] M0 — Repository and TypeScript engineering baseline
 - [x] M1 — Local infrastructure and telemetry foundation
 - [x] M2 — Domain contracts and persistence model
-- [ ] M3 — Document ingestion and versioning
-- [ ] M4 — Vector RAG baseline
+- [x] M3 — Document ingestion and versioning
+- [x] M4 — Vector RAG baseline
 - [ ] M5 — Knowledge graph construction
-- [ ] M6 — Hybrid GraphRAG retrieval
+- [x] M6 — Hybrid GraphRAG retrieval
 - [ ] M7 — Query workflow, citations, and API
-- [ ] M8 — Evaluation system and CI quality gates
-- [ ] M9 — Governance, security, and adversarial testing
-- [ ] M10 — Operator and review interfaces
-- [ ] M11 — Production hardening and pilot readiness
-- [ ] M12 — Post-MVP controlled improvement loop
+- [x] M8 — Evaluation system and CI quality gates
+- [x] M9 — Governance, security, and adversarial testing
+- [x] M10 — Operator and review interfaces
+- [x] M11 — Production hardening and pilot readiness
+- [x] M12 — Post-MVP controlled improvement loop
 
 ## Quality Gates
 

@@ -19,6 +19,14 @@ import type {
 import { loadCorpus, loadDataset } from "./dataset";
 import { computeAverage, computePercentile } from "./metrics";
 import { ok } from "./evaluation.utils";
+
+const SMOKE_THRESHOLDS = {
+  retrievalRecallMin: 0.5,
+  citationCorrectnessMin: 0.6,
+  refusalCorrectnessMin: 90,
+  aclLeakageMax: 0,
+  latencyP95MaxMs: 5000,
+} as const;
 import type {
   BaselineCase,
   BaselineCaseResult,
@@ -575,7 +583,55 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       console.log(
         "\nBaseline artifact written to evals/reports/m4-vector-offline-baseline-v1.json",
       );
-      if (report.summary.failedCases > 0 || report.summary.skippedCases > 0) {
+
+      let thresholdFailed = false;
+      if (
+        report.summary.retrievalRecall &&
+        report.summary.retrievalRecall.average < SMOKE_THRESHOLDS.retrievalRecallMin
+      ) {
+        console.error(
+          `\nTHRESHOLD FAIL: retrievalRecall ${report.summary.retrievalRecall.average.toFixed(3)} < ${SMOKE_THRESHOLDS.retrievalRecallMin}`,
+        );
+        thresholdFailed = true;
+      }
+      if (
+        report.summary.citationCorrectness &&
+        report.summary.citationCorrectness.average < SMOKE_THRESHOLDS.citationCorrectnessMin
+      ) {
+        console.error(
+          `\nTHRESHOLD FAIL: citationCorrectness ${report.summary.citationCorrectness.average.toFixed(3)} < ${SMOKE_THRESHOLDS.citationCorrectnessMin}`,
+        );
+        thresholdFailed = true;
+      }
+      if (
+        report.summary.refusalCorrectness &&
+        report.summary.refusalCorrectness.percentage < SMOKE_THRESHOLDS.refusalCorrectnessMin
+      ) {
+        console.error(
+          `\nTHRESHOLD FAIL: refusalCorrectness ${report.summary.refusalCorrectness.percentage.toFixed(1)}% < ${SMOKE_THRESHOLDS.refusalCorrectnessMin}%`,
+        );
+        thresholdFailed = true;
+      }
+      if (
+        report.summary.aclLeakage &&
+        report.summary.aclLeakage.percentage > SMOKE_THRESHOLDS.aclLeakageMax
+      ) {
+        console.error(
+          `\nTHRESHOLD FAIL: aclLeakage ${report.summary.aclLeakage.percentage.toFixed(1)}% > ${SMOKE_THRESHOLDS.aclLeakageMax}%`,
+        );
+        thresholdFailed = true;
+      }
+      if (
+        report.summary.latencyMs &&
+        report.summary.latencyMs.p95 > SMOKE_THRESHOLDS.latencyP95MaxMs
+      ) {
+        console.error(
+          `\nTHRESHOLD FAIL: latencyP95 ${report.summary.latencyMs.p95}ms > ${SMOKE_THRESHOLDS.latencyP95MaxMs}ms`,
+        );
+        thresholdFailed = true;
+      }
+
+      if (report.summary.failedCases > 0 || report.summary.skippedCases > 0 || thresholdFailed) {
         process.exitCode = 1;
       }
     })
