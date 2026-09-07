@@ -1,5 +1,6 @@
 import type { HybridQueryPort } from "../../application/retrieval/ports.types";
 import type { CitationBuilderPort, GeneratorPort } from "../../application/models/models.types";
+import type { TracerPort } from "../../application/observability/tracer-port.types";
 import type { RetrievalWorkflowInput, RetrievalWorkflowResult } from "./retrieval-workflow.types";
 
 export class RetrievalWorkflow {
@@ -7,86 +8,136 @@ export class RetrievalWorkflow {
     private readonly hybridQuery: HybridQueryPort,
     private readonly citationBuilder: CitationBuilderPort,
     private readonly generator: GeneratorPort,
+    private readonly tracer: TracerPort,
   ) {}
 
   async execute(input: RetrievalWorkflowInput): Promise<RetrievalWorkflowResult> {
-    const startedAt = Date.now();
+    return await this.tracer.startActiveSpan("retrieval.workflow", async (rootSpan) => {
+      const startedAt = Date.now();
+      rootSpan.setAttribute("question.length", input.question.length);
+      rootSpan.setAttribute("strategy", input.strategy);
+      rootSpan.setAttribute("tenant.id", input.tenantId);
 
-    const queryResult = await this.hybridQuery.query({
-      question: input.question,
-      tenantId: input.tenantId,
-      principalId: input.principalId,
-      strategy: input.strategy,
-      filters: input.filters,
-      maxResults: input.maxResults ?? 20,
-      maxHops: input.maxHops,
-      budgets: input.budgets,
+      const entityResolutionSpan = this.tracer.startSpan("retrieval.entity_resolution");
+      const entityResolutionStarted = Date.now();
+      entityResolutionSpan.setAttribute("entity_resolver.call", "resolveEntitiesFromQuery");
+
+      const queryResult = await this.hybridQuery.query({
+        question: input.question,
+        tenantId: input.tenantId,
+        principalId: input.principalId,
+        strategy: input.strategy,
+        filters: input.filters,
+        maxResults: input.maxResults ?? 20,
+        maxHops: input.maxHops,
+        budgets: input.budgets,
+      });
+
+      if (!queryResult.ok) {
+        entityResolutionSpan.setStatus("ERROR", queryResult.error.message);
+        entityResolutionSpan.end();
+        rootSpan.setStatus("ERROR", "Hybrid query failed");
+        throw queryResult.error;
+      }
+
+      entityResolutionSpan.setAttribute("seed_entities.count", queryResult.value.strategy.length);
+      entityResolutionSpan.setStatus("OK");
+      entityResolutionSpan.end();
+
+      const entityResolutionMs = Date.now() - entityResolutionStarted;
+
+      const citationSpan = this.tracer.startSpan("retrieval.citations");
+      citationSpan.setAttribute("results.count", queryResult.value.results.length);
+
+      const citationsResult = await this.citationBuilder.buildFromRetrieval(
+        queryResult.value.results,
+        input.tenantId,
+      );
+
+      if (!citationsResult.ok) {
+        citationSpan.setStatus("ERROR", citationsResult.error.message);
+        citationSpan.end();
+        rootSpan.setStatus("ERROR", "Citation building failed");
+        throw citationsResult.error;
+      }
+
+      citationSpan.setAttribute("citations.count", citationsResult.value.length);
+      citationSpan.setStatus("OK");
+      citationSpan.end();
+
+      const retrievalMs = Date.now() - startedAt - entityResolutionMs;
+
+      const generationSpan = this.tracer.startSpan("retrieval.generation");
+      generationSpan.setAttribute("evidence.count", citationsResult.value.length);
+
+      const allowedCitationIds = citationsResult.value.map(
+        (c: { citationId: string }) => c.citationId,
+      );
+
+      const generationResult = await this.generator.generateStructured({
+        question: input.question,
+        evidence: citationsResult.value,
+        schema: {} as any,
+        allowedCitationIds,
+        tenantId: input.tenantId,
+      });
+
+      if (!generationResult.ok) {
+        generationSpan.setStatus("ERROR", generationResult.error.message);
+        generationSpan.end();
+        rootSpan.setStatus("ERROR", "Generation failed");
+        throw generationResult.error;
+      }
+
+      generationSpan.setStatus("OK");
+      generationSpan.end();
+
+      const generationMs = Date.now() - startedAt - entityResolutionMs - retrievalMs;
+      const totalMs = Date.now() - startedAt;
+
+      rootSpan.setAttribute("timing.entity_resolution_ms", entityResolutionMs);
+      rootSpan.setAttribute("timing.retrieval_ms", retrievalMs);
+      rootSpan.setAttribute("timing.generation_ms", generationMs);
+      rootSpan.setAttribute("timing.total_ms", totalMs);
+      rootSpan.setAttribute("strategies.used", input.strategy);
+      rootSpan.setAttribute("fusion.strategies_count", queryResult.value.fusionTrace.length);
+
+      const result: RetrievalWorkflowResult = {
+        queryId: queryResult.value.queryId,
+        answer: generationResult.value.structured.answer,
+        status: generationResult.value.structured.status,
+        claims: generationResult.value.structured.claims.map(
+          (claim: {
+            claimId: string;
+            claimText: string;
+            citations: Array<{ evidenceId: string; snippet: string }>;
+            confidence: number;
+          }) => ({
+            claimId: claim.claimId,
+            claimText: claim.claimText,
+            citations: claim.citations.map((c: { evidenceId: string; snippet: string }) => ({
+              evidenceId: c.evidenceId,
+              snippet: c.snippet,
+            })),
+            confidence: claim.confidence,
+          }),
+        ),
+        strategiesUsed: [queryResult.value.strategy],
+        fusionTrace: queryResult.value.fusionTrace,
+        timingMs: {
+          entityResolution: entityResolutionMs,
+          retrieval: retrievalMs,
+          generation: generationMs,
+          total: totalMs,
+        },
+      };
+
+      if (input.traceId) {
+        result.traceId = input.traceId;
+      }
+
+      rootSpan.setStatus("OK");
+      return result;
     });
-
-    if (!queryResult.ok) {
-      throw queryResult.error;
-    }
-
-    const entityResolutionMs = Date.now() - startedAt;
-
-    const citationsResult = await this.citationBuilder.buildFromRetrieval(
-      queryResult.value.results,
-      input.tenantId,
-    );
-
-    if (!citationsResult.ok) {
-      throw citationsResult.error;
-    }
-
-    const retrievalMs = Date.now() - startedAt - entityResolutionMs;
-
-    const allowedCitationIds = citationsResult.value.map(
-      (c: { citationId: string }) => c.citationId,
-    );
-
-    const generationResult = await this.generator.generateStructured({
-      question: input.question,
-      evidence: citationsResult.value,
-      schema: {} as any,
-      allowedCitationIds,
-      tenantId: input.tenantId,
-    });
-
-    const generationMs = Date.now() - startedAt - entityResolutionMs - retrievalMs;
-
-    if (!generationResult.ok) {
-      throw generationResult.error;
-    }
-
-    const totalMs = Date.now() - startedAt;
-
-    const result: RetrievalWorkflowResult = {
-      queryId: queryResult.value.queryId,
-      answer: generationResult.value.structured.answer,
-      status: generationResult.value.structured.status,
-      claims: generationResult.value.structured.claims.map((claim) => ({
-        claimId: claim.claimId,
-        claimText: claim.claimText,
-        citations: claim.citations.map((c) => ({
-          evidenceId: c.evidenceId,
-          snippet: c.snippet,
-        })),
-        confidence: claim.confidence,
-      })),
-      strategiesUsed: [queryResult.value.strategy],
-      fusionTrace: queryResult.value.fusionTrace,
-      timingMs: {
-        entityResolution: entityResolutionMs,
-        retrieval: retrievalMs,
-        generation: generationMs,
-        total: totalMs,
-      },
-    };
-
-    if (input.traceId) {
-      result.traceId = input.traceId;
-    }
-
-    return result;
   }
 }
