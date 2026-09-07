@@ -38,9 +38,13 @@ export const QueryRequestSchema = z.object({
 export type QueryRequest = z.infer<typeof QueryRequestSchema>;
 
 export const CitationSchema = z.object({
+  citationId: z.string(),
   evidenceId: z.string(),
   snippet: z.string(),
+  score: z.number(),
 });
+
+export type Citation = z.infer<typeof CitationSchema>;
 
 export const ClaimSchema = z.object({
   claimId: z.string(),

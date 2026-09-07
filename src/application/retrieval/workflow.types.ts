@@ -29,8 +29,10 @@ export interface RetrievalWorkflowInput {
 }
 
 export interface Citation {
+  citationId: string;
   evidenceId: string;
   snippet: string;
+  score: number;
 }
 
 export interface Claim {

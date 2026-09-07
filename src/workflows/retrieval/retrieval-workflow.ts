@@ -161,15 +161,24 @@ export class RetrievalWorkflow {
           (claim: {
             claimId: string;
             claimText: string;
-            citations: Array<{ evidenceId: string; snippet: string }>;
+            citations: Array<{
+              citationId: string;
+              evidenceId: string;
+              snippet: string;
+              score: number;
+            }>;
             confidence: number;
           }) => ({
             claimId: claim.claimId,
             claimText: claim.claimText,
-            citations: claim.citations.map((c: { evidenceId: string; snippet: string }) => ({
-              evidenceId: c.evidenceId,
-              snippet: c.snippet,
-            })),
+            citations: claim.citations.map(
+              (c: { citationId: string; evidenceId: string; snippet: string; score: number }) => ({
+                citationId: c.citationId,
+                evidenceId: c.evidenceId,
+                snippet: c.snippet,
+                score: c.score,
+              }),
+            ),
             confidence: claim.confidence,
           }),
         ),
