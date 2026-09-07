@@ -7,11 +7,7 @@ import {
   type QueryResponse,
 } from "../schemas/query.schema";
 import type { RetrievalWorkflow } from "../../../../src/application/retrieval/workflow.types";
-import {
-  createProblemDetail,
-  UNAUTHORIZED_ERROR_TYPE,
-  INTERNAL_ERROR_TYPE,
-} from "../schemas/problem-detail.schema";
+import { createProblemDetail, INTERNAL_ERROR_TYPE } from "../schemas/problem-detail.schema";
 
 export interface QueryRouteDeps {
   retrievalWorkflow: RetrievalWorkflow;
@@ -35,7 +31,26 @@ export async function registerQueryRoutes(
     },
     handler: async (request: FastifyRequest<{ Body: QueryRequest }>, reply: FastifyReply) => {
       const { retrievalWorkflow } = deps;
-      const body = request.body as Parameters<RetrievalWorkflow["execute"]>[0];
+
+      const authContext = request.authContext;
+      if (!authContext) {
+        return reply
+          .status(401)
+          .send(
+            createProblemDetail(
+              "https://groundgraph.ai/errors/unauthorized",
+              "Unauthorized",
+              401,
+              "Authentication required",
+            ),
+          );
+      }
+
+      const body: Parameters<RetrievalWorkflow["execute"]>[0] = {
+        ...request.body,
+        tenantId: authContext.tenantId,
+        principalId: authContext.principalId,
+      } as Parameters<RetrievalWorkflow["execute"]>[0];
 
       try {
         const result = await retrievalWorkflow.execute(body);
@@ -53,27 +68,6 @@ export async function registerQueryRoutes(
       } catch (error) {
         request.log.error(error);
 
-        if (error instanceof Error) {
-          if (error.message.includes("tenant") || error.message.includes("unauthorized")) {
-            return reply
-              .status(401)
-              .send(
-                createProblemDetail(
-                  UNAUTHORIZED_ERROR_TYPE,
-                  "Unauthorized",
-                  401,
-                  "Access denied to the requested resource",
-                ),
-              );
-          }
-
-          return reply
-            .status(500)
-            .send(
-              createProblemDetail(INTERNAL_ERROR_TYPE, "Internal Server Error", 500, error.message),
-            );
-        }
-
         return reply
           .status(500)
           .send(
@@ -81,7 +75,7 @@ export async function registerQueryRoutes(
               INTERNAL_ERROR_TYPE,
               "Internal Server Error",
               500,
-              "An unexpected error occurred",
+              error instanceof Error ? error.message : "An unexpected error occurred",
             ),
           );
       }

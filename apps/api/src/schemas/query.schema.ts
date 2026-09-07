@@ -76,6 +76,43 @@ export const QueryResponseSchema = z.object({
 
 export type QueryResponse = z.infer<typeof QueryResponseSchema>;
 
+export const AnsweredResponseSchema = QueryResponseSchema.extend({
+  status: z.literal("answered"),
+  answer: z.string().min(1),
+});
+
+export const InsufficientEvidenceResponseSchema = QueryResponseSchema.extend({
+  status: z.literal("insufficient_evidence"),
+  answer: z.string(),
+  claims: z.array(ClaimSchema).max(0),
+});
+
+export const RefusedResponseSchema = QueryResponseSchema.extend({
+  status: z.literal("refused"),
+  answer: z.string(),
+  claims: z.array(ClaimSchema).max(0),
+});
+
+export const ClarificationNeededResponseSchema = QueryResponseSchema.extend({
+  status: z.literal("clarification_needed"),
+  answer: z.string(),
+  clarificationQuestions: z.array(z.string()).min(1),
+});
+
+export const ConflictResponseSchema = z.object({
+  queryId: z.string(),
+  status: z.literal("conflict"),
+  conflicts: z.array(
+    z.object({
+      entityId: z.string().uuid(),
+      field: z.string(),
+      message: z.string(),
+    }),
+  ),
+  timingMs: TimingMsSchema,
+  traceId: z.string().optional(),
+});
+
 export const QueryErrorSchema = z.object({
   type: z.string(),
   title: z.string(),

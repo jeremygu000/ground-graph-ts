@@ -33,7 +33,9 @@ export const ErrorCodeSchema = z.object({
 
 export const VALIDATION_ERROR_TYPE = "https://groundgraph.ai/errors/validation";
 export const UNAUTHORIZED_ERROR_TYPE = "https://groundgraph.ai/errors/unauthorized";
+export const FORBIDDEN_ERROR_TYPE = "https://groundgraph.ai/errors/forbidden";
 export const NOT_FOUND_ERROR_TYPE = "https://groundgraph.ai/errors/not-found";
+export const CONFLICT_ERROR_TYPE = "https://groundgraph.ai/errors/conflict";
 export const INTERNAL_ERROR_TYPE = "https://groundgraph.ai/errors/internal";
 export const INSUFFICIENT_EVIDENCE_ERROR_TYPE =
   "https://groundgraph.ai/errors/insufficient-evidence";

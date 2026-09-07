@@ -12,6 +12,7 @@ import {
   createProblemDetail,
   NOT_FOUND_ERROR_TYPE,
   INTERNAL_ERROR_TYPE,
+  FORBIDDEN_ERROR_TYPE,
 } from "../schemas/problem-detail.schema";
 
 export interface DocumentsRouteDeps {
@@ -30,6 +31,7 @@ export async function registerDocumentsRoutes(
       response: {
         200: ListDocumentsResponseSchema,
         400: z.object({}).passthrough(),
+        403: z.object({}).passthrough(),
         500: z.object({}).passthrough(),
       },
     },
@@ -39,6 +41,33 @@ export async function registerDocumentsRoutes(
     ) => {
       const { uowFactory } = deps;
       const query = request.query as ListDocumentsRequest;
+
+      const authContext = request.authContext;
+      if (!authContext) {
+        return reply
+          .status(401)
+          .send(
+            createProblemDetail(
+              "https://groundgraph.ai/errors/unauthorized",
+              "Unauthorized",
+              401,
+              "Authentication required",
+            ),
+          );
+      }
+
+      if (authContext.tenantId !== query.tenantId) {
+        return reply
+          .status(403)
+          .send(
+            createProblemDetail(
+              FORBIDDEN_ERROR_TYPE,
+              "Forbidden",
+              403,
+              "Access denied to the requested tenant",
+            ),
+          );
+      }
 
       try {
         const uow = await uowFactory.create();
@@ -104,6 +133,8 @@ export async function registerDocumentsRoutes(
       response: {
         200: GetDocumentResponseSchema,
         400: z.object({}).passthrough(),
+        401: z.object({}).passthrough(),
+        403: z.object({}).passthrough(),
         404: z.object({}).passthrough(),
         500: z.object({}).passthrough(),
       },
@@ -118,6 +149,33 @@ export async function registerDocumentsRoutes(
       const { uowFactory } = deps;
       const { id } = request.params;
       const { tenantId, includeVersions } = request.query as GetDocumentRequest;
+
+      const authContext = request.authContext;
+      if (!authContext) {
+        return reply
+          .status(401)
+          .send(
+            createProblemDetail(
+              "https://groundgraph.ai/errors/unauthorized",
+              "Unauthorized",
+              401,
+              "Authentication required",
+            ),
+          );
+      }
+
+      if (authContext.tenantId !== tenantId) {
+        return reply
+          .status(403)
+          .send(
+            createProblemDetail(
+              FORBIDDEN_ERROR_TYPE,
+              "Forbidden",
+              403,
+              "Access denied to the requested tenant",
+            ),
+          );
+      }
 
       try {
         const uow = await uowFactory.create();
