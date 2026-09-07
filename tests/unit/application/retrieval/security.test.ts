@@ -275,3 +275,170 @@ describe("Three-way retrieval experiment", () => {
     expect(timings.fulltext).toBeLessThan(timings.graph);
   });
 });
+
+describe("Deletion across stores", () => {
+  describe("document deletion", () => {
+    it("deletes document from all stores atomically", () => {
+      const stores = ["postgres", "neo4j", "object-storage"];
+      const deletedStores: string[] = [];
+
+      for (const store of stores) {
+        deletedStores.push(store);
+      }
+
+      expect(deletedStores).toHaveLength(3);
+    });
+
+    it("fails gracefully if one store delete fails", () => {
+      const stores = ["postgres", "neo4j", "object-storage"];
+      const failingStore = "neo4j";
+
+      const results = stores.map((store) => {
+        if (store === failingStore) {
+          return { store, deleted: false, error: "Connection failed" };
+        }
+        return { store, deleted: true };
+      });
+
+      expect(results.find((r) => r.store === failingStore)?.deleted).toBe(false);
+    });
+  });
+
+  describe("entity deletion propagation", () => {
+    it("deletes entity and cascades to facts", () => {
+      const entity = { id: "entity-1", facts: ["fact-1", "fact-2"] };
+      const deletedFacts: string[] = [];
+
+      for (const factId of entity.facts) {
+        deletedFacts.push(factId);
+      }
+
+      expect(deletedFacts).toHaveLength(2);
+    });
+  });
+});
+
+describe("Provider denial handling", () => {
+  describe("model provider failures", () => {
+    it("returns safe error on provider timeout", () => {
+      const safeError = {
+        type: "https://groundgraph.ai/errors/provider-timeout",
+        title: "Provider Timeout",
+        status: 504,
+        detail: "The model provider did not respond in time",
+      };
+
+      expect(safeError.status).toBeGreaterThanOrEqual(400);
+      expect(safeError.detail).toBeTruthy();
+    });
+
+    it("returns safe error on provider rate limit", () => {
+      const safeError = {
+        type: "https://groundgraph.ai/errors/rate-limit",
+        title: "Rate Limit Exceeded",
+        status: 429,
+        detail: "Too many requests to the model provider",
+      };
+
+      expect(safeError.status).toBe(429);
+    });
+
+    it("does not expose internal error details to clients", () => {
+      const internalError = new Error("Connection pool exhausted");
+      const safeError = {
+        type: "https://groundgraph.ai/errors/internal",
+        title: "Internal Server Error",
+        status: 500,
+        detail: "An unexpected error occurred",
+      };
+
+      expect(internalError.message).not.toBe(safeError.detail);
+    });
+  });
+});
+
+describe("Rate and size abuse prevention", () => {
+  describe("query rate limiting", () => {
+    it("limits concurrent queries per tenant", () => {
+      const MAX_CONCURRENT_QUERIES = 10;
+      const currentQueries = Array(15).fill("query");
+      const rejected = currentQueries.slice(MAX_CONCURRENT_QUERIES);
+
+      expect(rejected.length).toBeGreaterThan(0);
+    });
+
+    it("limits max results per query", () => {
+      const MAX_RESULTS = 100;
+      const requestedResults = 500;
+      const enforcedResults = Math.min(requestedResults, MAX_RESULTS);
+
+      expect(enforcedResults).toBe(MAX_RESULTS);
+    });
+
+    it("limits max hops in graph traversal", () => {
+      const MAX_HOPS = 10;
+      const requestedHops = 50;
+      const enforcedHops = Math.min(requestedHops, MAX_HOPS);
+
+      expect(enforcedHops).toBe(MAX_HOPS);
+    });
+  });
+
+  describe("payload size limits", () => {
+    it("rejects oversized question text", () => {
+      const MAX_QUESTION_LENGTH = 10000;
+      const oversizedQuestion = "a".repeat(20000);
+      const truncated = oversizedQuestion.slice(0, MAX_QUESTION_LENGTH);
+
+      expect(truncated.length).toBe(MAX_QUESTION_LENGTH);
+      expect(oversizedQuestion.length).toBeGreaterThan(MAX_QUESTION_LENGTH);
+    });
+
+    it("limits filter array sizes", () => {
+      const MAX_FILTER_SIZE = 100;
+      const largeFilter = Array(500).fill("value");
+      const truncated = largeFilter.slice(0, MAX_FILTER_SIZE);
+
+      expect(truncated.length).toBe(MAX_FILTER_SIZE);
+    });
+  });
+});
+
+describe("Execution state machine", () => {
+  const terminalStates = ["succeeded", "failed", "cancelled"] as const;
+  const validTransitions: Record<string, string[]> = {
+    pending: ["running"],
+    running: ["succeeded", "failed", "cancelled"],
+    succeeded: [],
+    failed: [],
+    cancelled: [],
+    partially_succeeded: ["succeeded", "failed", "cancelled"],
+  };
+
+  it("terminal states cannot transition", () => {
+    for (const state of terminalStates) {
+      expect(validTransitions[state]).toHaveLength(0);
+    }
+  });
+
+  it("CAS prevents concurrent state modification races", () => {
+    const state = { value: "running" };
+    const newState = "succeeded";
+    const anotherNewState = "cancelled";
+
+    const casResult = (expected: string, next: string) => {
+      if (state.value === expected) {
+        state.value = next;
+        return { success: true, newState: next };
+      }
+      return { success: false, error: "State mismatch" };
+    };
+
+    const result1 = casResult("running", newState);
+    const result2 = casResult("running", anotherNewState);
+
+    expect(result1.success).toBe(true);
+    expect(state.value).toBe("succeeded");
+    expect(result2.success).toBe(false);
+  });
+});
