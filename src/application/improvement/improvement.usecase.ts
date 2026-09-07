@@ -1,6 +1,7 @@
 import type { ImprovementPort } from "./improvement.types";
 import type {
   CreateProposalInput,
+  SubmitProposalInput,
   ApproveProposalInput,
   RejectProposalInput,
   AdvanceRolloutInput,
@@ -55,13 +56,36 @@ export class CreateProposalUseCase {
   }
 }
 
+export class SubmitProposalUseCase {
+  constructor(private readonly port: ImprovementPort) {}
+
+  async execute(input: SubmitProposalInput): Promise<Result<Proposal>> {
+    const proposal = await this.port.getProposal(input.proposalId, input.tenantId);
+    if (!proposal) {
+      return err("PROPOSAL_NOT_FOUND", `Proposal ${input.proposalId} not found`);
+    }
+    if (proposal.tenantId !== input.tenantId) {
+      return err("FORBIDDEN", "Access denied to the requested proposal");
+    }
+    if (proposal.status !== "draft") {
+      return err("PROPOSAL_NOT_DRAFT", `Proposal must be in draft status to submit, currently ${proposal.status}`);
+    }
+
+    const submitted = await this.port.submitProposal(input);
+    return { ok: true, value: submitted };
+  }
+}
+
 export class ApproveProposalUseCase {
   constructor(private readonly port: ImprovementPort) {}
 
   async execute(input: ApproveProposalInput): Promise<Result<Proposal>> {
-    const proposal = await this.port.getProposal(input.proposalId);
+    const proposal = await this.port.getProposal(input.proposalId, input.tenantId);
     if (!proposal) {
       return err("PROPOSAL_NOT_FOUND", `Proposal ${input.proposalId} not found`);
+    }
+    if (proposal.tenantId !== input.tenantId) {
+      return err("FORBIDDEN", "Access denied to the requested proposal");
     }
     if (proposal.status === "approved") {
       return err("PROPOSAL_ALREADY_APPROVED", "Proposal has already been approved");
@@ -85,9 +109,12 @@ export class RejectProposalUseCase {
   constructor(private readonly port: ImprovementPort) {}
 
   async execute(input: RejectProposalInput): Promise<Result<Proposal>> {
-    const proposal = await this.port.getProposal(input.proposalId);
+    const proposal = await this.port.getProposal(input.proposalId, input.tenantId);
     if (!proposal) {
       return err("PROPOSAL_NOT_FOUND", `Proposal ${input.proposalId} not found`);
+    }
+    if (proposal.tenantId !== input.tenantId) {
+      return err("FORBIDDEN", "Access denied to the requested proposal");
     }
     if (proposal.status === "approved") {
       return err("PROPOSAL_ALREADY_APPROVED", "Cannot reject an approved proposal");
@@ -107,9 +134,12 @@ export class AdvanceRolloutUseCase {
   constructor(private readonly port: ImprovementPort) {}
 
   async execute(input: AdvanceRolloutInput): Promise<Result<Proposal>> {
-    const proposal = await this.port.getProposal(input.proposalId);
+    const proposal = await this.port.getProposal(input.proposalId, input.tenantId);
     if (!proposal) {
       return err("PROPOSAL_NOT_FOUND", `Proposal ${input.proposalId} not found`);
+    }
+    if (proposal.tenantId !== input.tenantId) {
+      return err("FORBIDDEN", "Access denied to the requested proposal");
     }
     if (proposal.status !== "approved" && proposal.status !== "in_progress") {
       return err("PROPOSAL_NOT_APPROVED", "Proposal must be approved before rollout");
@@ -139,9 +169,12 @@ export class RollbackProposalUseCase {
   constructor(private readonly port: ImprovementPort) {}
 
   async execute(input: RollbackProposalInput): Promise<Result<Proposal>> {
-    const proposal = await this.port.getProposal(input.proposalId);
+    const proposal = await this.port.getProposal(input.proposalId, input.tenantId);
     if (!proposal) {
       return err("PROPOSAL_NOT_FOUND", `Proposal ${input.proposalId} not found`);
+    }
+    if (proposal.tenantId !== input.tenantId) {
+      return err("FORBIDDEN", "Access denied to the requested proposal");
     }
     if (proposal.status === "rolled_back") {
       return err("INVALID_STATE", "Proposal has already been rolled back");
@@ -158,8 +191,8 @@ export class RollbackProposalUseCase {
 export class GetProposalUseCase {
   constructor(private readonly port: ImprovementPort) {}
 
-  async execute(proposalId: string): Promise<Result<Proposal>> {
-    const proposal = await this.port.getProposal(proposalId);
+  async execute(proposalId: string, tenantId: string): Promise<Result<Proposal>> {
+    const proposal = await this.port.getProposal(proposalId, tenantId);
     if (!proposal) {
       return err("PROPOSAL_NOT_FOUND", `Proposal ${proposalId} not found`);
     }
@@ -203,15 +236,19 @@ export class ReviewDriftReportUseCase {
 
   async execute(
     reportId: string,
+    tenantId: string,
     reviewedBy: string,
     status: DriftReport["reviewStatus"],
   ): Promise<Result<DriftReport>> {
-    const report = await this.port.getDriftReport(reportId);
+    const report = await this.port.getDriftReport(reportId, tenantId);
     if (!report) {
       return err("DRIFT_REPORT_NOT_FOUND", `Drift report ${reportId} not found`);
     }
+    if (report.tenantId !== tenantId) {
+      return err("FORBIDDEN", "Access denied to the requested drift report");
+    }
 
-    const reviewed = await this.port.reviewDriftReport(reportId, reviewedBy, status);
+    const reviewed = await this.port.reviewDriftReport(reportId, tenantId, reviewedBy, status);
     return { ok: true, value: reviewed };
   }
 }

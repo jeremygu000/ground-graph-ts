@@ -72,6 +72,8 @@ export const ProposalSchema = z.object({
   clusterId: z.string().uuid().optional(),
   createdAt: z.string().datetime(),
   createdBy: z.string(),
+  submittedAt: z.string().datetime().optional(),
+  submittedBy: z.string().optional(),
   approvedAt: z.string().datetime().optional(),
   approvedBy: z.string().optional(),
   rejectedAt: z.string().datetime().optional(),

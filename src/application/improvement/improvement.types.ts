@@ -19,25 +19,35 @@ export interface CreateProposalInput {
   clusterId?: string;
 }
 
+export interface SubmitProposalInput {
+  proposalId: string;
+  tenantId: string;
+  submittedBy: string;
+}
+
 export interface ApproveProposalInput {
   proposalId: string;
+  tenantId: string;
   approvedBy: string;
 }
 
 export interface RejectProposalInput {
   proposalId: string;
+  tenantId: string;
   rejectedBy: string;
   reason: string;
 }
 
 export interface AdvanceRolloutInput {
   proposalId: string;
+  tenantId: string;
   stage: RolloutStage;
   notes?: string;
 }
 
 export interface RollbackProposalInput {
   proposalId: string;
+  tenantId: string;
   rolledBackBy: string;
   reason: string;
 }
@@ -75,7 +85,9 @@ export interface DriftFilters {
 export interface ImprovementPort {
   createProposal(input: CreateProposalInput): Promise<Proposal>;
 
-  getProposal(proposalId: string): Promise<Proposal | null>;
+  submitProposal(input: SubmitProposalInput): Promise<Proposal>;
+
+  getProposal(proposalId: string, tenantId: string): Promise<Proposal | null>;
 
   listProposals(filters: ProposalFilters): Promise<Proposal[]>;
 
@@ -89,12 +101,13 @@ export interface ImprovementPort {
 
   createDriftReport(input: CreateDriftReportInput): Promise<DriftReport>;
 
-  getDriftReport(reportId: string): Promise<DriftReport | null>;
+  getDriftReport(reportId: string, tenantId: string): Promise<DriftReport | null>;
 
   listDriftReports(filters: DriftFilters): Promise<DriftReport[]>;
 
   reviewDriftReport(
     reportId: string,
+    tenantId: string,
     reviewedBy: string,
     status: DriftReport["reviewStatus"],
   ): Promise<DriftReport>;

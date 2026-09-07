@@ -43,16 +43,23 @@ describe("InMemoryImprovementAdapter", () => {
 
   describe("getProposal", () => {
     it("returns null for non-existent proposal", async () => {
-      const result = await adapter.getProposal("non-existent-id");
+      const result = await adapter.getProposal("non-existent-id", tenantId);
       expect(result).toBeNull();
     });
 
     it("returns proposal after creation", async () => {
       const created = await adapter.createProposal(createValidProposalInput());
 
-      const result = await adapter.getProposal(created.id);
+      const result = await adapter.getProposal(created.id, tenantId);
       expect(result).not.toBeNull();
       expect(result!.id).toBe(created.id);
+    });
+
+    it("returns null for different tenant", async () => {
+      const created = await adapter.createProposal(createValidProposalInput());
+
+      const result = await adapter.getProposal(created.id, "00000000-0000-4000-8000-000000000099");
+      expect(result).toBeNull();
     });
   });
 
@@ -81,6 +88,7 @@ describe("InMemoryImprovementAdapter", () => {
 
       await adapter.approveProposal({
         proposalId: created.id,
+        tenantId,
         approvedBy: "admin",
       });
 
@@ -98,6 +106,7 @@ describe("InMemoryImprovementAdapter", () => {
 
       const approved = await adapter.approveProposal({
         proposalId: created.id,
+        tenantId,
         approvedBy: "admin@example.com",
       });
 
@@ -110,6 +119,7 @@ describe("InMemoryImprovementAdapter", () => {
       await expect(
         adapter.approveProposal({
           proposalId: "non-existent",
+          tenantId,
           approvedBy: "admin",
         }),
       ).rejects.toThrow("Proposal non-existent not found");
@@ -120,8 +130,9 @@ describe("InMemoryImprovementAdapter", () => {
     it("rejects a proposal with reason", async () => {
       const created = await adapter.createProposal(createValidProposalInput());
 
-      const rejected = await adapter.rejectProposal({
+      const rejected =       await adapter.rejectProposal({
         proposalId: created.id,
+        tenantId,
         rejectedBy: "admin@example.com",
         reason: "Not enough evidence",
       });
@@ -138,11 +149,13 @@ describe("InMemoryImprovementAdapter", () => {
 
       await adapter.approveProposal({
         proposalId: created.id,
+        tenantId,
         approvedBy: "admin",
       });
 
       const local = await adapter.advanceRollout({
         proposalId: created.id,
+        tenantId,
         stage: "local",
         notes: "Testing locally",
       });
@@ -152,6 +165,7 @@ describe("InMemoryImprovementAdapter", () => {
 
       const shadow = await adapter.advanceRollout({
         proposalId: created.id,
+        tenantId,
         stage: "shadow",
       });
 
@@ -159,6 +173,7 @@ describe("InMemoryImprovementAdapter", () => {
 
       const production = await adapter.advanceRollout({
         proposalId: created.id,
+        tenantId,
         stage: "production",
       });
 
@@ -173,16 +188,19 @@ describe("InMemoryImprovementAdapter", () => {
 
       await adapter.approveProposal({
         proposalId: created.id,
+        tenantId,
         approvedBy: "admin",
       });
 
       await adapter.advanceRollout({
         proposalId: created.id,
+        tenantId,
         stage: "local",
       });
 
       const rolledBack = await adapter.rollbackProposal({
         proposalId: created.id,
+        tenantId,
         rolledBackBy: "admin",
         reason: "Issues detected",
       });
@@ -206,7 +224,7 @@ describe("InMemoryImprovementAdapter", () => {
       expect(report.id).toBeDefined();
       expect(report.reviewStatus).toBe("pending");
 
-      const retrieved = await adapter.getDriftReport(report.id);
+      const retrieved = await adapter.getDriftReport(report.id, tenantId);
       expect(retrieved).not.toBeNull();
       expect(retrieved!.id).toBe(report.id);
     });
@@ -230,7 +248,7 @@ describe("InMemoryImprovementAdapter", () => {
         actualValue: "bad",
       });
 
-      await adapter.reviewDriftReport(report1.id, "admin", "resolved");
+      await adapter.reviewDriftReport(report1.id, tenantId, "admin", "resolved");
 
       const pending = await adapter.listDriftReports({ tenantId, reviewStatus: "pending" });
       expect(pending).toHaveLength(1);
@@ -271,7 +289,7 @@ describe("InMemoryImprovementAdapter", () => {
 
     it("throws for non-existent drift report review", async () => {
       await expect(
-        adapter.reviewDriftReport("non-existent-id", "admin", "resolved"),
+        adapter.reviewDriftReport("non-existent-id", tenantId, "admin", "resolved"),
       ).rejects.toThrow("Drift report non-existent-id not found");
     });
   });

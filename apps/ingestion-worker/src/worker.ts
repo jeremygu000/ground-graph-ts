@@ -65,33 +65,33 @@ async function processEvent(
     case "EvaluationTrigger":
       return handleEvaluationTrigger(event, logger);
     default:
-      logger.log(`[${WORKER_ID}] Unknown aggregate type: ${aggregateType}, acknowledging anyway`);
-      return { success: true };
+      logger.error(`[${WORKER_ID}] Unknown aggregate type: ${aggregateType}, dead-lettering`);
+      return { success: false, error: `Unknown aggregate type: ${aggregateType}` };
   }
 }
 
 async function handleDocumentIngestion(
-  event: { id: string; payload: Record<string, unknown> },
+  _event: { id: string; payload: Record<string, unknown> },
   logger: typeof console,
 ): Promise<{ success: boolean; error?: string }> {
-  logger.log(`[${WORKER_ID}] Would trigger document ingestion for:`, event.payload);
-  return { success: true };
+  logger.error(`[${WORKER_ID}] DocumentIngestion handler not implemented, dead-lettering event`);
+  return { success: false, error: "DocumentIngestion handler not implemented" };
 }
 
 async function handleGraphProjection(
-  event: { id: string; payload: Record<string, unknown> },
+  _event: { id: string; payload: Record<string, unknown> },
   logger: typeof console,
 ): Promise<{ success: boolean; error?: string }> {
-  logger.log(`[${WORKER_ID}] Would trigger graph projection for:`, event.payload);
-  return { success: true };
+  logger.error(`[${WORKER_ID}] GraphProjection handler not implemented, dead-lettering event`);
+  return { success: false, error: "GraphProjection handler not implemented" };
 }
 
 async function handleEvaluationTrigger(
-  event: { id: string; payload: Record<string, unknown> },
+  _event: { id: string; payload: Record<string, unknown> },
   logger: typeof console,
 ): Promise<{ success: boolean; error?: string }> {
-  logger.log(`[${WORKER_ID}] Would trigger evaluation for:`, event.payload);
-  return { success: true };
+  logger.error(`[${WORKER_ID}] EvaluationTrigger handler not implemented, dead-lettering event`);
+  return { success: false, error: "EvaluationTrigger handler not implemented" };
 }
 
 async function processBatch(): Promise<{

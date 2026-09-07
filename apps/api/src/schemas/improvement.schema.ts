@@ -52,6 +52,10 @@ export const CreateProposalRequestSchema = z.object({
 
 export type CreateProposalRequest = z.infer<typeof CreateProposalRequestSchema>;
 
+export const SubmitProposalRequestSchema = z.object({});
+
+export type SubmitProposalRequest = z.infer<typeof SubmitProposalRequestSchema>;
+
 export const ProposalResponseSchema = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid(),
@@ -77,6 +81,8 @@ export const ProposalResponseSchema = z.object({
   clusterId: z.string().uuid().optional(),
   createdAt: z.string().datetime(),
   createdBy: z.string(),
+  submittedAt: z.string().datetime().optional(),
+  submittedBy: z.string().optional(),
   approvedAt: z.string().datetime().optional(),
   approvedBy: z.string().optional(),
   rejectedAt: z.string().datetime().optional(),

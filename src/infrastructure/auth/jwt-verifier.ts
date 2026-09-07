@@ -1,5 +1,5 @@
 import * as jose from "jose";
-import type { AuthContext } from "../../application/auth/auth.types";
+import { AuthContextSchema, type AuthContext } from "../../application/auth/auth.types";
 
 export interface JWTVerifierDeps {
   secret: string;
@@ -26,14 +26,19 @@ export class JWTVerifier {
         audience: this.audience,
       });
 
-      const context: AuthContext = {
+      const rawContext = {
         tenantId: payload.tenantId as string,
         principalId: payload.principalId as string,
         userId: payload.userId as string | undefined,
         roles: (payload.roles as string[]) ?? [],
       };
 
-      return context;
+      const parsed = AuthContextSchema.safeParse(rawContext);
+      if (!parsed.success) {
+        return null;
+      }
+
+      return parsed.data;
     } catch {
       return null;
     }

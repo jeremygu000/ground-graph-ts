@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import {
   CreateProposalRequestSchema,
+  SubmitProposalRequestSchema,
   ListProposalsRequestSchema,
   ApproveProposalRequestSchema,
   RejectProposalRequestSchema,
@@ -35,6 +36,7 @@ import type {
 } from "../../../../src/application/improvement/improvement.types";
 import {
   CreateProposalUseCase,
+  SubmitProposalUseCase,
   ApproveProposalUseCase,
   RejectProposalUseCase,
   AdvanceRolloutUseCase,
@@ -63,6 +65,7 @@ export async function registerImprovementRoutes(
   const { improvementPort } = deps;
 
   const createProposalUC = new CreateProposalUseCase(improvementPort);
+  const submitProposalUC = new SubmitProposalUseCase(improvementPort);
   const approveProposalUC = new ApproveProposalUseCase(improvementPort);
   const rejectProposalUC = new RejectProposalUseCase(improvementPort);
   const advanceRolloutUC = new AdvanceRolloutUseCase(improvementPort);
@@ -135,6 +138,103 @@ export async function registerImprovementRoutes(
 
       return reply
         .status(201)
+        .send(mapProposalToResponse(ProposalResponseSchema.parse(result.value)));
+    },
+  });
+
+  app.post("/v1/improvement/proposals/:id/submit", {
+    schema: {
+      description: "Submit a draft proposal for approval",
+      tags: ["improvement"],
+      params: z.object({ id: z.string().uuid() }),
+      body: SubmitProposalRequestSchema,
+      response: {
+        200: ProposalResponseSchema,
+        400: z.object({}).passthrough(),
+        401: z.object({}).passthrough(),
+        403: z.object({}).passthrough(),
+        404: z.object({}).passthrough(),
+        409: z.object({}).passthrough(),
+        500: z.object({}).passthrough(),
+      },
+    },
+    handler: async (
+      request: FastifyRequest<{ Params: { id: string } }>,
+      reply: FastifyReply,
+    ) => {
+      const authContext = request.authContext;
+      if (!authContext) {
+        return reply
+          .status(401)
+          .send(
+            createProblemDetail(
+              UNAUTHORIZED_ERROR_TYPE,
+              "Unauthorized",
+              401,
+              "Authentication required",
+            ),
+          );
+      }
+
+      const result = await submitProposalUC.execute({
+        proposalId: request.params.id,
+        tenantId: authContext.tenantId,
+        submittedBy: authContext.principalId ?? "unknown",
+      });
+
+      if (!result.ok) {
+        if (isImprovementError(result.error)) {
+          if (result.error.code === "PROPOSAL_NOT_FOUND") {
+            return reply
+              .status(404)
+              .send(
+                createProblemDetail(
+                  NOT_FOUND_ERROR_TYPE,
+                  "Not Found",
+                  404,
+                  `Proposal ${request.params.id} not found`,
+                ),
+              );
+          }
+          if (result.error.code === "FORBIDDEN") {
+            return reply
+              .status(403)
+              .send(
+                createProblemDetail(
+                  FORBIDDEN_ERROR_TYPE,
+                  "Forbidden",
+                  403,
+                  "Access denied to the requested proposal",
+                ),
+              );
+          }
+          if (result.error.code === "PROPOSAL_NOT_DRAFT") {
+            return reply
+              .status(409)
+              .send(
+                createProblemDetail(
+                  "https://groundgraph.ai/errors/conflict",
+                  "Conflict",
+                  409,
+                  result.error.message,
+                ),
+              );
+          }
+        }
+        return reply
+          .status(500)
+          .send(
+            createProblemDetail(
+              INTERNAL_ERROR_TYPE,
+              "Internal Server Error",
+              500,
+              result.error.message,
+            ),
+          );
+      }
+
+      return reply
+        .status(200)
         .send(mapProposalToResponse(ProposalResponseSchema.parse(result.value)));
     },
   });
@@ -237,7 +337,7 @@ export async function registerImprovementRoutes(
           );
       }
 
-      const result = await getProposalUC.execute(request.params.id);
+      const result = await getProposalUC.execute(request.params.id, authContext.tenantId);
       if (!result.ok) {
         if (isImprovementError(result.error) && result.error.code === "PROPOSAL_NOT_FOUND") {
           return reply
@@ -292,7 +392,9 @@ export async function registerImprovementRoutes(
         200: ProposalResponseSchema,
         400: z.object({}).passthrough(),
         401: z.object({}).passthrough(),
+        403: z.object({}).passthrough(),
         404: z.object({}).passthrough(),
+        409: z.object({}).passthrough(),
         500: z.object({}).passthrough(),
       },
     },
@@ -316,6 +418,7 @@ export async function registerImprovementRoutes(
 
       const result = await approveProposalUC.execute({
         proposalId: request.params.id,
+        tenantId: authContext.tenantId,
         approvedBy: authContext.principalId ?? "unknown",
       });
 
@@ -330,6 +433,18 @@ export async function registerImprovementRoutes(
                   "Not Found",
                   404,
                   `Proposal ${request.params.id} not found`,
+                ),
+              );
+          }
+          if (result.error.code === "FORBIDDEN") {
+            return reply
+              .status(403)
+              .send(
+                createProblemDetail(
+                  FORBIDDEN_ERROR_TYPE,
+                  "Forbidden",
+                  403,
+                  "Access denied to the requested proposal",
                 ),
               );
           }
@@ -377,6 +492,7 @@ export async function registerImprovementRoutes(
         200: ProposalResponseSchema,
         400: z.object({}).passthrough(),
         401: z.object({}).passthrough(),
+        403: z.object({}).passthrough(),
         404: z.object({}).passthrough(),
         409: z.object({}).passthrough(),
         500: z.object({}).passthrough(),
@@ -405,6 +521,7 @@ export async function registerImprovementRoutes(
 
       const result = await rejectProposalUC.execute({
         proposalId: request.params.id,
+        tenantId: authContext.tenantId,
         rejectedBy: authContext.principalId ?? "unknown",
         reason: request.body.reason,
       });
@@ -420,6 +537,18 @@ export async function registerImprovementRoutes(
                   "Not Found",
                   404,
                   `Proposal ${request.params.id} not found`,
+                ),
+              );
+          }
+          if (result.error.code === "FORBIDDEN") {
+            return reply
+              .status(403)
+              .send(
+                createProblemDetail(
+                  FORBIDDEN_ERROR_TYPE,
+                  "Forbidden",
+                  403,
+                  "Access denied to the requested proposal",
                 ),
               );
           }
@@ -467,6 +596,7 @@ export async function registerImprovementRoutes(
         200: ProposalResponseSchema,
         400: z.object({}).passthrough(),
         401: z.object({}).passthrough(),
+        403: z.object({}).passthrough(),
         404: z.object({}).passthrough(),
         409: z.object({}).passthrough(),
         500: z.object({}).passthrough(),
@@ -496,6 +626,7 @@ export async function registerImprovementRoutes(
       const { notes } = request.body as { notes?: string };
       const result = await advanceRolloutUC.execute({
         proposalId: request.params.id,
+        tenantId: authContext.tenantId,
         stage: request.body.stage as "local" | "evaluation" | "shadow" | "canary" | "production",
         ...(notes !== undefined ? { notes } : {}),
       });
@@ -511,6 +642,18 @@ export async function registerImprovementRoutes(
                   "Not Found",
                   404,
                   `Proposal ${request.params.id} not found`,
+                ),
+              );
+          }
+          if (result.error.code === "FORBIDDEN") {
+            return reply
+              .status(403)
+              .send(
+                createProblemDetail(
+                  FORBIDDEN_ERROR_TYPE,
+                  "Forbidden",
+                  403,
+                  "Access denied to the requested proposal",
                 ),
               );
           }
@@ -555,6 +698,7 @@ export async function registerImprovementRoutes(
         200: ProposalResponseSchema,
         400: z.object({}).passthrough(),
         401: z.object({}).passthrough(),
+        403: z.object({}).passthrough(),
         404: z.object({}).passthrough(),
         409: z.object({}).passthrough(),
         500: z.object({}).passthrough(),
@@ -583,6 +727,7 @@ export async function registerImprovementRoutes(
 
       const result = await rollbackProposalUC.execute({
         proposalId: request.params.id,
+        tenantId: authContext.tenantId,
         rolledBackBy: authContext.principalId ?? "unknown",
         reason: request.body.reason,
       });
@@ -598,6 +743,18 @@ export async function registerImprovementRoutes(
                   "Not Found",
                   404,
                   `Proposal ${request.params.id} not found`,
+                ),
+              );
+          }
+          if (result.error.code === "FORBIDDEN") {
+            return reply
+              .status(403)
+              .send(
+                createProblemDetail(
+                  FORBIDDEN_ERROR_TYPE,
+                  "Forbidden",
+                  403,
+                  "Access denied to the requested proposal",
                 ),
               );
           }
@@ -770,6 +927,7 @@ export async function registerImprovementRoutes(
         200: DriftReportResponseSchema,
         400: z.object({}).passthrough(),
         401: z.object({}).passthrough(),
+        403: z.object({}).passthrough(),
         404: z.object({}).passthrough(),
         500: z.object({}).passthrough(),
       },
@@ -797,6 +955,7 @@ export async function registerImprovementRoutes(
 
       const result = await reviewDriftReportUC.execute(
         request.params.id,
+        authContext.tenantId,
         authContext.principalId ?? "unknown",
         request.body.status,
       );
@@ -811,6 +970,18 @@ export async function registerImprovementRoutes(
                 "Not Found",
                 404,
                 `Drift report ${request.params.id} not found`,
+              ),
+            );
+        }
+        if (isImprovementError(result.error) && result.error.code === "FORBIDDEN") {
+          return reply
+            .status(403)
+            .send(
+              createProblemDetail(
+                FORBIDDEN_ERROR_TYPE,
+                "Forbidden",
+                403,
+                "Access denied to the requested drift report",
               ),
             );
         }

@@ -1,6 +1,7 @@
 import type { ImprovementPort } from "../../application/improvement/improvement.types";
 import type {
   CreateProposalInput,
+  SubmitProposalInput,
   ApproveProposalInput,
   RejectProposalInput,
   AdvanceRolloutInput,
@@ -50,8 +51,28 @@ export class InMemoryImprovementAdapter implements ImprovementPort {
     return proposal;
   }
 
-  async getProposal(proposalId: string): Promise<Proposal | null> {
-    return this.proposals.get(proposalId) ?? null;
+  async submitProposal(input: SubmitProposalInput): Promise<Proposal> {
+    const proposal = this.proposals.get(input.proposalId);
+    if (!proposal || proposal.tenantId !== input.tenantId) {
+      throw new Error(`Proposal ${input.proposalId} not found`);
+    }
+    const updated: Proposal = {
+      ...proposal,
+      status: "pending_approval",
+      submittedAt: new Date().toISOString(),
+      submittedBy: input.submittedBy,
+    };
+    validateOrThrow(ProposalSchema, updated);
+    this.proposals.set(proposal.id, updated);
+    return updated;
+  }
+
+  async getProposal(proposalId: string, tenantId: string): Promise<Proposal | null> {
+    const proposal = this.proposals.get(proposalId);
+    if (!proposal || proposal.tenantId !== tenantId) {
+      return null;
+    }
+    return proposal;
   }
 
   async listProposals(filters: ProposalFilters): Promise<Proposal[]> {
@@ -164,8 +185,12 @@ export class InMemoryImprovementAdapter implements ImprovementPort {
     return report;
   }
 
-  async getDriftReport(reportId: string): Promise<DriftReport | null> {
-    return this.driftReports.get(reportId) ?? null;
+  async getDriftReport(reportId: string, tenantId: string): Promise<DriftReport | null> {
+    const report = this.driftReports.get(reportId);
+    if (!report || report.tenantId !== tenantId) {
+      return null;
+    }
+    return report;
   }
 
   async listDriftReports(filters: DriftFilters): Promise<DriftReport[]> {
@@ -186,11 +211,12 @@ export class InMemoryImprovementAdapter implements ImprovementPort {
 
   async reviewDriftReport(
     reportId: string,
+    tenantId: string,
     reviewedBy: string,
     status: DriftReport["reviewStatus"],
   ): Promise<DriftReport> {
     const report = this.driftReports.get(reportId);
-    if (!report) {
+    if (!report || report.tenantId !== tenantId) {
       throw new Error(`Drift report ${reportId} not found`);
     }
     const updated: DriftReport = {
