@@ -74,7 +74,7 @@ export class RetrievalWorkflow {
         (c: { citationId: string }) => c.citationId,
       );
 
-      const generationResult = await this.generator.generateStructured({
+      let generationResult = await this.generator.generateStructured({
         question: input.question,
         evidence: citationsResult.value,
         schema: {} as any,
@@ -87,6 +87,54 @@ export class RetrievalWorkflow {
         generationSpan.end();
         rootSpan.setStatus("ERROR", "Generation failed");
         throw generationResult.error;
+      }
+
+      if (generationResult.value.structured.status === "insufficient_evidence") {
+        generationSpan.addEvent("retry_attempt", { attempt: 1, reason: "insufficient_evidence" });
+
+        const retryQueryResult = await this.hybridQuery.query({
+          question: input.question,
+          tenantId: input.tenantId,
+          principalId: input.principalId,
+          strategy: input.strategy,
+          filters: input.filters,
+          maxResults: (input.maxResults ?? 20) * 2,
+          maxHops: input.maxHops,
+          budgets: input.budgets,
+        });
+
+        if (retryQueryResult.ok) {
+          const retryCitationsResult = await this.citationBuilder.buildFromRetrieval(
+            retryQueryResult.value.results,
+            input.tenantId,
+          );
+
+          if (retryCitationsResult.ok) {
+            const retryAllowedIds = retryCitationsResult.value.map(
+              (c: { citationId: string }) => c.citationId,
+            );
+
+            generationResult = await this.generator.generateStructured({
+              question: input.question,
+              evidence: retryCitationsResult.value,
+              schema: {} as any,
+              allowedCitationIds: retryAllowedIds,
+              tenantId: input.tenantId,
+            });
+
+            if (!generationResult.ok) {
+              generationSpan.setStatus("ERROR", generationResult.error.message);
+              generationSpan.end();
+              rootSpan.setStatus("ERROR", "Generation retry failed");
+              throw generationResult.error;
+            }
+
+            generationSpan.addEvent("retry_completed", {
+              attempt: 2,
+              citations: retryCitationsResult.value.length,
+            });
+          }
+        }
       }
 
       generationSpan.setStatus("OK");
@@ -102,11 +150,14 @@ export class RetrievalWorkflow {
       rootSpan.setAttribute("strategies.used", input.strategy);
       rootSpan.setAttribute("fusion.strategies_count", queryResult.value.fusionTrace.length);
 
+      // At this point generationResult is guaranteed to be a success
+      const gen = generationResult.value;
+      const qr = queryResult.value;
       const result: RetrievalWorkflowResult = {
-        queryId: queryResult.value.queryId,
-        answer: generationResult.value.structured.answer,
-        status: generationResult.value.structured.status,
-        claims: generationResult.value.structured.claims.map(
+        queryId: qr.queryId,
+        answer: gen.structured.answer,
+        status: gen.structured.status,
+        claims: gen.structured.claims.map(
           (claim: {
             claimId: string;
             claimText: string;
@@ -122,8 +173,8 @@ export class RetrievalWorkflow {
             confidence: claim.confidence,
           }),
         ),
-        strategiesUsed: [queryResult.value.strategy],
-        fusionTrace: queryResult.value.fusionTrace,
+        strategiesUsed: [qr.strategy],
+        fusionTrace: qr.fusionTrace,
         timingMs: {
           entityResolution: entityResolutionMs,
           retrieval: retrievalMs,

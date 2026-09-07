@@ -1,4 +1,10 @@
-import { trace, SpanStatusCode, SpanKind, type Span as OTelSpan } from "@opentelemetry/api";
+import {
+  trace,
+  SpanStatusCode,
+  SpanKind,
+  type Span as OTelSpan,
+  type AttributeValue,
+} from "@opentelemetry/api";
 import type { Span, TracerPort } from "../../application/observability/tracer-port.types";
 
 function mapStatus(code: "OK" | "ERROR"): { code: SpanStatusCode } {
@@ -66,6 +72,10 @@ class OTelSpanAdapter implements Span {
 
   recordException(_error: Error): void {
     // Intentionally empty - raw exceptions should not be recorded per telemetry privacy policy
+  }
+
+  addEvent(name: string, attributes?: Record<string, string | number | boolean | undefined>): void {
+    this.span.addEvent(name, attributes as Record<string, AttributeValue> | undefined);
   }
 }
 

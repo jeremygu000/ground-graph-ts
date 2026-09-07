@@ -26,6 +26,7 @@ function createMockTracer(): TracerPort {
       setStatus: vi.fn(),
       end: vi.fn(),
       recordException: vi.fn(),
+      addEvent: vi.fn(),
     }),
   };
 }

@@ -7,6 +7,7 @@ export interface Span {
   setStatus(code: "OK" | "ERROR", message?: string): void;
   end(): void;
   recordException(error: Error): void;
+  addEvent(name: string, attributes?: SpanAttributes): void;
 }
 
 export interface TracerPort {

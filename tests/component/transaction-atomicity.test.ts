@@ -201,12 +201,14 @@ describe("TransactionalUnitOfWork", () => {
             setStatus: () => undefined,
             end: () => undefined,
             recordException: () => undefined,
+            addEvent: () => undefined,
           }),
         startSpan: () => ({
           setAttribute: () => undefined,
           setStatus: () => undefined,
           end: () => undefined,
           recordException: () => undefined,
+          addEvent: () => undefined,
         }),
       },
     );
