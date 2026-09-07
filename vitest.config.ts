@@ -26,7 +26,9 @@ export default defineConfig({
         "apps/evaluation-runner/src/markdown-report.ts",
         "apps/api/src/routes/*.ts",
         "apps/api/src/middleware/*.ts",
+        "apps/ingestion-worker/src/**",
         "src/infrastructure/auth/*.ts",
+        "src/workflows/ingestion/**",
       ],
       thresholds: {
         lines: 85,

@@ -1,5 +1,5 @@
 import { generateText, generateObject } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { openai, createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 import type {
   GenerationConfig,
@@ -37,11 +37,23 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
 
   private resolveModel() {
     const provider = this.config.provider ?? "openai";
+    if (provider === "openrouter") {
+      const baseURL = this.config.baseUrl ?? "https://openrouter.ai/api/v1";
+      const openrouter = createOpenAI({ baseURL, apiKey: this.config.apiKey ?? "" });
+      return openrouter.chat(this.config.model);
+    }
     if (provider !== "openai") {
       throw new ValidationError(
-        `Provider "${provider}" is not supported by OpenAIGeneratorAdapter. Only "openai" is supported.`,
+        `Provider "${provider}" is not supported by OpenAIGeneratorAdapter. Only "openai" and "openrouter" are supported.`,
         { provider },
       );
+    }
+    if (this.config.baseUrl) {
+      const custom = createOpenAI({
+        baseURL: this.config.baseUrl,
+        apiKey: this.config.apiKey ?? "",
+      });
+      return custom.chat(this.config.model);
     }
     return openai(this.config.model);
   }

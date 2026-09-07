@@ -1,13 +1,12 @@
 {
   "name": "ground-graph-ingestion-worker",
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/worker.ts",
-    "build": "tsc",
-    "start": "node dist/worker.js"
+    "start": "tsx src/worker.ts"
   },
-  "dependencies": {},
   "devDependencies": {
     "@types/node": "^22.20.1",
     "tsx": "^4.23.13",

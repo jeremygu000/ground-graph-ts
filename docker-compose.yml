@@ -40,6 +40,36 @@ x-s3-env: &s3-env
 x-neo4j-env: &neo4j-env
   NEO4J_AUTH: "${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-change-me-local-only}"
 
+x-app-env: &app-env
+  DATABASE_URL: "postgresql://${POSTGRES_USER:-groundgraph}:${POSTGRES_PASSWORD:-change-me-local-only}@postgres:5432/${POSTGRES_DB:-groundgraph}"
+  NEO4J_HOST: "bolt://neo4j:7687"
+  NEO4J_USER: "${NEO4J_USER:-neo4j}"
+  NEO4J_PASSWORD: "${NEO4J_PASSWORD:-change-me-local-only}"
+  S3_ACCESS_KEY: "${S3_ACCESS_KEY:-change-me-local-only}"
+  S3_SECRET_KEY: "${S3_SECRET_KEY:-change-me-local-only}"
+  S3_ENDPOINT: "http://minio:9000"
+  S3_REGION: "us-east-1"
+  S3_BUCKET_RAW: "${S3_BUCKET_RAW:-groundgraph-raw}"
+  S3_BUCKET_PROCESSED: "${S3_BUCKET_PROCESSED:-groundgraph-processed}"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+  OTEL_ENABLED: "${OTEL_ENABLED:-true}"
+  NODE_ENV: "production"
+  OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+  LLM_PROVIDER: "${LLM_PROVIDER:-openrouter}"
+  LLM_MODEL: "${LLM_MODEL:-google/gemini-2.0-flash-thinking-exp:free}"
+  LLM_BASE_URL: "${LLM_BASE_URL:-https://openrouter.ai/api/v1}"
+  EMBEDDING_PROVIDER: "${EMBEDDING_PROVIDER:-openai}"
+  EMBEDDING_MODEL: "${EMBEDDING_MODEL:-text-embedding-3-small}"
+  EMBEDDING_BASE_URL: "${EMBEDDING_BASE_URL:-}"
+
+x-app-build: &app-build
+  context: .
+  dockerfile: Dockerfile
+
+x-dev-mem-api: &dev_mem_api
+  mem_limit: 512m
+  mem_reservation: 256m
+
 services:
   postgres:
     image: pgvector/pgvector:0.8.6-pg16
@@ -259,6 +289,59 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    networks:
+      - groundgraph-net
+
+  api:
+    build:
+      <<: *app-build
+    <<: [*restart, *logging, *dev_mem_api]
+    environment:
+      <<: *app-env
+      PORT: "8080"
+      HOST: "0.0.0.0"
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - groundgraph-net
+
+  ingestion-worker:
+    build:
+      <<: *app-build
+    <<: [*restart, *logging, *dev_mem_api]
+    environment:
+      <<: *app-env
+      WORKER_PORT: "8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - groundgraph-net
+
+  evaluation-runner:
+    build:
+      <<: *app-build
+    <<: [*restart, *logging, *dev_mem_api]
+    environment:
+      <<: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     networks:
       - groundgraph-net
 

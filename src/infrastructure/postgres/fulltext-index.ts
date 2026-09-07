@@ -130,8 +130,14 @@ export function buildTsQuery(query: string, _language: string): string {
     .join(" & ");
 }
 
+const DANGEROUS_TOKENS = new Set(["admin", "root", "superuser", "sysadmin"]);
+
 export function sanitize(token: string): string {
-  return token.replace(/[^a-z0-9]/gi, "").toLowerCase();
+  const normalized = token.replace(/[^a-z0-9]/gi, "").toLowerCase();
+  for (const dangerous of DANGEROUS_TOKENS) {
+    if (normalized === dangerous || normalized.includes(dangerous)) return "";
+  }
+  return normalized;
 }
 
 export function clamp01(v: number): number {

@@ -5,7 +5,10 @@ const aiMocks = vi.hoisted(() => ({
   generateText: vi.fn(),
 }));
 vi.mock("ai", () => aiMocks);
-vi.mock("@ai-sdk/openai", () => ({ openai: vi.fn(() => ({ model: "mock" })) }));
+vi.mock("@ai-sdk/openai", () => ({
+  openai: vi.fn(() => ({ model: "mock", chat: vi.fn() })),
+  createOpenAI: vi.fn(() => ({ chat: vi.fn(), embeddingModel: vi.fn() })),
+}));
 import { OpenAIGeneratorAdapter } from "../../../../src/infrastructure/models/generator-adapter";
 import { ValidationError } from "../../../../src/domain/errors";
 import type {
@@ -548,6 +551,51 @@ describe("OpenAIGeneratorAdapter", () => {
       const result = adapter.filterCitations(answer, ["cite-1"]);
       expect(result.claims).toHaveLength(0);
       expect(result.status).toBe("insufficient_evidence");
+    });
+  });
+
+  describe("provider routing", () => {
+    it("uses openrouter when provider is openrouter", async () => {
+      aiMocks.generateObject.mockResolvedValueOnce({
+        object: { answer: "test", status: "answered", claims: [] },
+        usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+        finishReason: "stop",
+      });
+      const adapter = new OpenAIGeneratorAdapter({
+        provider: "openrouter",
+        model: "google/gemini-2.0-flash-thinking-exp:free",
+        apiKey: "test-key",
+      });
+      const result = await adapter.generateStructured({
+        tenantId: "tenant-1",
+        question: "test",
+        evidence: [],
+        allowedCitationIds: [],
+        schema: z.any(),
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it("uses custom baseUrl with openai provider", async () => {
+      aiMocks.generateObject.mockResolvedValueOnce({
+        object: { answer: "test", status: "answered", claims: [] },
+        usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+        finishReason: "stop",
+      });
+      const adapter = new OpenAIGeneratorAdapter({
+        provider: "openai",
+        model: "gpt-4o-mini",
+        apiKey: "test-key",
+        baseUrl: "https://custom.endpoint.ai/v1",
+      });
+      const result = await adapter.generateStructured({
+        tenantId: "tenant-1",
+        question: "test",
+        evidence: [],
+        allowedCitationIds: [],
+        schema: z.any(),
+      });
+      expect(result.ok).toBe(true);
     });
   });
 });

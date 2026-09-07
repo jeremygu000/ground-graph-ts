@@ -41,7 +41,10 @@ function createDbMock(queues: QueueMap = {}) {
     drizzle: {
       select: vi.fn(() => createThenable(selectQueue.shift())),
       insert: vi.fn(() => createThenable(insertQueue.shift())),
-      update: vi.fn(() => createThenable(updateQueue.shift())),
+      update: vi.fn(() => {
+        const result = updateQueue.shift();
+        return createThenable(result);
+      }),
     },
   };
 }
@@ -109,10 +112,11 @@ const entityRow = {
   attributes: { employees: 12 },
   description: "Company",
   validFrom: "2024-01-01T00:00:00.000Z",
-  validTo: null,
-  supersededBy: null,
+  validTo: undefined,
+  supersededBy: undefined,
   createdAt: "2024-01-01T00:00:00.000Z",
   createdBy: "66666666-6666-4666-8666-666666666666",
+  principalIds: ["aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa"],
 };
 
 const factRow = {
@@ -120,15 +124,15 @@ const factRow = {
   tenantId: sourceRow.tenantId,
   subjectId: entityRow.id,
   predicate: "works_for",
-  objectId: null,
+  objectId: undefined,
   objectValue: "Acme",
   status: "candidate",
   extractionMethod: "llm",
   confidence: 0.9,
   validFrom: "2024-01-01T00:00:00.000Z",
-  validTo: null,
+  validTo: undefined,
   observedAt: "2024-01-01T00:00:00.000Z",
-  supersededBy: null,
+  supersededBy: undefined,
   createdAt: "2024-01-01T00:00:00.000Z",
   createdBy: "66666666-6666-4666-8666-666666666666",
   provenance: { sourceVersionId: versionRow.id, chunkId: chunkRow.id, evidenceText: "evidence" },
@@ -329,7 +333,7 @@ describe("postgres repositories", () => {
         [entityRow],
         [entityRow],
       ],
-      update: [[entityRow], undefined],
+      update: [[entityRow], [entityRow], undefined],
     });
     const repo = new PostgresEntityRepository(db as never);
 

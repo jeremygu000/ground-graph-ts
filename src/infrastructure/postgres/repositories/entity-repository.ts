@@ -3,7 +3,9 @@ import type { Database } from "../client";
 import { entities } from "../schema";
 import type { EntityRepository } from "../../../application/extraction/ports.types";
 import type { CanonicalEntity } from "../../../domain/knowledge/knowledge.schema";
+import { CanonicalEntitySchema } from "../../../domain/knowledge/knowledge.schema";
 import { mapEntityRow } from "../mappers/entity.mapper";
+import { validateOrThrow } from "../../../domain/validation";
 
 export class PostgresEntityRepository implements EntityRepository {
   constructor(private db: Database) {}
@@ -12,9 +14,10 @@ export class PostgresEntityRepository implements EntityRepository {
     entity: CanonicalEntity,
   ): Promise<{ ok: true; value: CanonicalEntity } | { ok: false; error: Error }> {
     try {
+      const validated = validateOrThrow(CanonicalEntitySchema, entity, "CanonicalEntity");
       const [result] = await this.db.drizzle
         .insert(entities)
-        .values(entity as any)
+        .values(validated as any)
         .returning();
       return { ok: true, value: mapEntityRow(result as Record<string, unknown>) };
     } catch (error) {
@@ -94,10 +97,14 @@ export class PostgresEntityRepository implements EntityRepository {
     supersededById: string,
   ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
     try {
-      await this.db.drizzle
+      const result = await this.db.drizzle
         .update(entities)
         .set({ supersededBy: supersededById })
-        .where(and(eq(entities.id, id), eq(entities.tenantId, tenantId)));
+        .where(and(eq(entities.id, id), eq(entities.tenantId, tenantId)))
+        .returning();
+      if (result.length === 0) {
+        return { ok: false, error: new Error("No entity found to supersede") };
+      }
       return { ok: true, value: undefined };
     } catch (error) {
       return { ok: false, error: error as Error };

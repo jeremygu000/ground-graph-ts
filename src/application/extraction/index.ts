@@ -18,6 +18,8 @@ export class StructuredCodeExtractor implements DeterministicExtractor {
   extract(content: Chunk): ExtractionCandidate {
     const candidate: ExtractionCandidate = { entities: [], facts: [] };
     const text = content.content;
+
+    const moduleMap = new Map<string, { entities: string[]; classes: string[] }>();
     let currentModule = "";
 
     const importMatches = text.matchAll(/import\s+.*?from\s+['"]([^'"]+)['"]/g);
@@ -25,16 +27,19 @@ export class StructuredCodeExtractor implements DeterministicExtractor {
       const module = match[1];
       if (module) {
         currentModule = module;
-        candidate.entities.push({
-          name: module,
-          type: "Module",
-          confidence: 1.0,
-        });
+        if (!moduleMap.has(module)) {
+          moduleMap.set(module, { entities: [], classes: [] });
+          candidate.entities.push({
+            name: module,
+            type: "Module",
+            confidence: 1.0,
+          });
+        }
       }
     }
 
-    const functionMatches = text.matchAll(/(?:export\s+)?(?:async\s+)?function\s+(\w+)/g);
-    for (const match of functionMatches) {
+    const exportFunctionMatches = text.matchAll(/export\s+(?:async\s+)?function\s+(\w+)/g);
+    for (const match of exportFunctionMatches) {
       const funcName = match[1];
       if (funcName) {
         candidate.entities.push({
@@ -43,7 +48,8 @@ export class StructuredCodeExtractor implements DeterministicExtractor {
           aliases: [`${funcName}()`],
           confidence: 1.0,
         });
-        if (currentModule) {
+        if (currentModule && moduleMap.has(currentModule)) {
+          moduleMap.get(currentModule)!.entities.push(funcName);
           candidate.facts.push({
             subjectName: currentModule,
             predicate: "exports",
@@ -54,14 +60,48 @@ export class StructuredCodeExtractor implements DeterministicExtractor {
       }
     }
 
-    const classMatches = text.matchAll(/class\s+(\w+)/g);
-    for (const match of classMatches) {
+    const localFunctionMatches = text.matchAll(/(?<!export\s)(?:async\s+)?function\s+(\w+)/g);
+    for (const match of localFunctionMatches) {
+      const funcName = match[1];
+      if (funcName) {
+        candidate.entities.push({
+          name: funcName,
+          type: "Function",
+          aliases: [`${funcName}()`],
+          confidence: 0.8,
+        });
+      }
+    }
+
+    const exportClassMatches = text.matchAll(/export\s+class\s+(\w+)/g);
+    for (const match of exportClassMatches) {
       const className = match[1];
       if (className) {
         candidate.entities.push({
           name: className,
           type: "Class",
           confidence: 1.0,
+        });
+        if (currentModule && moduleMap.has(currentModule)) {
+          moduleMap.get(currentModule)!.classes.push(className);
+          candidate.facts.push({
+            subjectName: currentModule,
+            predicate: "exports",
+            objectName: className,
+            confidence: 1.0,
+          });
+        }
+      }
+    }
+
+    const localClassMatches = text.matchAll(/(?<!export\s)class\s+(\w+)/g);
+    for (const match of localClassMatches) {
+      const className = match[1];
+      if (className) {
+        candidate.entities.push({
+          name: className,
+          type: "Class",
+          confidence: 0.8,
         });
       }
     }
@@ -71,6 +111,29 @@ export class StructuredCodeExtractor implements DeterministicExtractor {
 }
 
 export class UrlExtractor implements DeterministicExtractor {
+  private readonly secretPatterns = [
+    /api[_-]?key/i,
+    /secret/i,
+    /password/i,
+    /token/i,
+    /auth/i,
+    /credential/i,
+    /bearer/i,
+    /jwt/i,
+    /session/i,
+    /sig/i,
+    /signature/i,
+    /oauth/i,
+  ];
+
+  private looksLikeSecret(key: string, value: string): boolean {
+    if (this.secretPatterns.some((p) => p.test(key))) return true;
+    if (key.toLowerCase().includes("key") && value.length > 8) return true;
+    if (value.startsWith("sk-") || value.startsWith("pk_") || value.startsWith("ghs_")) return true;
+    if (/^[a-f0-9]{32,}$/i.test(value)) return true;
+    return false;
+  }
+
   extract(content: Chunk): ExtractionCandidate {
     const candidate: ExtractionCandidate = { entities: [], facts: [] };
     const text = content.content;
@@ -81,6 +144,27 @@ export class UrlExtractor implements DeterministicExtractor {
       if (!url) continue;
       try {
         const parsed = new URL(url);
+        let redactedUrl = url;
+        const hasSecret = Array.from(parsed.searchParams.entries()).some(([key, value]) => {
+          if (this.looksLikeSecret(key, value)) {
+            return true;
+          }
+          return false;
+        });
+
+        if (hasSecret) {
+          const redactedParams = new URLSearchParams();
+          for (const [key, value] of parsed.searchParams.entries()) {
+            if (this.looksLikeSecret(key, value)) {
+              redactedParams.set(key, "***REDACTED***");
+            } else {
+              redactedParams.set(key, value);
+            }
+          }
+          parsed.search = redactedParams.toString();
+          redactedUrl = parsed.toString();
+        }
+
         candidate.entities.push({
           name: parsed.hostname,
           type: "URL",
@@ -90,8 +174,8 @@ export class UrlExtractor implements DeterministicExtractor {
         candidate.facts.push({
           subjectName: parsed.hostname,
           predicate: "references",
-          objectValue: url,
-          confidence: 0.9,
+          objectValue: redactedUrl,
+          confidence: hasSecret ? 0.5 : 0.9,
         });
       } catch {
         // Invalid URL, skip
@@ -152,6 +236,26 @@ export class AdrExtractor implements DeterministicExtractor {
 }
 
 export class ConfigExtractor implements DeterministicExtractor {
+  private readonly secretPatterns = [
+    /key/i,
+    /secret/i,
+    /password/i,
+    /token/i,
+    /auth/i,
+    /credential/i,
+    /private/i,
+    /bearer/i,
+    /jwt/i,
+  ];
+
+  private looksLikeSecret(key: string, value: string): boolean {
+    if (this.secretPatterns.some((p) => p.test(key))) return true;
+    if (value.startsWith("sk-") || value.startsWith("pk_") || value.startsWith("ghs_")) return true;
+    if (/^[a-f0-9]{32,}$/i.test(value)) return true;
+    if (/^Bearer\s+.+$/i.test(value)) return true;
+    return false;
+  }
+
   extract(content: Chunk): ExtractionCandidate {
     const candidate: ExtractionCandidate = { entities: [], facts: [] };
     const text = content.content;
@@ -161,11 +265,20 @@ export class ConfigExtractor implements DeterministicExtractor {
       const key = match[1];
       const value = match[2];
       if (key && value && !key.startsWith("#") && value.length > 0) {
+        const isSecret = this.looksLikeSecret(key, value);
         candidate.entities.push({
           name: key,
           type: "EnvironmentVariable",
-          confidence: 1.0,
+          confidence: isSecret ? 0.5 : 1.0,
         });
+        if (!isSecret) {
+          candidate.facts.push({
+            subjectName: key,
+            predicate: "has_value",
+            objectValue: value,
+            confidence: 1.0,
+          });
+        }
       }
     }
 

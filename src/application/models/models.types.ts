@@ -7,9 +7,9 @@ import type {
   RetrievalStrategy,
 } from "../../domain/retrieval/retrieval.schema";
 
-export type EmbeddingProvider = "openai" | "local";
+export type EmbeddingProvider = "openai" | "local" | "openrouter";
 export type RerankerProvider = "openai" | "local" | "none";
-export type GeneratorProvider = "openai" | "azure" | "anthropic" | "local";
+export type GeneratorProvider = "openai" | "azure" | "anthropic" | "local" | "openrouter";
 
 export interface ModelConfig {
   provider: GeneratorProvider;

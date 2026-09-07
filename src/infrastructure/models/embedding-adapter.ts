@@ -1,5 +1,5 @@
 import { embedMany } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { openai, createOpenAI } from "@ai-sdk/openai";
 import type {
   EmbedBatchRequest,
   EmbedBatchResult,
@@ -30,7 +30,11 @@ export class OpenAIEmbeddingAdapter implements EmbeddingPort {
     if (config.dimension <= 0) {
       throw new ValidationError("Embedding dimension must be positive", { field: "dimension" });
     }
-    if (config.provider !== "openai" && config.provider !== "local") {
+    if (
+      config.provider !== "openai" &&
+      config.provider !== "local" &&
+      config.provider !== "openrouter"
+    ) {
       throw new ValidationError("Unsupported embedding provider", { provider: config.provider });
     }
     this.config = { ...config };
@@ -168,8 +172,22 @@ export class OpenAIEmbeddingAdapter implements EmbeddingPort {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.resolvedTimeoutMs);
     try {
+      let model;
+      if (this.config.provider === "openrouter") {
+        const baseURL = this.config.baseUrl ?? "https://openrouter.ai/api/v1";
+        const openrouter = createOpenAI({ baseURL, apiKey: this.config.apiKey ?? "" });
+        model = openrouter.embeddingModel(this.config.model);
+      } else if (this.config.baseUrl) {
+        const custom = createOpenAI({
+          baseURL: this.config.baseUrl,
+          apiKey: this.config.apiKey ?? "",
+        });
+        model = custom.embeddingModel(this.config.model);
+      } else {
+        model = openai.textEmbeddingModel(this.config.model);
+      }
       const result = await embedMany({
-        model: openai.textEmbeddingModel(this.config.model),
+        model,
         values: inputs,
         maxRetries: 0,
         abortSignal: controller.signal,

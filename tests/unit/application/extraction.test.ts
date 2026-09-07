@@ -185,6 +185,7 @@ describe("SupersessionService", () => {
     supersedeWithStatus: vi.fn(),
   };
   const mockEntityRepo = {
+    findById: vi.fn(),
     supersede: vi.fn(),
   };
 
@@ -270,6 +271,9 @@ describe("SupersessionService", () => {
       .mockResolvedValueOnce({ ok: true, value: { id: "fact1" } })
       .mockResolvedValueOnce({ ok: true, value: { id: "fact2" } });
     expect((await service.supersedeFact("fact1", "fact2", "tenant")).ok).toBe(true);
+    mockEntityRepo.findById
+      .mockResolvedValueOnce({ ok: true, value: { id: "entity1" } })
+      .mockResolvedValueOnce({ ok: true, value: { id: "entity2" } });
     mockEntityRepo.supersede.mockResolvedValue({ ok: false, error: new Error("entity") });
     expect((await service.supersedeEntity("entity1", "entity2", "tenant")).ok).toBe(false);
   });
@@ -277,6 +281,9 @@ describe("SupersessionService", () => {
   it("successfully supersedes entity", async () => {
     const { SupersessionService } =
       await import("../../../src/application/extraction/reconciliation");
+    mockEntityRepo.findById
+      .mockResolvedValueOnce({ ok: true, value: { id: "entity1" } })
+      .mockResolvedValueOnce({ ok: true, value: { id: "entity2" } });
     mockEntityRepo.supersede.mockResolvedValue({ ok: true, value: undefined });
     const service = new SupersessionService(mockFactRepo as any, mockEntityRepo as any);
     const tenantId = crypto.randomUUID();

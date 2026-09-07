@@ -3,7 +3,9 @@ import type { Database } from "../client";
 import { facts } from "../schema";
 import type { FactRepository } from "../../../application/extraction/ports.types";
 import type { KnowledgeFact } from "../../../domain/knowledge/knowledge.schema";
+import { KnowledgeFactSchema } from "../../../domain/knowledge/knowledge.schema";
 import { mapFactRow } from "../mappers/fact.mapper";
+import { validateOrThrow } from "../../../domain/validation";
 
 export class PostgresFactRepository implements FactRepository {
   constructor(private db: Database) {}
@@ -12,9 +14,10 @@ export class PostgresFactRepository implements FactRepository {
     fact: KnowledgeFact,
   ): Promise<{ ok: true; value: KnowledgeFact } | { ok: false; error: Error }> {
     try {
+      const validated = validateOrThrow(KnowledgeFactSchema, fact, "KnowledgeFact");
       const [result] = await this.db.drizzle
         .insert(facts)
-        .values(fact as any)
+        .values(validated as any)
         .returning();
       return { ok: true, value: mapFactRow(result as Record<string, unknown>) };
     } catch (error) {
@@ -26,9 +29,12 @@ export class PostgresFactRepository implements FactRepository {
     factsToCreate: KnowledgeFact[],
   ): Promise<{ ok: true; value: KnowledgeFact[] } | { ok: false; error: Error }> {
     try {
+      const validated = factsToCreate.map((f) =>
+        validateOrThrow(KnowledgeFactSchema, f, "KnowledgeFact"),
+      );
       const results = await this.db.drizzle
         .insert(facts)
-        .values(factsToCreate as any)
+        .values(validated as any)
         .returning();
       return { ok: true, value: results.map((r) => mapFactRow(r as Record<string, unknown>)) };
     } catch (error) {
@@ -165,10 +171,14 @@ export class PostgresFactRepository implements FactRepository {
     status: KnowledgeFact["status"],
   ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
     try {
-      await this.db.drizzle
+      const result = await this.db.drizzle
         .update(facts)
         .set({ status: status as any, supersededBy: supersededById })
-        .where(and(eq(facts.id, id), eq(facts.tenantId, tenantId)));
+        .where(and(eq(facts.id, id), eq(facts.tenantId, tenantId)))
+        .returning();
+      if (result.length === 0) {
+        return { ok: false, error: new Error("No fact found to supersede") };
+      }
       return { ok: true, value: undefined };
     } catch (error) {
       return { ok: false, error: error as Error };

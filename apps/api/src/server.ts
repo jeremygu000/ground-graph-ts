@@ -3,6 +3,7 @@ import cors from "@fastify/cors";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { ZodError } from "zod";
+import { serializerCompiler, validatorCompiler } from "@fastify/type-provider-zod";
 import type { HealthChecker } from "@/application/health.types";
 import {
   PostgresHealthChecker,
@@ -46,6 +47,9 @@ export async function buildApp(
   const app = Fastify({
     logger: true,
   });
+
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
 
   await app.register(cors, { origin: true });
   await app.register(swagger, {
@@ -194,18 +198,20 @@ const tracer = new NoopTracer();
 const citationBuilder = new CitationBuilder();
 
 const embeddingAdapter = new OpenAIEmbeddingAdapter({
-  provider: "openai",
+  provider: (process.env.EMBEDDING_PROVIDER as "openai" | "openrouter" | "local") ?? "openai",
   model: process.env.EMBEDDING_MODEL ?? "text-embedding-3-small",
   dimension: 1536,
   apiKey: process.env.OPENAI_API_KEY ?? "",
+  ...(process.env.EMBEDDING_BASE_URL ? { baseUrl: process.env.EMBEDDING_BASE_URL } : {}),
 });
 
 const reranker = new NoopRerankAdapter("noop");
 
 const generator = new OpenAIGeneratorAdapter({
-  provider: "openai",
-  model: process.env.LLM_MODEL ?? "gpt-4o-mini",
+  provider: (process.env.LLM_PROVIDER as "openai" | "openrouter") ?? "openrouter",
+  model: process.env.LLM_MODEL ?? "google/gemini-2.0-flash-thinking-exp:free",
   apiKey: process.env.OPENAI_API_KEY ?? "",
+  ...(process.env.LLM_BASE_URL ? { baseUrl: process.env.LLM_BASE_URL } : {}),
 });
 
 const entityRepository = new PostgresEntityRepository(db);

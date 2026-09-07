@@ -20,6 +20,8 @@ const serverMocks = vi.hoisted(() => {
     setErrorHandler: vi.fn((handler: (typeof state)["errorHandler"]) => {
       state.errorHandler = handler;
     }),
+    setValidatorCompiler: vi.fn(),
+    setSerializerCompiler: vi.fn(),
     addHook: vi.fn((name: string, handler: unknown) => {
       void name;
       void handler;
@@ -44,6 +46,11 @@ vi.mock("@fastify/swagger", () => ({
 
 vi.mock("@fastify/swagger-ui", () => ({
   default: vi.fn(),
+}));
+
+vi.mock("@fastify/type-provider-zod", () => ({
+  validatorCompiler: vi.fn(),
+  serializerCompiler: vi.fn(),
 }));
 
 vi.mock("@/infrastructure/health", () => ({

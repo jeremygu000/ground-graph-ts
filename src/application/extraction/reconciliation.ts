@@ -206,11 +206,33 @@ export class SupersessionService {
       return { ok: false, error: new InternalError("Entity cannot supersede itself") };
     }
 
-    const supersedeResult = await this.entityRepo.supersede(entityId, tenantId, supersededById);
-    if (!supersedeResult.ok) {
-      return supersedeResult;
+    const entityResult = await this.entityRepo.findById(entityId, tenantId);
+    if (!entityResult.ok) {
+      return {
+        ok: false,
+        error: new InternalError("Failed to fetch entity", { cause: entityResult.error }),
+      };
+    }
+    if (!entityResult.value) {
+      return { ok: false, error: new InternalError("Entity not found", { entityId }) };
     }
 
-    return { ok: true, value: undefined };
+    const supersedingResult = await this.entityRepo.findById(supersededById, tenantId);
+    if (!supersedingResult.ok) {
+      return {
+        ok: false,
+        error: new InternalError("Failed to fetch superseding entity", {
+          cause: supersedingResult.error,
+        }),
+      };
+    }
+    if (!supersedingResult.value) {
+      return {
+        ok: false,
+        error: new InternalError("Superseding entity not found", { supersededById }),
+      };
+    }
+
+    return this.entityRepo.supersede(entityId, tenantId, supersededById);
   }
 }

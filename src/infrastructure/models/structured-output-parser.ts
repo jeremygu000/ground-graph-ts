@@ -86,6 +86,14 @@ export function tryRecoverJson(text: string): unknown | undefined {
   }
 }
 
+const MAX_EXTRACT_SIZE = 10_000;
+const POINTER_PATTERN = /\b0x[0-9a-f]{4,16}\b/gi;
+
+function containsPointer(text: string): boolean {
+  POINTER_PATTERN.lastIndex = 0;
+  return POINTER_PATTERN.test(text);
+}
+
 export function extractBalancedJsonObject(text: string): string | undefined {
   const first = text.indexOf("{");
   if (first === -1) return undefined;
@@ -111,7 +119,10 @@ export function extractBalancedJsonObject(text: string): string | undefined {
     } else if (ch === "}") {
       depth--;
       if (depth === 0) {
-        return text.slice(first, i + 1);
+        const extracted = text.slice(first, i + 1);
+        if (extracted.length > MAX_EXTRACT_SIZE) return undefined;
+        if (containsPointer(extracted)) return undefined;
+        return extracted;
       }
     }
   }

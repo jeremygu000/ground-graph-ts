@@ -233,6 +233,9 @@ function scanSource(filePath: string, sourceText: string): Violation[] {
           "@fastify/cors",
           "@fastify/swagger",
           "@fastify/swagger-ui",
+          "next",
+          "react",
+          "react-dom",
           "zod",
         ]);
         if (!allowedPackages.has(importSpecifier) && !packageName.startsWith("@fastify/")) {
@@ -250,6 +253,8 @@ function scanSource(filePath: string, sourceText: string): Violation[] {
   return violations;
 }
 
+const EXCLUDED_DIRS = new Set([".next", "node_modules"]);
+
 async function walkTsFiles(root: string): Promise<string[]> {
   const entries = await fsPromises.readdir(root, { withFileTypes: true });
   const files: string[] = [];
@@ -257,6 +262,7 @@ async function walkTsFiles(root: string): Promise<string[]> {
   for (const entry of entries) {
     const fullPath = path.join(root, entry.name);
     if (entry.isDirectory()) {
+      if (EXCLUDED_DIRS.has(entry.name)) continue;
       files.push(...(await walkTsFiles(fullPath)));
       continue;
     }
