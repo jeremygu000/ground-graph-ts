@@ -1,0 +1,1 @@
+export { registerQueryRoutes } from "./query";
