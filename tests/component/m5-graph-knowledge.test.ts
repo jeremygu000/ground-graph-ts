@@ -70,7 +70,6 @@ describe("Neo4jGraphRepository M5 component tests", () => {
       extractionMethod: "human",
       confidence: 0.9,
       validFrom: "2024-01-01T00:00:00.000Z",
-      validTo: undefined,
       observedAt: "2024-01-01T00:00:00.000Z",
       createdAt: "2024-01-01T00:00:00.000Z",
       provenance: { sourceVersionId: crypto.randomUUID(), evidenceText: "test" },
@@ -79,7 +78,7 @@ describe("Neo4jGraphRepository M5 component tests", () => {
     expect(result.ok, result.ok ? "" : result.error.message).toBe(true);
   }
 
-  describe.skip("Deep graph traversal", () => {
+  describe("Deep graph traversal", () => {
     it("traverses 5 hops through a chain", async () => {
       const chain = Array.from({ length: 6 }, () => crypto.randomUUID());
       for (const eid of chain) {
@@ -250,7 +249,7 @@ describe("Neo4jGraphRepository M5 component tests", () => {
     });
   });
 
-  describe.skip("Fact projection", () => {
+  describe("Fact projection", () => {
     it("idempotently projects the same fact twice", async () => {
       const [a, b] = [crypto.randomUUID(), crypto.randomUUID()];
       for (const eid of [a, b]) await createEntity(eid, tenantId);
@@ -319,15 +318,24 @@ describe("Neo4jGraphRepository M5 component tests", () => {
           { fid: factId },
         );
         const record = res.records[0];
+        const confValue = record?.get("conf");
+        let conf: number | null = null;
+        if (confValue !== null && confValue !== undefined) {
+          if (typeof confValue === "number") {
+            conf = confValue;
+          } else if (typeof confValue === "object" && "toNumber" in confValue) {
+            conf = (confValue as { toNumber: () => number }).toNumber();
+          }
+        }
         return {
           method: record?.get("method"),
-          conf: record?.get("conf")?.toNumber(),
+          conf,
           prov: record?.get("prov"),
         };
       });
 
       expect(stored.method).toBe("llm");
-      expect(stored.conf).toBe(0.88);
+      expect(stored.conf).toBeCloseTo(0.88, 2);
       expect(stored.prov).not.toBeNull();
     });
 
