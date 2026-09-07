@@ -29,13 +29,13 @@ export const ProposalStatusSchema = z.enum([
 export type ProposalStatus = z.infer<typeof ProposalStatusSchema>;
 
 export const FailureClusterSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
   failurePattern: z.string(),
   occurrenceCount: z.number().int().nonnegative(),
   affectedTraceIds: z.array(z.string()),
-  firstSeenAt: z.string().datetime(),
-  lastSeenAt: z.string().datetime(),
+  firstSeenAt: z.iso.datetime(),
+  lastSeenAt: z.iso.datetime(),
   rootCauseHypothesis: z.string().optional(),
 });
 
@@ -61,22 +61,22 @@ export const ProposedChangeSchema = z.object({
 export type ProposedChange = z.infer<typeof ProposedChangeSchema>;
 
 export const ProposalSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
   title: z.string(),
   description: z.string(),
   type: ProposalTypeSchema,
   status: ProposalStatusSchema,
   change: ProposedChangeSchema,
   evidence: z.array(EvidenceLinkSchema),
-  clusterId: z.string().uuid().optional(),
-  createdAt: z.string().datetime(),
+  clusterId: z.uuid().optional(),
+  createdAt: z.iso.datetime(),
   createdBy: z.string(),
-  submittedAt: z.string().datetime().optional(),
+  submittedAt: z.iso.datetime().optional(),
   submittedBy: z.string().optional(),
-  approvedAt: z.string().datetime().optional(),
+  approvedAt: z.iso.datetime().optional(),
   approvedBy: z.string().optional(),
-  rejectedAt: z.string().datetime().optional(),
+  rejectedAt: z.iso.datetime().optional(),
   rejectedBy: z.string().optional(),
   rejectionReason: z.string().optional(),
   rolloutStage: RolloutStageSchema.optional(),
@@ -94,12 +94,12 @@ export const ProposalSchema = z.object({
 export type Proposal = z.infer<typeof ProposalSchema>;
 
 export const RolloutRecordSchema = z.object({
-  id: z.string().uuid(),
-  proposalId: z.string().uuid(),
+  id: z.uuid(),
+  proposalId: z.uuid(),
   stage: RolloutStageSchema,
   status: z.enum(["started", "running", "succeeded", "failed", "rolled_back"]),
-  startedAt: z.string().datetime(),
-  completedAt: z.string().datetime().optional(),
+  startedAt: z.iso.datetime(),
+  completedAt: z.iso.datetime().optional(),
   error: z.string().optional(),
   metrics: z
     .object({
@@ -127,17 +127,17 @@ export const DriftTypeSchema = z.enum([
 export type DriftType = z.infer<typeof DriftTypeSchema>;
 
 export const DriftReportSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
   type: DriftTypeSchema,
   severity: DriftSeveritySchema,
-  detectedAt: z.string().datetime(),
+  detectedAt: z.iso.datetime(),
   description: z.string(),
   expectedValue: z.unknown(),
   actualValue: z.unknown(),
-  affectedProposals: z.array(z.string().uuid()).optional(),
+  affectedProposals: z.array(z.uuid()).optional(),
   reviewStatus: z.enum(["pending", "in_review", "resolved", "accepted_risk"]).default("pending"),
-  reviewedAt: z.string().datetime().optional(),
+  reviewedAt: z.iso.datetime().optional(),
   reviewedBy: z.string().optional(),
 });
 

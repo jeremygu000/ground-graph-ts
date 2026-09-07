@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 const E2E_API_URL = process.env.E2E_API_URL ?? "http://localhost:8080";
 const E2E_AUTH_TOKEN = process.env.E2E_AUTH_TOKEN;
+const E2E_TENANT_ID = "00000000-0000-4000-8000-000000000001";
+const E2E_PRINCIPAL_ID = "00000000-0000-4000-8000-0000000000a1";
 
 describe("End-to-end tests", () => {
   describe("Query workflow E2E", () => {
@@ -24,7 +26,12 @@ describe("End-to-end tests", () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${E2E_AUTH_TOKEN}`,
         },
-        body: JSON.stringify({ question: "What services exist?", strategy: "hybrid" }),
+        body: JSON.stringify({
+          question: "What services exist?",
+          strategy: "hybrid",
+          tenantId: E2E_TENANT_ID,
+          principalId: E2E_PRINCIPAL_ID,
+        }),
       });
       expect(res.status).toBe(200);
       const data = (await res.json()) as { queryId: string; status: string };
@@ -47,6 +54,8 @@ describe("End-to-end tests", () => {
           question: "What services depend on component X?",
           strategy: "hybrid",
           maxResults: 5,
+          tenantId: E2E_TENANT_ID,
+          principalId: E2E_PRINCIPAL_ID,
         }),
       });
       expect(res.status).toBe(200);
@@ -66,12 +75,12 @@ describe("End-to-end tests", () => {
       if (!E2E_AUTH_TOKEN) {
         expect.fail("E2E_AUTH_TOKEN environment variable not set");
       }
-      const res = await fetch(`${E2E_API_URL}/v1/documents`, {
+      const res = await fetch(`${E2E_API_URL}/v1/documents?tenantId=${E2E_TENANT_ID}`, {
         headers: { Authorization: `Bearer ${E2E_AUTH_TOKEN}` },
       });
       expect(res.status).toBe(200);
-      const data = (await res.json()) as { items: unknown[]; total: number };
-      expect(data).toHaveProperty("items");
+      const data = (await res.json()) as { documents: unknown[]; total: number };
+      expect(data).toHaveProperty("documents");
       expect(data).toHaveProperty("total");
     });
   });
@@ -81,12 +90,12 @@ describe("End-to-end tests", () => {
       if (!E2E_AUTH_TOKEN) {
         expect.fail("E2E_AUTH_TOKEN environment variable not set");
       }
-      const res = await fetch(`${E2E_API_URL}/v1/entities`, {
+      const res = await fetch(`${E2E_API_URL}/v1/entities?tenantId=${E2E_TENANT_ID}`, {
         headers: { Authorization: `Bearer ${E2E_AUTH_TOKEN}` },
       });
       expect(res.status).toBe(200);
-      const data = (await res.json()) as { items: unknown[]; total: number };
-      expect(data).toHaveProperty("items");
+      const data = (await res.json()) as { entities: unknown[]; total: number };
+      expect(data).toHaveProperty("entities");
       expect(data).toHaveProperty("total");
     });
   });

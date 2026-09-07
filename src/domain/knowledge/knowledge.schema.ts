@@ -14,43 +14,43 @@ export const ExtractionMethodSchema = z.enum(["structured", "rule", "llm", "huma
 export type ExtractionMethod = z.infer<typeof ExtractionMethodSchema>;
 
 export const CanonicalEntitySchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
   canonicalName: z.string().min(1),
   entityType: z.string(),
   aliases: z.array(z.string()).default([]),
   attributes: JSON_OBJECT_SCHEMA,
   description: z.string().optional(),
-  createdAt: z.string().datetime(),
-  validFrom: z.string().datetime(),
-  validTo: z.string().datetime().optional(),
-  supersededBy: z.string().uuid().optional(),
+  createdAt: z.iso.datetime(),
+  validFrom: z.iso.datetime(),
+  validTo: z.iso.datetime().optional(),
+  supersededBy: z.uuid().optional(),
   createdBy: z.string().optional(),
-  principalIds: z.array(z.string().uuid()).default([]),
+  principalIds: z.array(z.uuid()).default([]),
 });
 
 export type CanonicalEntity = z.infer<typeof CanonicalEntitySchema>;
 
 export const KnowledgeFactSchema = z
   .object({
-    id: z.string().uuid(),
-    tenantId: z.string().uuid(),
-    subjectId: z.string().uuid(),
+    id: z.uuid(),
+    tenantId: z.uuid(),
+    subjectId: z.uuid(),
     predicate: z.string(),
-    objectId: z.string().uuid().optional(),
+    objectId: z.uuid().optional(),
     objectValue: z.string().optional(),
     status: FactStatusSchema.default("candidate"),
     extractionMethod: ExtractionMethodSchema,
     confidence: ConfidenceSchema,
-    validFrom: z.string().datetime(),
-    validTo: z.string().datetime().optional(),
-    observedAt: z.string().datetime(),
-    supersededBy: z.string().uuid().optional(),
-    createdAt: z.string().datetime(),
+    validFrom: z.iso.datetime(),
+    validTo: z.iso.datetime().optional(),
+    observedAt: z.iso.datetime(),
+    supersededBy: z.uuid().optional(),
+    createdAt: z.iso.datetime(),
     createdBy: z.string().optional(),
     provenance: z.object({
-      sourceVersionId: z.string().uuid(),
-      chunkId: z.string().uuid().optional(),
+      sourceVersionId: z.uuid(),
+      chunkId: z.uuid().optional(),
       evidenceText: z.string().optional(),
     }),
   })
@@ -86,18 +86,18 @@ export const KnowledgeFactSchema = z
 export type KnowledgeFact = z.infer<typeof KnowledgeFactSchema>;
 
 export const EntityMentionSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
   mentionText: z.string().min(1),
   normalizedForm: z.string(),
-  entityId: z.string().uuid().optional(),
-  sourceChunkId: z.string().uuid(),
+  entityId: z.uuid().optional(),
+  sourceChunkId: z.uuid(),
   position: z.object({
     startChar: z.number().int().nonnegative(),
     endChar: z.number().int().nonnegative(),
   }),
   confidence: ConfidenceSchema,
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 });
 
 export type EntityMention = z.infer<typeof EntityMentionSchema>;

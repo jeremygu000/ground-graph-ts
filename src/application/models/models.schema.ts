@@ -6,14 +6,14 @@ export const StructuredAnswerSchema: z.ZodType<StructuredAnswer> = z.object({
   status: z.enum(["answered", "insufficient_evidence", "refused"]),
   claims: z.array(
     z.object({
-      claimId: z.string().uuid(),
+      claimId: z.uuid(),
       claimText: z.string(),
       citations: z.array(
         z.object({
-          citationId: z.string().uuid(),
-          evidenceId: z.string().uuid(),
-          chunkId: z.string().uuid(),
-          documentVersionId: z.string().uuid(),
+          citationId: z.uuid(),
+          evidenceId: z.uuid(),
+          chunkId: z.uuid(),
+          documentVersionId: z.uuid(),
           locatorPath: z.string(),
           snippet: z.string(),
           startChar: z.number().int().nonnegative(),

@@ -5,9 +5,9 @@ export const EvidenceStatusSchema = z.enum(["pending", "verified", "rejected", "
 export type EvidenceStatus = z.infer<typeof EvidenceStatusSchema>;
 
 export const EvidenceSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  sourceVersionId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
+  sourceVersionId: z.uuid(),
   evidenceType: z.enum(["document", "chunk", "fact", "external"]),
   content: z.string(),
   contentHash: z.string(),
@@ -15,18 +15,18 @@ export const EvidenceSchema = z.object({
   uri: z.string().optional(),
   status: EvidenceStatusSchema,
   verificationMethod: z.enum(["automated", "human", "model"]).optional(),
-  verifiedAt: z.string().datetime().optional(),
+  verifiedAt: z.iso.datetime().optional(),
   verifiedBy: z.string().optional(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type Evidence = z.infer<typeof EvidenceSchema>;
 
 export const CitationSchema = z.object({
-  claimId: z.string().uuid(),
-  evidenceId: z.string().uuid(),
-  chunkId: z.string().uuid().optional(),
+  claimId: z.uuid(),
+  evidenceId: z.uuid(),
+  chunkId: z.uuid().optional(),
   position: z.object({
     startChar: z.number().int().nonnegative(),
     endChar: z.number().int().nonnegative(),
@@ -38,14 +38,14 @@ export const CitationSchema = z.object({
 export type Citation = z.infer<typeof CitationSchema>;
 
 export const ClaimSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  questionId: z.string().uuid().optional(),
-  factId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
+  questionId: z.uuid().optional(),
+  factId: z.uuid(),
   claimText: z.string(),
   status: z.enum(["asserted", "supported", "refuted", "uncertain"]),
   confidence: z.number().min(0).max(1),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
   citations: z.array(CitationSchema).default([]),
 });
 

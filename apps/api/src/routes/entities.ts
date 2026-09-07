@@ -132,7 +132,7 @@ export async function registerEntitiesRoutes(
       description: "Get an entity by ID",
       tags: ["entities"],
       params: z.object({
-        id: z.string().uuid(),
+        id: z.uuid(),
       }),
       querystring: GetEntityRequestSchema,
       response: {

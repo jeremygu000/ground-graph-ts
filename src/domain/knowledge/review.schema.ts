@@ -7,25 +7,25 @@ export const ReviewItemTypeSchema = z.enum(["entity", "fact", "mention", "extrac
 export type ReviewItemType = z.infer<typeof ReviewItemTypeSchema>;
 
 export const ReviewQueueItemSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
   itemType: ReviewItemTypeSchema,
-  itemId: z.string().uuid(),
+  itemId: z.uuid(),
   status: ReviewStatusSchema.default("pending"),
   priority: z.number().int().min(0).max(10).default(5),
-  assignedTo: z.string().uuid().optional(),
+  assignedTo: z.uuid().optional(),
   reviewNotes: z.string().optional(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-  resolvedAt: z.string().datetime().optional(),
-  resolvedBy: z.string().uuid().optional(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  resolvedAt: z.iso.datetime().optional(),
+  resolvedBy: z.uuid().optional(),
 });
 
 export type ReviewQueueItem = z.infer<typeof ReviewQueueItemSchema>;
 
 export const GraphMetricsSchema = z.object({
-  tenantId: z.string().uuid(),
-  timestamp: z.string().datetime(),
+  tenantId: z.uuid(),
+  timestamp: z.iso.datetime(),
   totalEntities: z.number().int().nonnegative(),
   totalFacts: z.number().int().nonnegative(),
   verifiedFacts: z.number().int().nonnegative(),

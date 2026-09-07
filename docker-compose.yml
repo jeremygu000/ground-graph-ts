@@ -42,6 +42,9 @@ x-neo4j-env: &neo4j-env
 
 x-app-env: &app-env
   DATABASE_URL: "postgresql://${POSTGRES_USER:-groundgraph}:${POSTGRES_PASSWORD:-change-me-local-only}@postgres:5432/${POSTGRES_DB:-groundgraph}"
+  JWT_SECRET: "${JWT_SECRET:-change-me-local-only}"
+  JWT_ISSUER: "${JWT_ISSUER:-ground-graph}"
+  JWT_AUDIENCE: "${JWT_AUDIENCE:-ground-graph-api}"
   NEO4J_HOST: "bolt://neo4j:7687"
   NEO4J_USER: "${NEO4J_USER:-neo4j}"
   NEO4J_PASSWORD: "${NEO4J_PASSWORD:-change-me-local-only}"

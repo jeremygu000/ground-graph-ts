@@ -47,7 +47,7 @@ export const CreateProposalRequestSchema = z.object({
       }),
     )
     .min(1),
-  clusterId: z.string().uuid().optional(),
+  clusterId: z.uuid().optional(),
 });
 
 export type CreateProposalRequest = z.infer<typeof CreateProposalRequestSchema>;
@@ -57,8 +57,8 @@ export const SubmitProposalRequestSchema = z.object({});
 export type SubmitProposalRequest = z.infer<typeof SubmitProposalRequestSchema>;
 
 export const ProposalResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
   title: z.string(),
   description: z.string(),
   type: ProposalTypeSchema,
@@ -78,14 +78,14 @@ export const ProposalResponseSchema = z.object({
       relevanceScore: z.number().min(0).max(1).optional(),
     }),
   ),
-  clusterId: z.string().uuid().optional(),
-  createdAt: z.string().datetime(),
+  clusterId: z.uuid().optional(),
+  createdAt: z.iso.datetime(),
   createdBy: z.string(),
-  submittedAt: z.string().datetime().optional(),
+  submittedAt: z.iso.datetime().optional(),
   submittedBy: z.string().optional(),
-  approvedAt: z.string().datetime().optional(),
+  approvedAt: z.iso.datetime().optional(),
   approvedBy: z.string().optional(),
-  rejectedAt: z.string().datetime().optional(),
+  rejectedAt: z.iso.datetime().optional(),
   rejectedBy: z.string().optional(),
   rejectionReason: z.string().optional(),
   rolloutStage: RolloutStageSchema.optional(),
@@ -94,11 +94,11 @@ export const ProposalResponseSchema = z.object({
 export type ProposalResponse = z.infer<typeof ProposalResponseSchema>;
 
 export const ListProposalsRequestSchema = z.object({
-  tenantId: z.string().uuid(),
+  tenantId: z.uuid(),
   status: ProposalStatusSchema.optional(),
   type: ProposalTypeSchema.optional(),
   rolloutStage: RolloutStageSchema.optional(),
-  clusterId: z.string().uuid().optional(),
+  clusterId: z.uuid().optional(),
 });
 
 export type ListProposalsRequest = z.infer<typeof ListProposalsRequestSchema>;
@@ -111,22 +111,22 @@ export const ListProposalsResponseSchema = z.object({
 export type ListProposalsResponse = z.infer<typeof ListProposalsResponseSchema>;
 
 export const ApproveProposalRequestSchema = z.object({
-  proposalId: z.string().uuid(),
+  proposalId: z.uuid(),
 });
 
 export const RejectProposalRequestSchema = z.object({
-  proposalId: z.string().uuid(),
+  proposalId: z.uuid(),
   reason: z.string().min(10),
 });
 
 export const AdvanceRolloutRequestSchema = z.object({
-  proposalId: z.string().uuid(),
+  proposalId: z.uuid(),
   stage: RolloutStageSchema,
   notes: z.string().optional(),
 });
 
 export const RollbackProposalRequestSchema = z.object({
-  proposalId: z.string().uuid(),
+  proposalId: z.uuid(),
   reason: z.string().min(10),
 });
 
@@ -141,28 +141,28 @@ export const CreateDriftReportRequestSchema = z.object({
 export type CreateDriftReportRequest = z.infer<typeof CreateDriftReportRequestSchema>;
 
 export const DriftReportResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
   type: DriftTypeSchema,
   severity: DriftSeveritySchema,
-  detectedAt: z.string().datetime(),
+  detectedAt: z.iso.datetime(),
   description: z.string(),
   expectedValue: z.unknown(),
   actualValue: z.unknown(),
   reviewStatus: z.enum(["pending", "in_review", "resolved", "accepted_risk"]),
-  reviewedAt: z.string().datetime().optional(),
+  reviewedAt: z.iso.datetime().optional(),
   reviewedBy: z.string().optional(),
 });
 
 export type DriftReportResponse = z.infer<typeof DriftReportResponseSchema>;
 
 export const ReviewDriftReportRequestSchema = z.object({
-  reportId: z.string().uuid(),
+  reportId: z.uuid(),
   status: z.enum(["pending", "in_review", "resolved", "accepted_risk"]),
 });
 
 export const ListDriftReportsRequestSchema = z.object({
-  tenantId: z.string().uuid(),
+  tenantId: z.uuid(),
   reviewStatus: z.enum(["pending", "in_review", "resolved", "accepted_risk"]).optional(),
   severity: DriftSeveritySchema.optional(),
   type: DriftTypeSchema.optional(),

@@ -8,9 +8,9 @@ import type {
 import { z } from "zod";
 
 const SourceSyncStateSchema = z.object({
-  id: z.string().uuid(),
-  sourceId: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.uuid(),
+  sourceId: z.uuid(),
+  tenantId: z.uuid(),
   lastCursor: z.string().optional(),
   lastSyncedAt: z.string().optional(),
   lastChangeHash: z.string().optional(),

@@ -4,13 +4,13 @@ export const QueryStrategySchema = z.enum(["vector", "graph", "hybrid", "fulltex
 
 export const QueryFiltersSchema = z
   .object({
-    documentIds: z.array(z.string().uuid()).optional(),
+    documentIds: z.array(z.uuid()).optional(),
     entityTypes: z.array(z.string()).optional(),
     factStatuses: z.array(z.enum(["candidate", "verified", "rejected", "superseded"])).optional(),
     timeRange: z
       .object({
-        validFrom: z.string().datetime().optional(),
-        validTo: z.string().datetime().optional(),
+        validFrom: z.iso.datetime().optional(),
+        validTo: z.iso.datetime().optional(),
       })
       .optional(),
   })
@@ -26,8 +26,8 @@ export const QueryBudgetsSchema = z
 
 export const QueryRequestSchema = z.object({
   question: z.string().min(1).max(10000),
-  tenantId: z.string().uuid(),
-  principalId: z.string().uuid(),
+  tenantId: z.uuid(),
+  principalId: z.uuid(),
   strategy: QueryStrategySchema.default("hybrid"),
   filters: QueryFiltersSchema,
   maxResults: z.number().int().positive().max(100).optional(),
@@ -108,7 +108,7 @@ export const ConflictResponseSchema = z.object({
   status: z.literal("conflict"),
   conflicts: z.array(
     z.object({
-      entityId: z.string().uuid(),
+      entityId: z.uuid(),
       field: z.string(),
       message: z.string(),
     }),

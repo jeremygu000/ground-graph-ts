@@ -124,10 +124,10 @@ export async function registerDocumentsRoutes(
       description: "Get a document by ID",
       tags: ["documents"],
       params: z.object({
-        id: z.string().uuid(),
+        id: z.uuid(),
       }),
       querystring: z.object({
-        tenantId: z.string().uuid(),
+        tenantId: z.uuid(),
         includeVersions: z.boolean().optional().default(false),
       }),
       response: {

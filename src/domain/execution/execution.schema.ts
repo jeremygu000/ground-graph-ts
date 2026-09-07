@@ -23,16 +23,16 @@ export const StepStatusSchema = z.enum([
 export type StepStatus = z.infer<typeof StepStatusSchema>;
 
 export const ExecutionStepSchema = z.object({
-  id: z.string().uuid(),
-  runId: z.string().uuid(),
+  id: z.uuid(),
+  runId: z.uuid(),
   stepName: z.string(),
   stepType: z.string(),
   status: StepStatusSchema,
   input: z.record(z.string(), z.unknown()).optional(),
   output: z.record(z.string(), z.unknown()).optional(),
   error: z.string().optional(),
-  startedAt: z.string().datetime().optional(),
-  completedAt: z.string().datetime().optional(),
+  startedAt: z.iso.datetime().optional(),
+  completedAt: z.iso.datetime().optional(),
   retryCount: z.number().int().nonnegative().default(0),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
@@ -40,8 +40,8 @@ export const ExecutionStepSchema = z.object({
 export type ExecutionStep = z.infer<typeof ExecutionStepSchema>;
 
 export const ExecutionRunSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
   workflowName: z.string(),
   workflowVersion: z.string(),
   status: RunStatusSchema,
@@ -51,8 +51,8 @@ export const ExecutionRunSchema = z.object({
   error: z.string().optional(),
   traceId: z.string().optional(),
   spanId: z.string().optional(),
-  startedAt: z.string().datetime().optional(),
-  completedAt: z.string().datetime().optional(),
+  startedAt: z.iso.datetime().optional(),
+  completedAt: z.iso.datetime().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   versionBundle: z.object({
     codeCommit: z.string().optional(),
@@ -69,8 +69,8 @@ export const ExecutionRunSchema = z.object({
 export type ExecutionRun = z.infer<typeof ExecutionRunSchema>;
 
 export const ExecutionStepDependencySchema = z.object({
-  stepId: z.string().uuid(),
-  dependsOnStepId: z.string().uuid(),
+  stepId: z.uuid(),
+  dependsOnStepId: z.uuid(),
 });
 
 export type ExecutionStepDependency = z.infer<typeof ExecutionStepDependencySchema>;

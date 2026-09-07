@@ -12,20 +12,20 @@ export const SourceDescriptorSchema = z.object({
 export type SourceDescriptor = z.infer<typeof SourceDescriptorSchema>;
 
 export const ParsedDocumentSchema = z.object({
-  sourceId: z.string().uuid(),
-  versionId: z.string().uuid(),
+  sourceId: z.uuid(),
+  versionId: z.uuid(),
   title: z.string().optional(),
   content: z.string(),
   metadata: z.record(z.string(), z.unknown()).optional(),
-  extractedAt: z.string().datetime(),
+  extractedAt: z.iso.datetime(),
 });
 
 export type ParsedDocument = z.infer<typeof ParsedDocumentSchema>;
 
 export const ChunkSchema = z.object({
-  id: z.string().uuid(),
-  documentVersionId: z.string().uuid(),
-  principalId: z.string().uuid(),
+  id: z.uuid(),
+  documentVersionId: z.uuid(),
+  principalId: z.uuid(),
   sequenceNumber: z.number().int().nonnegative(),
   content: z.string(),
   contentHash: z.string(),
@@ -36,14 +36,14 @@ export const ChunkSchema = z.object({
     endLine: z.number().int().nonnegative().optional(),
   }),
   metadata: z.record(z.string(), z.unknown()).optional(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 });
 
 export type Chunk = z.infer<typeof ChunkSchema>;
 
 export const EvidenceReferenceSchema = z.object({
-  evidenceId: z.string().uuid(),
-  chunkId: z.string().uuid(),
+  evidenceId: z.uuid(),
+  chunkId: z.uuid(),
   position: z.object({
     startChar: z.number().int().nonnegative(),
     endChar: z.number().int().nonnegative(),

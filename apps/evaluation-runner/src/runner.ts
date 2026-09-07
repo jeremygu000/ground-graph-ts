@@ -505,7 +505,7 @@ async function evaluateCase(
           ? null
           : 0;
 
-    const aclLeakage: boolean | null = null;
+    const aclLeakage: boolean | null = evaluationCase.type === "acl" ? hasForbiddenClaim : null;
 
     return {
       caseId: evaluationCase.id,

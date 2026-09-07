@@ -14,20 +14,20 @@ export const EvaluationMetricSchema = z.object({
 export type EvaluationMetric = z.infer<typeof EvaluationMetricSchema>;
 
 export const EvaluationCaseSchema = z.object({
-  id: z.string().uuid(),
-  datasetId: z.string().uuid(),
+  id: z.uuid(),
+  datasetId: z.uuid(),
   question: z.string(),
   questionType: z.string(),
-  tenantId: z.string().uuid(),
-  principalId: z.string().uuid().optional(),
+  tenantId: z.uuid(),
+  principalId: z.uuid().optional(),
   expectedEntities: z.array(z.string()).optional(),
-  expectedFacts: z.array(z.string().uuid()).optional(),
+  expectedFacts: z.array(z.uuid()).optional(),
   expectedPaths: z
     .array(
       z.object({
-        subjectId: z.string().uuid(),
+        subjectId: z.uuid(),
         predicate: z.string(),
-        objectId: z.string().uuid(),
+        objectId: z.uuid(),
       }),
     )
     .optional(),
@@ -41,9 +41,9 @@ export const EvaluationCaseSchema = z.object({
 export type EvaluationCase = z.infer<typeof EvaluationCaseSchema>;
 
 export const EvaluationResultSchema = z.object({
-  id: z.string().uuid(),
-  caseId: z.string().uuid(),
-  runId: z.string().uuid(),
+  id: z.uuid(),
+  caseId: z.uuid(),
+  runId: z.uuid(),
   status: EvaluationStatusSchema,
   metrics: z.array(EvaluationMetricSchema),
   response: z
@@ -51,7 +51,7 @@ export const EvaluationResultSchema = z.object({
       answer: z.string(),
       citations: z.array(
         z.object({
-          evidenceId: z.string().uuid(),
+          evidenceId: z.uuid(),
           snippet: z.string(),
         }),
       ),
@@ -60,7 +60,7 @@ export const EvaluationResultSchema = z.object({
     .optional(),
   latencyMs: z.number().int().nonnegative(),
   costUSD: z.number().min(0).optional(),
-  evaluatedAt: z.string().datetime(),
+  evaluatedAt: z.iso.datetime(),
   versionBundle: z.object({
     codeCommit: z.string().optional(),
     workflowVersion: z.string(),
@@ -79,12 +79,12 @@ export const EvaluationResultSchema = z.object({
 export type EvaluationResult = z.infer<typeof EvaluationResultSchema>;
 
 export const EvaluationDatasetSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   name: z.string(),
   version: z.string(),
   description: z.string().optional(),
   cases: z.array(EvaluationCaseSchema),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
   createdBy: z.string().optional(),
 });
 

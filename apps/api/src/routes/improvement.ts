@@ -146,7 +146,7 @@ export async function registerImprovementRoutes(
     schema: {
       description: "Submit a draft proposal for approval",
       tags: ["improvement"],
-      params: z.object({ id: z.string().uuid() }),
+      params: z.object({ id: z.uuid() }),
       body: SubmitProposalRequestSchema,
       response: {
         200: ProposalResponseSchema,
@@ -311,7 +311,7 @@ export async function registerImprovementRoutes(
     schema: {
       description: "Get a proposal by ID",
       tags: ["improvement"],
-      params: z.object({ id: z.string().uuid() }),
+      params: z.object({ id: z.uuid() }),
       response: {
         200: ProposalResponseSchema,
         401: z.object({}).passthrough(),
@@ -383,7 +383,7 @@ export async function registerImprovementRoutes(
     schema: {
       description: "Approve a proposal",
       tags: ["improvement"],
-      params: z.object({ id: z.string().uuid() }),
+      params: z.object({ id: z.uuid() }),
       body: ApproveProposalRequestSchema,
       response: {
         200: ProposalResponseSchema,
@@ -483,7 +483,7 @@ export async function registerImprovementRoutes(
     schema: {
       description: "Reject a proposal",
       tags: ["improvement"],
-      params: z.object({ id: z.string().uuid() }),
+      params: z.object({ id: z.uuid() }),
       body: RejectProposalRequestSchema,
       response: {
         200: ProposalResponseSchema,
@@ -587,7 +587,7 @@ export async function registerImprovementRoutes(
     schema: {
       description: "Advance proposal rollout to next stage",
       tags: ["improvement"],
-      params: z.object({ id: z.string().uuid() }),
+      params: z.object({ id: z.uuid() }),
       body: AdvanceRolloutRequestSchema,
       response: {
         200: ProposalResponseSchema,
@@ -689,7 +689,7 @@ export async function registerImprovementRoutes(
     schema: {
       description: "Rollback a proposal",
       tags: ["improvement"],
-      params: z.object({ id: z.string().uuid() }),
+      params: z.object({ id: z.uuid() }),
       body: RollbackProposalRequestSchema,
       response: {
         200: ProposalResponseSchema,
@@ -918,7 +918,7 @@ export async function registerImprovementRoutes(
     schema: {
       description: "Review a drift report",
       tags: ["improvement"],
-      params: z.object({ id: z.string().uuid() }),
+      params: z.object({ id: z.uuid() }),
       body: ReviewDriftReportRequestSchema,
       response: {
         200: DriftReportResponseSchema,
@@ -1002,7 +1002,7 @@ export async function registerImprovementRoutes(
     schema: {
       description: "Get improvement metrics",
       tags: ["improvement"],
-      querystring: z.object({ tenantId: z.string().uuid() }),
+      querystring: z.object({ tenantId: z.uuid() }),
       response: {
         200: ImprovementMetricsResponseSchema,
         400: z.object({}).passthrough(),

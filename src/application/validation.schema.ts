@@ -2,9 +2,9 @@ import { z } from "zod";
 import { ParsedDocumentSchema, SourceTypeSchema } from "../domain/documents/documents.schema";
 
 export const SourceSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  principalId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
+  principalId: z.uuid(),
   type: SourceTypeSchema,
   uri: z.string().url(),
   mimeType: z.string().optional(),
@@ -18,10 +18,10 @@ export const SourceSchema = z.object({
 export type SourceInput = z.infer<typeof SourceSchema>;
 
 export const DocumentSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  principalId: z.string().uuid(),
-  sourceId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
+  principalId: z.uuid(),
+  sourceId: z.uuid(),
   title: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   isActive: z.boolean(),
@@ -30,10 +30,10 @@ export const DocumentSchema = z.object({
 });
 
 export const DocumentVersionSchema = z.object({
-  id: z.string().uuid(),
-  documentId: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  principalId: z.string().uuid(),
+  id: z.uuid(),
+  documentId: z.uuid(),
+  tenantId: z.uuid(),
+  principalId: z.uuid(),
   versionNumber: z.number().int().positive(),
   contentHash: z.string(),
   checksum: z.string(),
@@ -41,13 +41,13 @@ export const DocumentVersionSchema = z.object({
   parsedDocument: ParsedDocumentSchema.optional(),
   isActive: z.boolean(),
   createdAt: z.string(),
-  createdBy: z.string().uuid().optional(),
+  createdBy: z.uuid().optional(),
 });
 
 export const ChunkSchema = z.object({
-  id: z.string().uuid(),
-  documentVersionId: z.string().uuid(),
-  principalId: z.string().uuid(),
+  id: z.uuid(),
+  documentVersionId: z.uuid(),
+  principalId: z.uuid(),
   sequenceNumber: z.number().int().nonnegative(),
   content: z.string(),
   contentHash: z.string(),
@@ -62,10 +62,10 @@ export const ChunkSchema = z.object({
 });
 
 export const OutboxEventSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
   aggregateType: z.string(),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   eventType: z.string(),
   payload: z.record(z.string(), z.unknown()),
   idempotencyKey: z.string(),

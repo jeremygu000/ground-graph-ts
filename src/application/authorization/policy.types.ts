@@ -22,7 +22,7 @@ export const RoleSchema = z.object({
 export type Role = z.infer<typeof RoleSchema>;
 
 export const PolicySchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   name: z.string(),
   effect: z.enum(["allow", "deny"]),
   principals: z.array(z.string()),

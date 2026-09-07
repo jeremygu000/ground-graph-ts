@@ -6,18 +6,18 @@ export type RetrievalStrategy = z.infer<typeof RetrievalStrategySchema>;
 
 export const RetrievalQuerySchema = z.object({
   question: z.string().min(1),
-  tenantId: z.string().uuid(),
-  principalId: z.string().uuid(),
+  tenantId: z.uuid(),
+  principalId: z.uuid(),
   strategy: RetrievalStrategySchema,
   filters: z
     .object({
-      documentIds: z.array(z.string().uuid()).optional(),
+      documentIds: z.array(z.uuid()).optional(),
       entityTypes: z.array(z.string()).optional(),
       factStatuses: z.array(z.enum(["candidate", "verified", "rejected", "superseded"])).optional(),
       timeRange: z
         .object({
-          validFrom: z.string().datetime().optional(),
-          validTo: z.string().datetime().optional(),
+          validFrom: z.iso.datetime().optional(),
+          validTo: z.iso.datetime().optional(),
         })
         .optional(),
     })
@@ -36,12 +36,12 @@ export const RetrievalQuerySchema = z.object({
 export type RetrievalQuery = z.infer<typeof RetrievalQuerySchema>;
 
 export const RetrievalResultSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   strategy: RetrievalStrategySchema,
   score: z.number().min(0).max(1),
-  chunkId: z.string().uuid().optional(),
-  entityId: z.string().uuid().optional(),
-  factId: z.string().uuid().optional(),
+  chunkId: z.uuid().optional(),
+  entityId: z.uuid().optional(),
+  factId: z.uuid().optional(),
   content: z.string(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
@@ -49,7 +49,7 @@ export const RetrievalResultSchema = z.object({
 export type RetrievalResult = z.infer<typeof RetrievalResultSchema>;
 
 export const RetrievalResponseSchema = z.object({
-  queryId: z.string().uuid(),
+  queryId: z.uuid(),
   results: z.array(RetrievalResultSchema),
   totalResults: z.number().int().nonnegative(),
   retrievalTimeMs: z.number().int().nonnegative(),
@@ -62,11 +62,11 @@ export const QueryResponseSchema = z.object({
   answer: z.string(),
   claims: z.array(
     z.object({
-      claimId: z.string().uuid(),
+      claimId: z.uuid(),
       claimText: z.string(),
       citations: z.array(
         z.object({
-          evidenceId: z.string().uuid(),
+          evidenceId: z.uuid(),
           snippet: z.string(),
         }),
       ),

@@ -8,15 +8,15 @@ export const IngestDocumentRequestSchema = z.object({
   chunkingStrategy: z.enum(["heading", "recursive", "page", "semantic"]).default("heading"),
   maxChunkSize: z.number().int().positive().default(1000),
   chunkOverlap: z.number().int().nonnegative().default(200),
-  principalId: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  principalId: z.uuid(),
+  tenantId: z.uuid(),
 });
 
 export type IngestDocumentRequest = z.infer<typeof IngestDocumentRequestSchema>;
 
 export const IngestDocumentResponseSchema = z.object({
-  documentId: z.string().uuid(),
-  versionId: z.string().uuid(),
+  documentId: z.uuid(),
+  versionId: z.uuid(),
   chunksCreated: z.number().int(),
   status: z.enum(["completed", "failed", "partial"]),
   errors: z

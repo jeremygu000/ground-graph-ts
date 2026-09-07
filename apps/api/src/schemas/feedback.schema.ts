@@ -7,31 +7,31 @@ export const FeedbackTargetSchema = z.enum(["query", "claim", "citation", "answe
 export type FeedbackTarget = z.infer<typeof FeedbackTargetSchema>;
 
 export const FeedbackSubmissionSchema = z.object({
-  queryId: z.string().uuid(),
+  queryId: z.uuid(),
   target: FeedbackTargetSchema,
   targetId: z.string().optional(),
   rating: FeedbackRatingSchema,
   comment: z.string().max(2000).optional(),
-  tenantId: z.string().uuid(),
-  principalId: z.string().uuid(),
+  tenantId: z.uuid(),
+  principalId: z.uuid(),
 });
 
 export type FeedbackSubmission = z.infer<typeof FeedbackSubmissionSchema>;
 
 export const FeedbackResponseSchema = z.object({
-  feedbackId: z.string().uuid(),
-  queryId: z.string().uuid(),
+  feedbackId: z.uuid(),
+  queryId: z.uuid(),
   target: FeedbackTargetSchema,
   rating: FeedbackRatingSchema,
   comment: z.string().max(2000).optional(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 });
 
 export type FeedbackResponse = z.infer<typeof FeedbackResponseSchema>;
 
 export const EvaluationComparisonSchema = z.object({
-  queryId: z.string().uuid(),
-  evaluationId: z.string().uuid().optional(),
+  queryId: z.uuid(),
+  evaluationId: z.uuid().optional(),
   groundTruthAnswer: z.string().optional(),
   modelAnswer: z.string(),
   citations: z.array(z.string()).optional(),

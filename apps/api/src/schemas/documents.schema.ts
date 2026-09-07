@@ -4,18 +4,18 @@ export const DocumentStatusSchema = z.enum(["active", "inactive"]);
 export const DocumentTypeSchema = z.enum(["file", "url", "git", "api", "s3"]);
 
 export const DocumentSummarySchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  sourceId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
+  sourceId: z.uuid(),
   title: z.string().nullable(),
   documentType: DocumentTypeSchema,
   isActive: z.boolean(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
 });
 
 export const ListDocumentsRequestSchema = z.object({
-  tenantId: z.string().uuid(),
+  tenantId: z.uuid(),
   limit: z.number().int().positive().max(100).optional().default(20),
   offset: z.number().int().nonnegative().optional().default(0),
 });
@@ -28,32 +28,32 @@ export const ListDocumentsResponseSchema = z.object({
 });
 
 export const GetDocumentRequestSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
   includeVersions: z.boolean().optional().default(false),
 });
 
 export const DocumentVersionSchema = z.object({
-  id: z.string().uuid(),
-  documentId: z.string().uuid(),
+  id: z.uuid(),
+  documentId: z.uuid(),
   versionNumber: z.number().int().positive(),
   contentHash: z.string(),
   checksum: z.string(),
   sizeBytes: z.number().int().nonnegative(),
   isActive: z.boolean(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
   createdBy: z.string().nullable(),
 });
 
 export const GetDocumentResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  sourceId: z.string().uuid(),
+  id: z.uuid(),
+  tenantId: z.uuid(),
+  sourceId: z.uuid(),
   title: z.string().nullable(),
   documentType: DocumentTypeSchema,
   isActive: z.boolean(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
   versions: z.array(DocumentVersionSchema).optional(),
 });
 

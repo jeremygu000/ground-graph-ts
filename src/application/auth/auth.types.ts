@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 export const AuthContextSchema = z.object({
-  tenantId: z.string().uuid(),
-  principalId: z.string().uuid(),
-  userId: z.string().uuid().optional(),
+  tenantId: z.uuid(),
+  principalId: z.uuid(),
+  userId: z.uuid().optional(),
   roles: z.array(z.string()).default([]),
 });
 

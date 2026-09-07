@@ -17,6 +17,8 @@ describe("API contract tests", () => {
         question: "What services depend on component X?",
         strategy: "hybrid",
         maxResults: 10,
+        tenantId: crypto.randomUUID(),
+        principalId: crypto.randomUUID(),
       };
       const result = QueryRequestSchema.safeParse(validRequest);
       expect(result.success).toBe(true);
@@ -32,7 +34,12 @@ describe("API contract tests", () => {
 
     it("QueryRequestSchema accepts all strategy values", () => {
       for (const strategy of ["vector", "graph", "hybrid", "fulltext"]) {
-        const request = { question: "test?", strategy };
+        const request = {
+          question: "test?",
+          strategy,
+          tenantId: crypto.randomUUID(),
+          principalId: crypto.randomUUID(),
+        };
         const result = QueryRequestSchema.safeParse(request);
         expect(result.success).toBe(true);
       }
@@ -45,6 +52,7 @@ describe("API contract tests", () => {
         status: "answered",
         claims: [],
         strategiesUsed: ["hybrid"],
+        fusionTrace: [{ strategy: "hybrid", inputs: 1, fused: 1, weight: 1 }],
         timingMs: {
           entityResolution: 10,
           retrieval: 50,
@@ -63,6 +71,7 @@ describe("API contract tests", () => {
         status: "insufficient_evidence",
         claims: [],
         strategiesUsed: ["vector"],
+        fusionTrace: [{ strategy: "vector", inputs: 1, fused: 1, weight: 1 }],
         timingMs: {
           entityResolution: 5,
           retrieval: 20,
@@ -101,7 +110,7 @@ describe("API contract tests", () => {
         title: "Internal Server Error",
         status: 500,
         detail: "Something went wrong",
-        instance: "/v1/query",
+        instance: "https://groundgraph.ai/v1/query",
         extensions: { retryable: false },
       };
       const result = ProblemDetailSchema.safeParse(problem);
@@ -118,7 +127,8 @@ describe("API contract tests", () => {
         title: "Test Document",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        status: "active",
+        documentType: "file",
+        isActive: true,
       };
       const result = GetDocumentResponseSchema.safeParse(doc);
       expect(result.success).toBe(true);
@@ -126,10 +136,10 @@ describe("API contract tests", () => {
 
     it("ListDocumentsResponseSchema accepts valid list", () => {
       const list = {
-        items: [],
+        documents: [],
         total: 0,
-        offset: 0,
         limit: 20,
+        offset: 0,
       };
       const result = ListDocumentsResponseSchema.safeParse(list);
       expect(result.success).toBe(true);
@@ -145,8 +155,12 @@ describe("API contract tests", () => {
         entityType: "Service",
         aliases: [],
         attributes: {},
+        description: null,
         createdAt: new Date().toISOString(),
         validFrom: new Date().toISOString(),
+        validTo: null,
+        supersededBy: null,
+        createdBy: null,
       };
       const result = GetEntityResponseSchema.safeParse(entity);
       expect(result.success).toBe(true);
@@ -154,10 +168,10 @@ describe("API contract tests", () => {
 
     it("ListEntitiesResponseSchema accepts valid list", () => {
       const list = {
-        items: [],
+        entities: [],
         total: 0,
-        offset: 0,
         limit: 20,
+        offset: 0,
       };
       const result = ListEntitiesResponseSchema.safeParse(list);
       expect(result.success).toBe(true);
