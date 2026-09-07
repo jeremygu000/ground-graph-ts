@@ -45,14 +45,16 @@ export async function registerDocumentsRoutes(
         const result = await uow.documentRepository.list(query.tenantId, query.limit, query.offset);
 
         if (!result.ok) {
-          return reply.status(500).send(
-            createProblemDetail(
-              INTERNAL_ERROR_TYPE,
-              "Internal Server Error",
-              500,
-              "Failed to list documents",
-            ),
-          );
+          return reply
+            .status(500)
+            .send(
+              createProblemDetail(
+                INTERNAL_ERROR_TYPE,
+                "Internal Server Error",
+                500,
+                "Failed to list documents",
+              ),
+            );
         }
 
         const documents = result.value;
@@ -74,14 +76,16 @@ export async function registerDocumentsRoutes(
         });
       } catch (error) {
         request.log.error(error);
-        return reply.status(500).send(
-          createProblemDetail(
-            INTERNAL_ERROR_TYPE,
-            "Internal Server Error",
-            500,
-            error instanceof Error ? error.message : "An unexpected error occurred",
-          ),
-        );
+        return reply
+          .status(500)
+          .send(
+            createProblemDetail(
+              INTERNAL_ERROR_TYPE,
+              "Internal Server Error",
+              500,
+              error instanceof Error ? error.message : "An unexpected error occurred",
+            ),
+          );
       }
     },
   });
@@ -120,26 +124,30 @@ export async function registerDocumentsRoutes(
         const docResult = await uow.documentRepository.findById(id, tenantId);
 
         if (!docResult.ok) {
-          return reply.status(500).send(
-            createProblemDetail(
-              INTERNAL_ERROR_TYPE,
-              "Internal Server Error",
-              500,
-              "Failed to get document",
-            ),
-          );
+          return reply
+            .status(500)
+            .send(
+              createProblemDetail(
+                INTERNAL_ERROR_TYPE,
+                "Internal Server Error",
+                500,
+                "Failed to get document",
+              ),
+            );
         }
 
         const doc = docResult.value;
         if (!doc) {
-          return reply.status(404).send(
-            createProblemDetail(
-              NOT_FOUND_ERROR_TYPE,
-              "Not Found",
-              404,
-              `Document ${id} not found`,
-            ),
-          );
+          return reply
+            .status(404)
+            .send(
+              createProblemDetail(
+                NOT_FOUND_ERROR_TYPE,
+                "Not Found",
+                404,
+                `Document ${id} not found`,
+              ),
+            );
         }
 
         let versions = undefined;
@@ -173,14 +181,16 @@ export async function registerDocumentsRoutes(
         });
       } catch (error) {
         request.log.error(error);
-        return reply.status(500).send(
-          createProblemDetail(
-            INTERNAL_ERROR_TYPE,
-            "Internal Server Error",
-            500,
-            error instanceof Error ? error.message : "An unexpected error occurred",
-          ),
-        );
+        return reply
+          .status(500)
+          .send(
+            createProblemDetail(
+              INTERNAL_ERROR_TYPE,
+              "Internal Server Error",
+              500,
+              error instanceof Error ? error.message : "An unexpected error occurred",
+            ),
+          );
       }
     },
   });
