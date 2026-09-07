@@ -45,6 +45,7 @@
     "drizzle-orm": "^0.45.2",
     "fastify": "^5.12.3",
     "fastify-healthcheck": "^5.1.0",
+    "jose": "^6.2.12",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.2",
     "neo4j-driver": "^6.2.0",

@@ -1,21 +1,29 @@
 import { z } from "zod";
+import { createJWTVerifier } from "@/infrastructure/auth/jwt-verifier";
+import { AuthContextSchema } from "@/application/auth/auth.types";
+import type { AuthContext } from "@/application/auth/auth.types";
 
-export const AuthContextSchema = z.object({
-  tenantId: z.string().uuid(),
-  principalId: z.string().uuid(),
-  userId: z.string().uuid().optional(),
-  roles: z.array(z.string()).default([]),
-});
+const jwtVerifier = createJWTVerifier();
 
-export type AuthContext = z.infer<typeof AuthContextSchema>;
+export { AuthContextSchema } from "@/application/auth/auth.types";
+export type { AuthContext } from "@/application/auth/auth.types";
 
 export const AuthHeaderSchema = z.object({
   authorization: z.string().regex(/^Bearer /),
 });
 
-export function extractAuthContext(
+function decodeLegacyToken(token: string): AuthContext | null {
+  try {
+    const payload = JSON.parse(Buffer.from(token, "base64").toString("utf-8"));
+    return AuthContextSchema.parse(payload);
+  } catch {
+    return null;
+  }
+}
+
+export async function extractAuthContext(
   headers: Record<string, string | string[] | undefined>,
-): AuthContext | null {
+): Promise<AuthContext | null> {
   const authHeader = Array.isArray(headers.authorization)
     ? headers.authorization[0]
     : headers.authorization;
@@ -29,10 +37,9 @@ export function extractAuthContext(
     return null;
   }
 
-  try {
-    const payload = JSON.parse(Buffer.from(token, "base64").toString("utf-8"));
-    return AuthContextSchema.parse(payload);
-  } catch {
-    return null;
+  if (jwtVerifier) {
+    return jwtVerifier.verify(token);
   }
+
+  return decodeLegacyToken(token);
 }

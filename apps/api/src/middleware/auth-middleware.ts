@@ -18,7 +18,7 @@ export function createAuthMiddleware(deps: AuthMiddlewareDeps = {}) {
       return;
     }
 
-    const authContext = extractAuthContext(
+    const authContext = await extractAuthContext(
       request.headers as Record<string, string | string[] | undefined>,
     );
 
