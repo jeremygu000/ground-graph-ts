@@ -55,7 +55,7 @@ Change `[ ]` to `[x]` only after all acceptance criteria pass.
 - [ ] M4 — Vector RAG baseline
 - [ ] M5 — Knowledge graph construction
 - [x] M6 — Hybrid GraphRAG retrieval
-- [ ] M7 — Query workflow, citations, and API
+- [x] M7 — Query workflow, citations, and API
 - [ ] M8 — Evaluation system and CI quality gates
 - [ ] M9 — Governance, security, and adversarial testing
 - [ ] M10 — Operator and review interfaces

@@ -141,7 +141,14 @@ describe("QueryResponseSchema", () => {
         {
           claimId: "claim-1",
           claimText: "Paris is the capital of France.",
-          citations: [{ citationId: "cit-1", evidenceId: "ev-1", snippet: "Paris is the capital...", score: 0.95 }],
+          citations: [
+            {
+              citationId: "cit-1",
+              evidenceId: "ev-1",
+              snippet: "Paris is the capital...",
+              score: 0.95,
+            },
+          ],
           confidence: 0.95,
         },
       ],
