@@ -1,5 +1,6 @@
 import type { HybridQueryPort } from "../../application/retrieval/ports.types";
 import type { CitationBuilderPort, GeneratorPort } from "../../application/models/models.types";
+import { StructuredAnswerSchema } from "../../application/models/models.schema";
 import type { TracerPort } from "../../application/observability/tracer-port.types";
 import type { RetrievalWorkflowInput, RetrievalWorkflowResult } from "./retrieval-workflow.types";
 
@@ -77,7 +78,7 @@ export class RetrievalWorkflow {
       let generationResult = await this.generator.generateStructured({
         question: input.question,
         evidence: citationsResult.value,
-        schema: {} as any,
+        schema: StructuredAnswerSchema,
         allowedCitationIds,
         tenantId: input.tenantId,
       });
@@ -117,7 +118,7 @@ export class RetrievalWorkflow {
             generationResult = await this.generator.generateStructured({
               question: input.question,
               evidence: retryCitationsResult.value,
-              schema: {} as any,
+              schema: StructuredAnswerSchema,
               allowedCitationIds: retryAllowedIds,
               tenantId: input.tenantId,
             });

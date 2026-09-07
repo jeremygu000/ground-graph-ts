@@ -1,6 +1,7 @@
 import type { RetrievalWorkflow as RetrievalWorkflowInterface } from "./workflow.types";
 import type { HybridQueryPort } from "./ports.types";
 import type { CitationBuilderPort, GeneratorPort } from "../models/models.types";
+import { StructuredAnswerSchema } from "../models/models.schema";
 import type { TracerPort } from "../observability/tracer-port.types";
 import type {
   RetrievalWorkflowInput,
@@ -89,7 +90,7 @@ export class RetrievalService implements RetrievalWorkflowInterface {
           generationResult = await this.generator.generateStructured({
             question: input.question,
             evidence: retryCitationsResult.value,
-            schema: {} as any,
+            schema: StructuredAnswerSchema,
             allowedCitationIds: retryAllowedIds,
             tenantId: input.tenantId,
           });
