@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { SimplePolicyService } from "@/application/authorization/policy.service";
 import type { AuthContext } from "@/application/auth.types";
 

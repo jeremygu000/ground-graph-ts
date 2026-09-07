@@ -23,7 +23,9 @@ export class SimplePolicyService implements PolicyDecisionPoint {
 
     const allowedPermissions = requiredPermissions[action] ?? [action];
 
-    const hasPermission = subject.roles.some((role) => allowedPermissions.includes(role as Permission));
+    const hasPermission = subject.roles.some((role) =>
+      allowedPermissions.includes(role as Permission),
+    );
     if (!hasPermission) {
       return {
         allowed: false,

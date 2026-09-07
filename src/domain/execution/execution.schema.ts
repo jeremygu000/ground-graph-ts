@@ -45,7 +45,7 @@ export const ExecutionRunSchema = z.object({
   workflowName: z.string(),
   workflowVersion: z.string(),
   status: RunStatusSchema,
-  triggerType: z.enum(["manual", "scheduled", "webhook", "ingestion", "evaluation"]),
+  triggerType: z.enum(["manual", "scheduled", "webhook", "ingestion", "evaluation", "replay"]),
   input: z.record(z.string(), z.unknown()).optional(),
   output: z.record(z.string(), z.unknown()).optional(),
   error: z.string().optional(),
