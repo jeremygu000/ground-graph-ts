@@ -1,5 +1,6 @@
 import type { Result } from "../../domain/result";
 import type { Chunk } from "../../domain/documents/documents.schema";
+import type { RetrievalQuery, RetrievalResult } from "../../domain/retrieval/retrieval.schema";
 
 export interface ChunksWithEmbeddings {
   chunk: Chunk;
@@ -62,4 +63,31 @@ export interface ConnectedEntity {
   entityId: string;
   relationship: string;
   depth: number;
+}
+
+export interface HybridQueryPort {
+  query(query: RetrievalQuery): Promise<
+    Result<{
+      queryId: string;
+      strategy: RetrievalQuery["strategy"];
+      results: RetrievalResult[];
+      fusionTrace: Array<{
+        strategy: string;
+        inputs: number;
+        fused: number;
+        weight: number;
+      }>;
+      timing: {
+        entityResolutionMs: number;
+        embeddingMs: number;
+        vectorSearchMs: number;
+        fullTextSearchMs: number;
+        graphSearchMs: number;
+        fusionMs: number;
+        rerankMs: number;
+        totalMs: number;
+      };
+      indexVersion: unknown;
+    }>
+  >;
 }
