@@ -16,17 +16,17 @@ export class GraphReconciliationService {
   async reconcileFact(fact: KnowledgeFact, tenantId: string): Promise<Result<void>> {
     if (fact.status === "verified") {
       const subjectEntity = await this.entityRepo.findById(fact.subjectId, tenantId);
-      if (!subjectEntity.ok || !subjectEntity.value) {
+      if (subjectEntity.ok && subjectEntity.value) {
         const projectEntityResult = await this.graphRepo.projectEntity({
-          id: fact.subjectId,
+          id: subjectEntity.value.id,
           tenantId,
-          canonicalName: "Unknown",
-          entityType: "unknown",
-          aliases: [],
-          attributes: {},
-          createdAt: new Date().toISOString(),
-          validFrom: new Date().toISOString(),
-          principalIds: [],
+          canonicalName: subjectEntity.value.canonicalName,
+          entityType: subjectEntity.value.entityType,
+          aliases: subjectEntity.value.aliases ?? [],
+          attributes: subjectEntity.value.attributes ?? {},
+          createdAt: subjectEntity.value.createdAt,
+          validFrom: subjectEntity.value.validFrom,
+          principalIds: subjectEntity.value.principalIds ?? [],
         });
         if (!projectEntityResult.ok) {
           return {
@@ -40,17 +40,17 @@ export class GraphReconciliationService {
 
       if (fact.objectId) {
         const objectEntity = await this.entityRepo.findById(fact.objectId, tenantId);
-        if (!objectEntity.ok || !objectEntity.value) {
+        if (objectEntity.ok && objectEntity.value) {
           const projectEntityResult = await this.graphRepo.projectEntity({
-            id: fact.objectId,
+            id: objectEntity.value.id,
             tenantId,
-            canonicalName: "Unknown",
-            entityType: "unknown",
-            aliases: [],
-            attributes: {},
-            createdAt: new Date().toISOString(),
-            validFrom: new Date().toISOString(),
-            principalIds: [],
+            canonicalName: objectEntity.value.canonicalName,
+            entityType: objectEntity.value.entityType,
+            aliases: objectEntity.value.aliases ?? [],
+            attributes: objectEntity.value.attributes ?? {},
+            createdAt: objectEntity.value.createdAt,
+            validFrom: objectEntity.value.validFrom,
+            principalIds: objectEntity.value.principalIds ?? [],
           });
           if (!projectEntityResult.ok) {
             return {
@@ -98,17 +98,17 @@ export class GraphReconciliationService {
         if (!seenEntityIds.has(fact.subjectId)) {
           seenEntityIds.add(fact.subjectId);
           const entityResult = await this.entityRepo.findById(fact.subjectId, tenantId);
-          if (!entityResult.ok || !entityResult.value) {
+          if (entityResult.ok && entityResult.value) {
             const projectEntityResult = await this.graphRepo.projectEntity({
-              id: fact.subjectId,
+              id: entityResult.value.id,
               tenantId,
-              canonicalName: "Unknown",
-              entityType: "unknown",
-              aliases: [],
-              attributes: {},
-              createdAt: new Date().toISOString(),
-              validFrom: new Date().toISOString(),
-              principalIds: [],
+              canonicalName: entityResult.value.canonicalName,
+              entityType: entityResult.value.entityType,
+              aliases: entityResult.value.aliases ?? [],
+              attributes: entityResult.value.attributes ?? {},
+              createdAt: entityResult.value.createdAt,
+              validFrom: entityResult.value.validFrom,
+              principalIds: entityResult.value.principalIds ?? [],
             });
             if (projectEntityResult.ok) {
               report.entitiesCreated++;
@@ -125,17 +125,17 @@ export class GraphReconciliationService {
         if (fact.objectId && !seenEntityIds.has(fact.objectId)) {
           seenEntityIds.add(fact.objectId);
           const entityResult = await this.entityRepo.findById(fact.objectId, tenantId);
-          if (!entityResult.ok || !entityResult.value) {
+          if (entityResult.ok && entityResult.value) {
             const projectEntityResult = await this.graphRepo.projectEntity({
-              id: fact.objectId,
+              id: entityResult.value.id,
               tenantId,
-              canonicalName: "Unknown",
-              entityType: "unknown",
-              aliases: [],
-              attributes: {},
-              createdAt: new Date().toISOString(),
-              validFrom: new Date().toISOString(),
-              principalIds: [],
+              canonicalName: entityResult.value.canonicalName,
+              entityType: entityResult.value.entityType,
+              aliases: entityResult.value.aliases ?? [],
+              attributes: entityResult.value.attributes ?? {},
+              createdAt: entityResult.value.createdAt,
+              validFrom: entityResult.value.validFrom,
+              principalIds: entityResult.value.principalIds ?? [],
             });
             if (projectEntityResult.ok) {
               report.entitiesCreated++;

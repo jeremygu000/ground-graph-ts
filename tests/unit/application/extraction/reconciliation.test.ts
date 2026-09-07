@@ -44,25 +44,86 @@ describe("GraphReconciliationService", () => {
     expect(entityRepo.findById).not.toHaveBeenCalled();
   });
 
-  it("rejects projection failures for subject/object entities", async () => {
+  it("projects real entity data from PostgreSQL when entity exists", async () => {
     const graphRepo = {
       projectFact: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
       projectEntity: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
     };
     const entityRepo = {
-      findById: vi.fn().mockResolvedValue({ ok: true, value: null }),
+      findById: vi.fn().mockResolvedValue({
+        ok: true,
+        value: {
+          id: "33333333-3333-4333-8333-333333333333",
+          tenantId: "22222222-2222-4222-8222-222222222222",
+          canonicalName: "TestEntity",
+          entityType: "service",
+          aliases: [],
+          attributes: {},
+          createdAt: "2024-01-01T00:00:00.000Z",
+          validFrom: "2024-01-01T00:00:00.000Z",
+          principalIds: [],
+        },
+      }),
     };
     const service = new GraphReconciliationService(graphRepo as any, {} as any, entityRepo as any);
+    const result = await service.reconcileFact(fact(), "tenant");
+    expect(result.ok).toBe(true);
+    expect(graphRepo.projectEntity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "33333333-3333-4333-8333-333333333333",
+        canonicalName: "TestEntity",
+        entityType: "service",
+      }),
+    );
+  });
 
-    graphRepo.projectEntity.mockResolvedValueOnce({ ok: false, error: new Error("graph down") });
-    const firstResult = await service.reconcileFact(fact(), "tenant");
-    expect(firstResult.ok).toBe(false);
+  it("skips projection when entity not found in PostgreSQL", async () => {
+    const graphRepo = {
+      projectFact: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+      projectEntity: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    };
+    const entityRepo = {
+      findById: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    };
+    const service = new GraphReconciliationService(graphRepo as any, {} as any, entityRepo as any);
+    const result = await service.reconcileFact(fact(), "tenant");
+    expect(result.ok).toBe(true);
+    expect(graphRepo.projectEntity).not.toHaveBeenCalled();
+  });
 
-    const secondFact = fact({ objectId: "66666666-6666-4666-8666-666666666666" });
-    graphRepo.projectEntity.mockResolvedValueOnce({ ok: false, error: new Error("graph down") });
-    entityRepo.findById.mockResolvedValueOnce({ ok: true, value: entity("subject") });
-    const secondResult = await service.reconcileFact(secondFact, "tenant");
-    expect(secondResult.ok).toBe(false);
+  it("projects object entity when objectId entity exists", async () => {
+    const graphRepo = {
+      projectFact: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+      projectEntity: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    };
+    const entityRepo = {
+      findById: vi.fn().mockResolvedValue({
+        ok: true,
+        value: {
+          id: "66666666-6666-4666-8666-666666666666",
+          tenantId: "22222222-2222-4222-8222-222222222222",
+          canonicalName: "ObjectEntity",
+          entityType: "service",
+          aliases: [],
+          attributes: {},
+          createdAt: "2024-01-01T00:00:00.000Z",
+          validFrom: "2024-01-01T00:00:00.000Z",
+          principalIds: [],
+        },
+      }),
+    };
+    const service = new GraphReconciliationService(graphRepo as any, {} as any, entityRepo as any);
+    const result = await service.reconcileFact(
+      fact({ objectId: "66666666-6666-4666-8666-666666666666" }),
+      "tenant",
+    );
+    expect(result.ok).toBe(true);
+    expect(graphRepo.projectEntity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "66666666-6666-4666-8666-666666666666",
+        canonicalName: "ObjectEntity",
+      }),
+    );
   });
 
   it("reconciles verified facts and records individual failures", async () => {
