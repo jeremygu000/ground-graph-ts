@@ -54,7 +54,7 @@ Change `[ ]` to `[x]` only after all acceptance criteria pass.
 - [ ] M3 — Document ingestion and versioning
 - [ ] M4 — Vector RAG baseline
 - [ ] M5 — Knowledge graph construction
-- [ ] M6 — Hybrid GraphRAG retrieval (in progress: HybridQueryService, EntityResolver, GraphRetrievalAdapter, retrieval workflow, component tests, eval dataset, security tests, graph retrieval path validity tests, tracing completed)
+- [x] M6 — Hybrid GraphRAG retrieval
 - [ ] M7 — Query workflow, citations, and API
 - [ ] M8 — Evaluation system and CI quality gates
 - [ ] M9 — Governance, security, and adversarial testing
