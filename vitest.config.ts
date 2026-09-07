@@ -22,6 +22,7 @@ export default defineConfig({
         "**/index.ts",
         "src/infrastructure/postgres/schema.ts",
         "apps/evaluation-runner/src/runner.ts",
+        "apps/evaluation-runner/src/graphrag-evaluation.ts",
       ],
       thresholds: {
         lines: 85,

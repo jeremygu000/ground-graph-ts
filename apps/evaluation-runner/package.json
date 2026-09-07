@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "tsx watch src/runner.ts",
     "build": "tsc",
-    "start": "tsx src/runner.ts"
+    "start": "tsx src/runner.ts",
+    "graphrag": "tsx src/graphrag-evaluation.ts"
   },
   "dependencies": {
     "zod": "^4.5.4"
