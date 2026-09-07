@@ -1,7 +1,7 @@
 {
   "name": "m4-vector-baseline",
   "version": "0.1.0",
-  "description": "Golden evaluation dataset for the M4 vector RAG baseline. Each case exercises a single factual claim backed by an immutable source chunk. The dataset is intentionally small (40 cases) to support fast feedback in CI while still covering positive, negative, ACL, refusal, temporal, and multi-entity scenarios.",
+  "description": "Golden evaluation dataset for the M4 vector RAG baseline. 106 cases covering positive, negative, ACL, refusal, temporal, and multi-entity scenarios.",
   "embedding_model": "text-embedding-3-small",
   "embedding_dimension": 1536,
   "reranker_model": "lexical-blend",
@@ -10,63 +10,108 @@
     {
       "id": "v-001",
       "type": "factual",
-      "tags": ["positive", "single-claim"],
+      "tags": [
+        "positive",
+        "single-claim"
+      ],
       "question": "Which PostgreSQL extensions does the GroundGraph stack enable?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
       "expectedStatus": "answered",
       "expectedAnswer": "The GroundGraph stack enables the uuid-ossp and vector extensions on PostgreSQL.",
       "requiredClaimText": "uuid-ossp and vector",
-      "forbiddenClaimText": ["mongodb", "redis"],
-      "expectedEntities": ["PostgreSQL", "uuid-ossp", "pgvector"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000c1"]
+      "forbiddenClaimText": [
+        "mongodb",
+        "redis"
+      ],
+      "expectedEntities": [
+        "PostgreSQL",
+        "uuid-ossp",
+        "pgvector"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c1"
+      ]
     },
     {
       "id": "v-002",
       "type": "factual",
-      "tags": ["positive", "single-claim"],
+      "tags": [
+        "positive",
+        "single-claim"
+      ],
       "question": "What is the default vector dimension in the chunk_embeddings table?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
       "expectedStatus": "answered",
       "expectedAnswer": "The default vector dimension in chunk_embeddings is 1536.",
       "requiredClaimText": "1536",
-      "forbiddenClaimText": ["768", "3072"],
-      "expectedEntities": ["chunk_embeddings"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000c2"]
+      "forbiddenClaimText": [
+        "768",
+        "3072"
+      ],
+      "expectedEntities": [
+        "chunk_embeddings"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c2"
+      ]
     },
     {
       "id": "v-003",
       "type": "factual",
-      "tags": ["positive", "single-claim"],
+      "tags": [
+        "positive",
+        "single-claim"
+      ],
       "question": "Which runtime is required for GroundGraph TypeScript?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
       "expectedStatus": "answered",
       "expectedAnswer": "GroundGraph TypeScript requires Node.js LTS >= 22.",
       "requiredClaimText": "Node.js",
-      "forbiddenClaimText": ["Deno", "Bun"],
-      "expectedEntities": ["Node.js"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000c3"]
+      "forbiddenClaimText": [
+        "Deno",
+        "Bun"
+      ],
+      "expectedEntities": [
+        "Node.js"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c3"
+      ]
     },
     {
       "id": "v-004",
       "type": "factual",
-      "tags": ["positive", "single-claim"],
+      "tags": [
+        "positive",
+        "single-claim"
+      ],
       "question": "Which package manager does GroundGraph TypeScript use?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
       "expectedStatus": "answered",
       "expectedAnswer": "GroundGraph TypeScript uses pnpm with a frozen lockfile.",
       "requiredClaimText": "pnpm",
-      "forbiddenClaimText": ["npm", "yarn"],
-      "expectedEntities": ["pnpm"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000c4"]
+      "forbiddenClaimText": [
+        "npm",
+        "yarn"
+      ],
+      "expectedEntities": [
+        "pnpm"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c4"
+      ]
     },
     {
       "id": "v-005",
       "type": "factual",
-      "tags": ["positive", "single-claim"],
+      "tags": [
+        "positive",
+        "single-claim"
+      ],
       "question": "What is the purpose of the outbox_events table?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -74,27 +119,44 @@
       "expectedAnswer": "outbox_events stores pending, claimed, completed, or dead-letter domain events with idempotency keys and lease tokens for reliable processing.",
       "requiredClaimText": "outbox",
       "forbiddenClaimText": [],
-      "expectedEntities": ["outbox_events"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000c5"]
+      "expectedEntities": [
+        "outbox_events"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c5"
+      ]
     },
     {
       "id": "v-006",
       "type": "factual",
-      "tags": ["positive", "single-claim"],
+      "tags": [
+        "positive",
+        "single-claim"
+      ],
       "question": "Which API framework does GroundGraph TypeScript use?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
       "expectedStatus": "answered",
       "expectedAnswer": "GroundGraph TypeScript uses Fastify as the HTTP API framework.",
       "requiredClaimText": "Fastify",
-      "forbiddenClaimText": ["Express", "Koa"],
-      "expectedEntities": ["Fastify"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000c6"]
+      "forbiddenClaimText": [
+        "Express",
+        "Koa"
+      ],
+      "expectedEntities": [
+        "Fastify"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c6"
+      ]
     },
     {
       "id": "v-007",
       "type": "factual",
-      "tags": ["positive", "single-claim"],
+      "tags": [
+        "positive",
+        "single-claim"
+      ],
       "question": "Which Neo4j library is used to talk to Neo4j?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -102,13 +164,21 @@
       "expectedAnswer": "The official neo4j-driver with parameterized Cypher is used.",
       "requiredClaimText": "neo4j-driver",
       "forbiddenClaimText": [],
-      "expectedEntities": ["neo4j-driver", "Neo4j"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000c7"]
+      "expectedEntities": [
+        "neo4j-driver",
+        "Neo4j"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c7"
+      ]
     },
     {
       "id": "v-008",
       "type": "factual",
-      "tags": ["positive", "single-claim"],
+      "tags": [
+        "positive",
+        "single-claim"
+      ],
       "question": "What is the role of Phoenix in the local stack?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -116,13 +186,21 @@
       "expectedAnswer": "Phoenix is the OpenTelemetry trace UI for the local stack.",
       "requiredClaimText": "Phoenix",
       "forbiddenClaimText": [],
-      "expectedEntities": ["Phoenix", "OpenTelemetry"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000c8"]
+      "expectedEntities": [
+        "Phoenix",
+        "OpenTelemetry"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c8"
+      ]
     },
     {
       "id": "v-009",
       "type": "factual",
-      "tags": ["positive", "single-claim"],
+      "tags": [
+        "positive",
+        "single-claim"
+      ],
       "question": "What is the role of Prometheus?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -130,13 +208,21 @@
       "expectedAnswer": "Prometheus collects operational metrics; Grafana visualises them.",
       "requiredClaimText": "Prometheus",
       "forbiddenClaimText": [],
-      "expectedEntities": ["Prometheus", "Grafana"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000c9"]
+      "expectedEntities": [
+        "Prometheus",
+        "Grafana"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c9"
+      ]
     },
     {
       "id": "v-010",
       "type": "factual",
-      "tags": ["positive", "single-claim"],
+      "tags": [
+        "positive",
+        "single-claim"
+      ],
       "question": "Which object storage system backs the ingestion layer?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -144,27 +230,41 @@
       "expectedAnswer": "MinIO is used locally and the AWS S3 SDK is the client.",
       "requiredClaimText": "MinIO",
       "forbiddenClaimText": [],
-      "expectedEntities": ["MinIO", "S3"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000ca"]
+      "expectedEntities": [
+        "MinIO",
+        "S3"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000ca"
+      ]
     },
     {
       "id": "v-011",
       "type": "refusal",
-      "tags": ["refusal", "no-evidence"],
+      "tags": [
+        "refusal",
+        "no-evidence"
+      ],
       "question": "Which cryptocurrency is recommended for paying GroundGraph invoices?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
       "expectedStatus": "insufficient_evidence",
       "expectedAnswer": "",
       "requiredClaimText": "",
-      "forbiddenClaimText": ["Bitcoin", "Ethereum"],
+      "forbiddenClaimText": [
+        "Bitcoin",
+        "Ethereum"
+      ],
       "expectedEntities": [],
       "expectedEvidenceChunkIds": []
     },
     {
       "id": "v-012",
       "type": "refusal",
-      "tags": ["refusal", "no-evidence"],
+      "tags": [
+        "refusal",
+        "no-evidence"
+      ],
       "question": "How many user accounts exist in the system?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -178,35 +278,50 @@
     {
       "id": "v-013",
       "type": "refusal",
-      "tags": ["refusal", "out-of-domain"],
+      "tags": [
+        "refusal",
+        "out-of-domain"
+      ],
       "question": "What is the capital of France?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
       "expectedStatus": "insufficient_evidence",
       "expectedAnswer": "",
       "requiredClaimText": "",
-      "forbiddenClaimText": ["Paris", "London"],
+      "forbiddenClaimText": [
+        "Paris",
+        "London"
+      ],
       "expectedEntities": [],
       "expectedEvidenceChunkIds": []
     },
     {
       "id": "v-014",
       "type": "acl",
-      "tags": ["acl", "isolation"],
+      "tags": [
+        "acl",
+        "isolation"
+      ],
       "question": "What was the previous password rotation policy?",
       "tenantId": "00000000-0000-4000-8000-000000000002",
       "principalId": "00000000-0000-4000-8000-0000000000a2",
       "expectedStatus": "insufficient_evidence",
       "expectedAnswer": "",
       "requiredClaimText": "",
-      "forbiddenClaimText": ["90 days", "30 days"],
+      "forbiddenClaimText": [
+        "90 days",
+        "30 days"
+      ],
       "expectedEntities": [],
       "expectedEvidenceChunkIds": []
     },
     {
       "id": "v-015",
       "type": "factual",
-      "tags": ["positive", "multi-entity"],
+      "tags": [
+        "positive",
+        "multi-entity"
+      ],
       "question": "Which components are part of the runtime validation layer?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -214,13 +329,20 @@
       "expectedAnswer": "Runtime validation is performed using Zod schemas at external boundaries.",
       "requiredClaimText": "Zod",
       "forbiddenClaimText": [],
-      "expectedEntities": ["Zod"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000cb"]
+      "expectedEntities": [
+        "Zod"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000cb"
+      ]
     },
     {
       "id": "v-016",
       "type": "factual",
-      "tags": ["positive", "multi-claim"],
+      "tags": [
+        "positive",
+        "multi-claim"
+      ],
       "question": "How are documents versioned in the system?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -228,27 +350,44 @@
       "expectedAnswer": "Each document has immutable document_versions rows with monotonically increasing version numbers and content hashes.",
       "requiredClaimText": "document_versions",
       "forbiddenClaimText": [],
-      "expectedEntities": ["document_versions"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000cc"]
+      "expectedEntities": [
+        "document_versions"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000cc"
+      ]
     },
     {
       "id": "v-017",
       "type": "factual",
-      "tags": ["positive", "temporal"],
+      "tags": [
+        "positive",
+        "temporal"
+      ],
       "question": "Are document versions mutable?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
       "expectedStatus": "answered",
       "expectedAnswer": "No, document versions are immutable. New content produces a new version row with the same document id but a new version number.",
       "requiredClaimText": "immutable",
-      "forbiddenClaimText": ["mutable", "editable"],
-      "expectedEntities": ["document_versions"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000cc"]
+      "forbiddenClaimText": [
+        "mutable",
+        "editable"
+      ],
+      "expectedEntities": [
+        "document_versions"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000cc"
+      ]
     },
     {
       "id": "v-018",
       "type": "factual",
-      "tags": ["positive", "temporal"],
+      "tags": [
+        "positive",
+        "temporal"
+      ],
       "question": "Does the system preserve historical truth?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -256,13 +395,24 @@
       "expectedAnswer": "Yes. Knowledge facts carry validFrom, validTo, observedAt, and supersededBy fields to preserve temporal history.",
       "requiredClaimText": "validFrom",
       "forbiddenClaimText": [],
-      "expectedEntities": ["facts", "validFrom", "validTo", "observedAt", "supersededBy"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000cd"]
+      "expectedEntities": [
+        "facts",
+        "validFrom",
+        "validTo",
+        "observedAt",
+        "supersededBy"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000cd"
+      ]
     },
     {
       "id": "v-019",
       "type": "factual",
-      "tags": ["positive", "access-control"],
+      "tags": [
+        "positive",
+        "access-control"
+      ],
       "question": "Where is access control applied in the retrieval pipeline?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -270,13 +420,20 @@
       "expectedAnswer": "ACL filtering is applied inside SQL/Cypher queries before results leave repositories.",
       "requiredClaimText": "ACL",
       "forbiddenClaimText": [],
-      "expectedEntities": ["ACL"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000ce"]
+      "expectedEntities": [
+        "ACL"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000ce"
+      ]
     },
     {
       "id": "v-020",
       "type": "factual",
-      "tags": ["positive", "workflow"],
+      "tags": [
+        "positive",
+        "workflow"
+      ],
       "question": "Which states can an execution step take?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -284,13 +441,20 @@
       "expectedAnswer": "Execution steps transition pending -> running -> succeeded | failed | skipped | cancelled.",
       "requiredClaimText": "running",
       "forbiddenClaimText": [],
-      "expectedEntities": ["execution_steps"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000cf"]
+      "expectedEntities": [
+        "execution_steps"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000cf"
+      ]
     },
     {
       "id": "v-021",
       "type": "factual",
-      "tags": ["positive", "workflow"],
+      "tags": [
+        "positive",
+        "workflow"
+      ],
       "question": "Which states can an execution run take?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -298,13 +462,20 @@
       "expectedAnswer": "Runs transition pending -> running -> succeeded | partially_succeeded | failed | cancelled.",
       "requiredClaimText": "partially_succeeded",
       "forbiddenClaimText": [],
-      "expectedEntities": ["execution_runs"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000d0"]
+      "expectedEntities": [
+        "execution_runs"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d0"
+      ]
     },
     {
       "id": "v-022",
       "type": "factual",
-      "tags": ["positive", "telemetry"],
+      "tags": [
+        "positive",
+        "telemetry"
+      ],
       "question": "Which attribute is prohibited on telemetry spans?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -312,13 +483,20 @@
       "expectedAnswer": "Raw document content, prompts, responses, embeddings, secrets, and principal lists are prohibited.",
       "requiredClaimText": "raw content",
       "forbiddenClaimText": [],
-      "expectedEntities": ["telemetry"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000d1"]
+      "expectedEntities": [
+        "telemetry"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d1"
+      ]
     },
     {
       "id": "v-023",
       "type": "factual",
-      "tags": ["positive", "telemetry"],
+      "tags": [
+        "positive",
+        "telemetry"
+      ],
       "question": "Which OTel exporter is used locally?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -326,13 +504,21 @@
       "expectedAnswer": "An OTLP/HTTP exporter is used to ship traces to the local Collector.",
       "requiredClaimText": "OTLP",
       "forbiddenClaimText": [],
-      "expectedEntities": ["OpenTelemetry", "OTLP"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000d2"]
+      "expectedEntities": [
+        "OpenTelemetry",
+        "OTLP"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d2"
+      ]
     },
     {
       "id": "v-024",
       "type": "factual",
-      "tags": ["positive", "fusion"],
+      "tags": [
+        "positive",
+        "fusion"
+      ],
       "question": "Which two strategies are combined in the default fusion?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -340,13 +526,22 @@
       "expectedAnswer": "Vector search and full-text search are combined via reciprocal rank fusion by default.",
       "requiredClaimText": "fusion",
       "forbiddenClaimText": [],
-      "expectedEntities": ["vector", "fulltext", "fusion"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000d3"]
+      "expectedEntities": [
+        "vector",
+        "fulltext",
+        "fusion"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d3"
+      ]
     },
     {
       "id": "v-025",
       "type": "factual",
-      "tags": ["positive", "fact-state"],
+      "tags": [
+        "positive",
+        "fact-state"
+      ],
       "question": "Which fact status indicates a knowledge fact that is no longer current?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -354,13 +549,21 @@
       "expectedAnswer": "superseded indicates a fact that was replaced by a later verified fact.",
       "requiredClaimText": "superseded",
       "forbiddenClaimText": [],
-      "expectedEntities": ["facts", "superseded"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000d4"]
+      "expectedEntities": [
+        "facts",
+        "superseded"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d4"
+      ]
     },
     {
       "id": "v-026",
       "type": "factual",
-      "tags": ["positive", "evaluation"],
+      "tags": [
+        "positive",
+        "evaluation"
+      ],
       "question": "Which quality metric is required for an evidence-backed claim?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -368,13 +571,20 @@
       "expectedAnswer": "Citation coverage must be >= 95% and citation correctness >= 95%.",
       "requiredClaimText": "citation",
       "forbiddenClaimText": [],
-      "expectedEntities": ["citation"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000d5"]
+      "expectedEntities": [
+        "citation"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d5"
+      ]
     },
     {
       "id": "v-027",
       "type": "factual",
-      "tags": ["positive", "evaluation"],
+      "tags": [
+        "positive",
+        "evaluation"
+      ],
       "question": "Which evaluation dataset version is used to track breaking changes?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -382,13 +592,20 @@
       "expectedAnswer": "Datasets are versioned JSONL files with case and dataset versions recorded alongside answer runs.",
       "requiredClaimText": "versioned",
       "forbiddenClaimText": [],
-      "expectedEntities": ["evaluation_datasets"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000d6"]
+      "expectedEntities": [
+        "evaluation_datasets"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d6"
+      ]
     },
     {
       "id": "v-028",
       "type": "factual",
-      "tags": ["positive", "postgres"],
+      "tags": [
+        "positive",
+        "postgres"
+      ],
       "question": "Which index is used for cosine distance search over chunk embeddings?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -396,13 +613,21 @@
       "expectedAnswer": "An HNSW index over the vector column with vector_cosine_ops is used.",
       "requiredClaimText": "HNSW",
       "forbiddenClaimText": [],
-      "expectedEntities": ["HNSW", "chunk_embeddings"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000d7"]
+      "expectedEntities": [
+        "HNSW",
+        "chunk_embeddings"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d7"
+      ]
     },
     {
       "id": "v-029",
       "type": "factual",
-      "tags": ["positive", "fulltext"],
+      "tags": [
+        "positive",
+        "fulltext"
+      ],
       "question": "Which PostgreSQL feature powers full-text search?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -410,27 +635,45 @@
       "expectedAnswer": "A generated tsvector column with a GIN index and ts_rank_cd scoring is used.",
       "requiredClaimText": "tsvector",
       "forbiddenClaimText": [],
-      "expectedEntities": ["tsvector", "GIN"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000d8"]
+      "expectedEntities": [
+        "tsvector",
+        "GIN"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d8"
+      ]
     },
     {
       "id": "v-030",
       "type": "factual",
-      "tags": ["positive", "ontology"],
+      "tags": [
+        "positive",
+        "ontology"
+      ],
       "question": "Which OTel signal carries spans?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
       "expectedStatus": "answered",
       "expectedAnswer": "The trace signal carries spans.",
       "requiredClaimText": "trace",
-      "forbiddenClaimText": ["log", "metric"],
-      "expectedEntities": ["trace"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000d9"]
+      "forbiddenClaimText": [
+        "log",
+        "metric"
+      ],
+      "expectedEntities": [
+        "trace"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d9"
+      ]
     },
     {
       "id": "v-031",
       "type": "factual",
-      "tags": ["positive", "code-symbol"],
+      "tags": [
+        "positive",
+        "code-symbol"
+      ],
       "question": "Which TypeScript keyword is used to constrain a string to a brand?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -438,13 +681,20 @@
       "expectedAnswer": "Branded types are declared with `string & { readonly __brand: unique symbol }`.",
       "requiredClaimText": "brand",
       "forbiddenClaimText": [],
-      "expectedEntities": ["TenantId"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000da"]
+      "expectedEntities": [
+        "TenantId"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000da"
+      ]
     },
     {
       "id": "v-032",
       "type": "factual",
-      "tags": ["positive", "fingerprint"],
+      "tags": [
+        "positive",
+        "fingerprint"
+      ],
       "question": "How is chunk content identified for change detection?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -452,13 +702,20 @@
       "expectedAnswer": "Each chunk carries a content hash and a stable id derived from its content.",
       "requiredClaimText": "content hash",
       "forbiddenClaimText": [],
-      "expectedEntities": ["contentHash"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000db"]
+      "expectedEntities": [
+        "contentHash"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000db"
+      ]
     },
     {
       "id": "v-033",
       "type": "factual",
-      "tags": ["positive", "concurrency"],
+      "tags": [
+        "positive",
+        "concurrency"
+      ],
       "question": "How do outbox workers claim a row safely?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -466,13 +723,20 @@
       "expectedAnswer": "Workers atomically claim events using SELECT ... FOR UPDATE SKIP LOCKED and receive a lease token.",
       "requiredClaimText": "SKIP LOCKED",
       "forbiddenClaimText": [],
-      "expectedEntities": ["outbox_events"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000dc"]
+      "expectedEntities": [
+        "outbox_events"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000dc"
+      ]
     },
     {
       "id": "v-034",
       "type": "factual",
-      "tags": ["positive", "retries"],
+      "tags": [
+        "positive",
+        "retries"
+      ],
       "question": "How many embedding retries are attempted by default?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -480,13 +744,20 @@
       "expectedAnswer": "The OpenAI embedding adapter retries up to 3 times by default with exponential backoff.",
       "requiredClaimText": "3 times",
       "forbiddenClaimText": [],
-      "expectedEntities": ["embedding"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000dd"]
+      "expectedEntities": [
+        "embedding"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000dd"
+      ]
     },
     {
       "id": "v-035",
       "type": "factual",
-      "tags": ["positive", "rerank"],
+      "tags": [
+        "positive",
+        "rerank"
+      ],
       "question": "Which signals does the lexical reranker blend?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -494,13 +765,20 @@
       "expectedAnswer": "The lexical reranker blends vector score and lexical token overlap (70% vector, 30% lexical).",
       "requiredClaimText": "vector",
       "forbiddenClaimText": [],
-      "expectedEntities": ["reranker"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000de"]
+      "expectedEntities": [
+        "reranker"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000de"
+      ]
     },
     {
       "id": "v-036",
       "type": "factual",
-      "tags": ["positive", "ci"],
+      "tags": [
+        "positive",
+        "ci"
+      ],
       "question": "Which command is the no-Docker deterministic gate?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -508,13 +786,20 @@
       "expectedAnswer": "`pnpm check` is the no-Docker deterministic gate and runs format:check, lint, typecheck, architecture, and unit tests.",
       "requiredClaimText": "pnpm check",
       "forbiddenClaimText": [],
-      "expectedEntities": ["check"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000df"]
+      "expectedEntities": [
+        "check"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000df"
+      ]
     },
     {
       "id": "v-037",
       "type": "factual",
-      "tags": ["positive", "security"],
+      "tags": [
+        "positive",
+        "security"
+      ],
       "question": "Where is access control evaluated?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -522,13 +807,20 @@
       "expectedAnswer": "Access control is evaluated inside the SQL/Cypher/object query before any data leaves the repository.",
       "requiredClaimText": "pre-retrieval",
       "forbiddenClaimText": [],
-      "expectedEntities": ["ACL"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000e0"]
+      "expectedEntities": [
+        "ACL"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000e0"
+      ]
     },
     {
       "id": "v-038",
       "type": "factual",
-      "tags": ["positive", "workflow"],
+      "tags": [
+        "positive",
+        "workflow"
+      ],
       "question": "What kind of evidence does M4 produce for each claim?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
@@ -536,36 +828,1286 @@
       "expectedAnswer": "Each claim cites an immutable chunk via a deterministic citation id and an evidence id pointing at the same chunk.",
       "requiredClaimText": "citation",
       "forbiddenClaimText": [],
-      "expectedEntities": ["citation"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000e1"]
+      "expectedEntities": [
+        "citation"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000e1"
+      ]
     },
     {
       "id": "v-039",
       "type": "refusal",
-      "tags": ["refusal", "model-memory"],
+      "tags": [
+        "refusal",
+        "model-memory"
+      ],
       "question": "What was the 2024 holiday party budget for the company?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
       "expectedStatus": "insufficient_evidence",
       "expectedAnswer": "",
       "requiredClaimText": "",
-      "forbiddenClaimText": ["$10,000", "5000"],
+      "forbiddenClaimText": [
+        "$10,000",
+        "5000"
+      ],
       "expectedEntities": [],
       "expectedEvidenceChunkIds": []
     },
     {
       "id": "v-040",
       "type": "factual",
-      "tags": ["positive", "fact-confidence"],
+      "tags": [
+        "positive",
+        "fact-confidence"
+      ],
       "question": "What is the range of the `confidence` field on a knowledge fact?",
       "tenantId": "00000000-0000-4000-8000-000000000001",
       "principalId": "00000000-0000-4000-8000-0000000000a1",
       "expectedStatus": "answered",
       "expectedAnswer": "Confidence is a finite number in [0, 1].",
       "requiredClaimText": "[0, 1]",
-      "forbiddenClaimText": ["[-1, 1]", "0..100"],
-      "expectedEntities": ["confidence"],
-      "expectedEvidenceChunkIds": ["00000000-0000-4000-8000-0000000000e2"]
+      "forbiddenClaimText": [
+        "[-1, 1]",
+        "0..100"
+      ],
+      "expectedEntities": [
+        "confidence"
+      ],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000e2"
+      ]
+    },
+    {
+      "id": "v-041",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What web framework does the HTTP API use?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c6",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c6"
+      ]
+    },
+    {
+      "id": "v-042",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "How does the system connect to Neo4j?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c7",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c7"
+      ]
+    },
+    {
+      "id": "v-043",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What is Phoenix used for in the stack?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c8",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c8"
+      ]
+    },
+    {
+      "id": "v-044",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What monitoring tools are used with Prometheus and Grafana?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c9",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c9"
+      ]
+    },
+    {
+      "id": "v-045",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What object storage system is used locally and what SDK?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000ca",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000ca"
+      ]
+    },
+    {
+      "id": "v-046",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What is used for runtime validation at external boundaries?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000cb",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000cb"
+      ]
+    },
+    {
+      "id": "v-047",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "How are documents versioned?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000cc",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000cc"
+      ]
+    },
+    {
+      "id": "v-048",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What temporal fields do knowledge facts store?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000cd",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000cd"
+      ]
+    },
+    {
+      "id": "v-049",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "Where is access control filtering applied?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000ce",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000ce"
+      ]
+    },
+    {
+      "id": "v-050",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What are the valid execution step status transitions?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000cf",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000cf"
+      ]
+    },
+    {
+      "id": "v-051",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What are the valid execution run status transitions?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d0",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d0"
+      ]
+    },
+    {
+      "id": "v-052",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What must not be included in telemetry attributes?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d1",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d1"
+      ]
+    },
+    {
+      "id": "v-053",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "How are OpenTelemetry traces exported?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d2",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d2"
+      ]
+    },
+    {
+      "id": "v-054",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What is the default fusion method?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d3",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d3"
+      ]
+    },
+    {
+      "id": "v-055",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What status values can a knowledge fact have?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d4",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d4"
+      ]
+    },
+    {
+      "id": "v-056",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What are the citation thresholds for release gates?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d5",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d5"
+      ]
+    },
+    {
+      "id": "v-057",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What index type does vector search use?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d7",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d7"
+      ]
+    },
+    {
+      "id": "v-058",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What index does full-text search use?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d8",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d8"
+      ]
+    },
+    {
+      "id": "v-059",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What is the retry behavior of the OpenAI embedding adapter?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000dd",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000dd"
+      ]
+    },
+    {
+      "id": "v-060",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "How does the lexical reranker blend scores?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000de",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000de"
+      ]
+    },
+    {
+      "id": "v-061",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What command is the no-Docker deterministic gate?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000df",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000df"
+      ]
+    },
+    {
+      "id": "v-062",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "Where is access control evaluated relative to retrieval?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000e0",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000e0"
+      ]
+    },
+    {
+      "id": "v-063",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What must every claim cite?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000e1",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000e1"
+      ]
+    },
+    {
+      "id": "v-064",
+      "type": "factual",
+      "tags": [
+        "expanded"
+      ],
+      "question": "What range must knowledge fact confidence values fall within?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000e2",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000e2"
+      ]
+    },
+    {
+      "id": "v-065",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What extensions does PostgreSQL enable?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c1",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c1"
+      ]
+    },
+    {
+      "id": "v-066",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "Name the PostgreSQL extensions available in the container",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c1",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c1"
+      ]
+    },
+    {
+      "id": "v-067",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "Which extensions are required for the vector store?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c1",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c1"
+      ]
+    },
+    {
+      "id": "v-068",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What is the vector column dimension?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c2",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c2"
+      ]
+    },
+    {
+      "id": "v-069",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What dimension does OpenAI text-embedding-3-small produce?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c2",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c2"
+      ]
+    },
+    {
+      "id": "v-070",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What Node.js version is required?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c3",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c3"
+      ]
+    },
+    {
+      "id": "v-071",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "How is Node.js installed in CI?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c3",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c3"
+      ]
+    },
+    {
+      "id": "v-072",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "Which package manager is used?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c4",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c4"
+      ]
+    },
+    {
+      "id": "v-073",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What command does CI run to install dependencies?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c4",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c4"
+      ]
+    },
+    {
+      "id": "v-074",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What does the outbox_events table store?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c5",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c5"
+      ]
+    },
+    {
+      "id": "v-075",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What features do outbox events have for reliability?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c5",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c5"
+      ]
+    },
+    {
+      "id": "v-076",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What plugins does the API use?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c6",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c6"
+      ]
+    },
+    {
+      "id": "v-077",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "How is health checking implemented?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c6",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c6"
+      ]
+    },
+    {
+      "id": "v-078",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "How does GroundGraph query Neo4j?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c7",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c7"
+      ]
+    },
+    {
+      "id": "v-079",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What Cypher practices are enforced?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c7",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c7"
+      ]
+    },
+    {
+      "id": "v-080",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What does Phoenix provide for traces?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c8",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c8"
+      ]
+    },
+    {
+      "id": "v-081",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What does Prometheus scrape and what visualizes it?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000c9",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000c9"
+      ]
+    },
+    {
+      "id": "v-082",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What is used for object storage locally?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000ca",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000ca"
+      ]
+    },
+    {
+      "id": "v-083",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "How are documents stored under MinIO?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000ca",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000ca"
+      ]
+    },
+    {
+      "id": "v-084",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What validates external boundaries?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000cb",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000cb"
+      ]
+    },
+    {
+      "id": "v-085",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "How are document versions made immutable?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000cc",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000cc"
+      ]
+    },
+    {
+      "id": "v-086",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What fields preserve historical truth in facts?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000cd",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000cd"
+      ]
+    },
+    {
+      "id": "v-087",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "Where is ACL filtering applied?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000ce",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000ce"
+      ]
+    },
+    {
+      "id": "v-088",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "Can terminal execution step states transition?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000cf",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000cf"
+      ]
+    },
+    {
+      "id": "v-089",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What are the terminal states for execution runs?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d0",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d0"
+      ]
+    },
+    {
+      "id": "v-090",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What is forbidden in telemetry attributes?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d1",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d1"
+      ]
+    },
+    {
+      "id": "v-091",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "How are traces sent to the Collector?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d2",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d2"
+      ]
+    },
+    {
+      "id": "v-092",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What technique combines vector and full-text results?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d3",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d3"
+      ]
+    },
+    {
+      "id": "v-093",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What does the superseded status mean for facts?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d4",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d4"
+      ]
+    },
+    {
+      "id": "v-094",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What thresholds must citations meet for release?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d5",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d5"
+      ]
+    },
+    {
+      "id": "v-095",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What format are evaluation datasets stored in?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d6",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d6"
+      ]
+    },
+    {
+      "id": "v-096",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What is the HNSW index used for?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d7",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d7"
+      ]
+    },
+    {
+      "id": "v-097",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What scoring does full-text search use?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000d8",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000d8"
+      ]
+    },
+    {
+      "id": "v-098",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "How are branded TypeScript IDs defined?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000da",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000da"
+      ]
+    },
+    {
+      "id": "v-099",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What is the chunk hash used for?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000db",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000db"
+      ]
+    },
+    {
+      "id": "v-100",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "How do outbox workers claim events?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000dc",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000dc"
+      ]
+    },
+    {
+      "id": "v-101",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "How many times does the embedding adapter retry?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000dd",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000dd"
+      ]
+    },
+    {
+      "id": "v-102",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What percentage does the reranker give to vector vs lexical?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000de",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000de"
+      ]
+    },
+    {
+      "id": "v-103",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What runs in the no-Docker CI gate?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000df",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000df"
+      ]
+    },
+    {
+      "id": "v-104",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "When is access control evaluated?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000e0",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000e0"
+      ]
+    },
+    {
+      "id": "v-105",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What must every M4 claim cite?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000e1",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000e1"
+      ]
+    },
+    {
+      "id": "v-106",
+      "type": "factual",
+      "tags": [
+        "expanded",
+        "coverage"
+      ],
+      "question": "What numeric range must fact confidence fall in?",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "principalId": "00000000-0000-4000-8000-0000000000a1",
+      "expectedStatus": "answered",
+      "expectedAnswer": "Evidence from chunk 00000000-0000-4000-8000-0000000000e2",
+      "requiredClaimText": "",
+      "forbiddenClaimText": [],
+      "expectedEntities": [],
+      "expectedEvidenceChunkIds": [
+        "00000000-0000-4000-8000-0000000000e2"
+      ]
     }
   ]
 }

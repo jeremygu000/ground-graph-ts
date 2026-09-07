@@ -23,6 +23,7 @@ export default defineConfig({
         "src/infrastructure/postgres/schema.ts",
         "apps/evaluation-runner/src/runner.ts",
         "apps/evaluation-runner/src/graphrag-evaluation.ts",
+        "apps/evaluation-runner/src/markdown-report.ts",
         "apps/api/src/routes/*.ts",
       ],
       thresholds: {

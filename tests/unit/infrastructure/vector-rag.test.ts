@@ -1023,9 +1023,8 @@ describe("M4 vector RAG baseline", () => {
     const requiredClaims = new Map(dataset.map((c) => [c.id, c.requiredClaimText]));
     const forbiddenClaims = new Map(dataset.map((c) => [c.id, c.forbiddenClaimText]));
 
-    it("contains 30-50 cases", () => {
-      expect(dataset.length).toBeGreaterThanOrEqual(30);
-      expect(dataset.length).toBeLessThanOrEqual(50);
+    it("contains at least 100 golden cases", () => {
+      expect(dataset.length).toBeGreaterThanOrEqual(100);
     });
 
     it("each case is well-formed", () => {
