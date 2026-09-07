@@ -12,9 +12,35 @@ import {
 import { Database, setGlobalDatabase } from "@/infrastructure/postgres/client";
 import { Neo4jClient } from "@/infrastructure/neo4j/client";
 import { ObjectStorageClient } from "@/infrastructure/object-storage/client";
-import { initTelemetry, shutdownTelemetry } from "@/infrastructure/telemetry";
+import { initTelemetry, shutdownTelemetry, NoopTracer } from "@/infrastructure/telemetry";
+import { DefaultUnitOfWorkFactory } from "@/infrastructure/unit-of-work";
+import { Neo4jGraphRepository } from "@/infrastructure/neo4j/graph-repository";
+import { DefaultGraphRetrievalAdapter } from "@/infrastructure/retrieval/graph-retrieval-adapter";
+import { HybridQueryService } from "@/infrastructure/retrieval/hybrid-query-service";
+import { OpenAIEmbeddingAdapter } from "@/infrastructure/models/embedding-adapter";
+import { OpenAIGeneratorAdapter } from "@/infrastructure/models/generator-adapter";
+import { NoopRerankAdapter } from "@/infrastructure/models/rerank-adapter";
+import { PostgresVectorIndexAdapter } from "@/infrastructure/postgres/vector-index";
+import { PostgresFullTextSearchAdapter } from "@/infrastructure/postgres/fulltext-index";
+import { ReciprocalRankFusion } from "@/infrastructure/postgres/fusion";
+import { CitationBuilder } from "@/infrastructure/retrieval/citation-builder";
+import { DefaultEntityResolver } from "@/application/retrieval/entity-resolver";
+import { RetrievalService } from "@/application/retrieval/retrieval-service";
+import { createAuthMiddleware } from "./middleware/auth-middleware";
+import {
+  registerQueryRoutes,
+  registerDocumentsRoutes,
+  registerEntitiesRoutes,
+  registerFeedbackRoutes,
+} from "./routes";
 
-export async function buildApp(healthCheckers: HealthChecker[] = []) {
+export async function buildApp(
+  healthCheckers: HealthChecker[] = [],
+  deps?: {
+    uowFactory?: DefaultUnitOfWorkFactory;
+    retrievalService?: RetrievalService;
+  },
+) {
   const app = Fastify({
     logger: true,
   });
@@ -24,6 +50,9 @@ export async function buildApp(healthCheckers: HealthChecker[] = []) {
     openapi: { info: { title: "GroundGraph API", version: "0.1.0" } },
   });
   await app.register(swaggerUi, { routePrefix: "/docs" });
+
+  const authMiddleware = createAuthMiddleware();
+  app.addHook("onRequest", authMiddleware);
 
   app.get("/healthz", async () => ({ status: "ok", timestamp: new Date().toISOString() }));
 
@@ -70,6 +99,26 @@ export async function buildApp(healthCheckers: HealthChecker[] = []) {
       overallLatencyMs,
     });
   });
+
+  if (deps?.uowFactory) {
+    await app.register(
+      (instance) => registerDocumentsRoutes(instance, { uowFactory: deps.uowFactory! }),
+      { prefix: "" },
+    );
+    await app.register(
+      (instance) => registerEntitiesRoutes(instance, { uowFactory: deps.uowFactory! }),
+      { prefix: "" },
+    );
+  }
+
+  if (deps?.retrievalService) {
+    await app.register(
+      (instance) => registerQueryRoutes(instance, { retrievalWorkflow: deps.retrievalService! }),
+      { prefix: "" },
+    );
+  }
+
+  await app.register((instance) => registerFeedbackRoutes(instance, {}), { prefix: "" });
 
   app.setErrorHandler((error, request, reply) => {
     request.log.error(error);
@@ -128,7 +177,72 @@ initTelemetry({
   enabled: process.env.OTEL_ENABLED !== "false",
 });
 
-const app = await buildApp(healthCheckers);
+const uowFactory = new DefaultUnitOfWorkFactory(db, neo4j);
+const graphRepo = new Neo4jGraphRepository(neo4j);
+const graphAdapter = new DefaultGraphRetrievalAdapter({
+  graph: graphRepo,
+  clock: () => new Date(),
+  idGen: () => crypto.randomUUID(),
+});
+
+const vectorIndex = new PostgresVectorIndexAdapter(db);
+const fulltextSearch = new PostgresFullTextSearchAdapter(db);
+const fusion = new ReciprocalRankFusion();
+const tracer = new NoopTracer();
+const citationBuilder = new CitationBuilder();
+
+const embeddingAdapter = new OpenAIEmbeddingAdapter({
+  provider: "openai",
+  model: process.env.EMBEDDING_MODEL ?? "text-embedding-3-small",
+  dimension: 1536,
+  apiKey: process.env.OPENAI_API_KEY ?? "",
+});
+
+const reranker = new NoopRerankAdapter("noop");
+
+const generator = new OpenAIGeneratorAdapter({
+  provider: "openai",
+  model: process.env.LLM_MODEL ?? "gpt-4o-mini",
+  apiKey: process.env.OPENAI_API_KEY ?? "",
+});
+
+const entityResolver = new DefaultEntityResolver({
+  entityRepository: {
+    findByCanonicalName: async () => ({ ok: true, value: [] }),
+    findByAlias: async () => ({ ok: true, value: [] }),
+    searchEntities: async () => ({ ok: true, value: [] }),
+  },
+  clock: () => new Date(),
+});
+
+const hybridQuery = new HybridQueryService({
+  embedding: embeddingAdapter,
+  vector: vectorIndex,
+  fulltext: fulltextSearch,
+  graph: graphAdapter,
+  reranker: reranker,
+  fusion,
+  generator,
+  entityResolver,
+  config: {
+    maxCandidates: 20,
+    enableFullText: true,
+    enableRerank: false,
+    enableGeneration: false,
+    enableGraph: true,
+    fusionWeights: { vector: 0.4, graph: 0.3, fulltext: 0.3 },
+    refusalMinCitations: 2,
+    refusalMinConfidence: 0.7,
+    maxGraphDepth: 3,
+    graphTraversalBudget: 50,
+  },
+  clock: () => new Date(),
+  idGen: () => crypto.randomUUID(),
+});
+
+const retrievalService = new RetrievalService(hybridQuery, citationBuilder, generator, tracer);
+
+const app = await buildApp(healthCheckers, { uowFactory, retrievalService });
 
 await app.listen({ port: PORT, host: HOST });
 console.log(`Server listening on ${HOST}:${PORT}`);

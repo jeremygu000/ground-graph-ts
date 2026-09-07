@@ -14,6 +14,7 @@ import {
 } from "./metrics";
 import { AppError } from "../../domain/errors";
 import type { TelemetryConfig } from "./telemetry.types";
+import type { SpanAttributes } from "../../application/observability/tracer-port.types";
 
 export type { TelemetryConfig } from "./telemetry.types";
 
@@ -153,5 +154,22 @@ export function recordMetric(
       metricUpDownCounters.set(name, updown);
     }
     updown.add(value);
+  }
+}
+
+class NoopSpan {
+  setAttribute(_key: string, _value: string | number | boolean | undefined): void {}
+  setStatus(_code: "OK" | "ERROR", _message?: string): void {}
+  end(): void {}
+  recordException(_error: Error): void {}
+  addEvent(_name: string, _attributes?: SpanAttributes): void {}
+}
+
+export class NoopTracer {
+  async startActiveSpan<T>(_name: string, fn: (span: NoopSpan) => Promise<T>): Promise<T> {
+    return fn(new NoopSpan());
+  }
+  startSpan(_name: string): NoopSpan {
+    return new NoopSpan();
   }
 }
