@@ -1,7 +1,12 @@
 import neo4j from "neo4j-driver";
 import { Neo4jClient } from "./client";
 import { encodeNeo4jDateTime, encodeNeo4jJsonProperty } from "./codec";
-import { KnowledgeFactSchema, type KnowledgeFact } from "../../domain/knowledge/knowledge.schema";
+import {
+  KnowledgeFactSchema,
+  CanonicalEntitySchema,
+  type KnowledgeFact,
+  type CanonicalEntity,
+} from "../../domain/knowledge/knowledge.schema";
 import type {
   GraphTraversalPort,
   TraversalParams,
@@ -10,8 +15,9 @@ import type {
   PathResult,
   ConnectedEntity,
 } from "../../application/retrieval/ports.types";
+import type { GraphProjectionPort } from "../../application/extraction/ports.types";
 
-export class Neo4jGraphRepository implements GraphTraversalPort {
+export class Neo4jGraphRepository implements GraphTraversalPort, GraphProjectionPort {
   constructor(private client: Neo4jClient) {}
 
   private readonly allowedRelationshipTypes = new Set(["SUBJECT_OF", "OBJECT", "connected"]);
@@ -72,12 +78,21 @@ export class Neo4jGraphRepository implements GraphTraversalPort {
     tenantId: string,
   ): Promise<{ ok: true; value: TraversalResult[] } | { ok: false; error: Error }> {
     try {
+      const principalFilter = params.principalId
+        ? "AND ($principalId = 'any' OR EXISTS([p IN connected.principalIds WHERE p = $principalId]))"
+        : "";
+      const pathPrincipalFilter = params.principalId
+        ? "AND all(node IN nodes(path) WHERE $principalId = 'any' OR EXISTS([p IN node.principalIds WHERE p = $principalId]))"
+        : "";
+
       const query = `
         MATCH (start:Entity {id: $seedId, tenantId: $tenantId})
         MATCH path = (start)-[:SUBJECT_OF|OBJECT*1..${params.maxDepth ?? 3}]-(connected:Entity)
         WHERE connected.tenantId = $tenantId
           AND all(node IN nodes(path) WHERE node.tenantId = $tenantId)
           AND all(rel IN relationships(path) WHERE rel.tenantId = $tenantId)
+          ${principalFilter}
+          ${pathPrincipalFilter}
         ${params.validAsOf ? "AND (connected.validFrom IS NULL OR connected.validFrom <= $validAsOf)" : ""}
         RETURN connected.id AS entityId, length(path) AS depth, path
         LIMIT 100
@@ -90,6 +105,7 @@ export class Neo4jGraphRepository implements GraphTraversalPort {
             seedId,
             tenantId,
             validAsOf: params.validAsOf,
+            principalId: params.principalId ?? null,
           });
           const records = result.records;
           for (const record of records) {
@@ -266,7 +282,7 @@ export class Neo4jGraphRepository implements GraphTraversalPort {
     }
   }
 
-  async deleteFact(
+  async removeFact(
     factId: string,
     tenantId: string,
   ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
@@ -278,6 +294,79 @@ export class Neo4jGraphRepository implements GraphTraversalPort {
 
       await this.client.executeWrite(async (tx) => {
         await tx.run(query, { factId, tenantId });
+      });
+
+      return { ok: true, value: undefined };
+    } catch (error) {
+      return { ok: false, error: error as Error };
+    }
+  }
+
+  async projectEntity(
+    entity: CanonicalEntity,
+  ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
+    try {
+      const validated = CanonicalEntitySchema.parse(entity);
+
+      const entityProps = {
+        id: validated.id,
+        tenantId: validated.tenantId,
+        canonicalName: validated.canonicalName,
+        entityType: validated.entityType,
+        aliases: validated.aliases,
+        attributes: encodeNeo4jJsonProperty(validated.attributes),
+        description: validated.description ?? null,
+        validFrom: encodeNeo4jDateTime(validated.validFrom),
+        validTo: validated.validTo ? encodeNeo4jDateTime(validated.validTo) : null,
+        supersededBy: validated.supersededBy ?? null,
+        createdBy: validated.createdBy ?? null,
+        createdAt: encodeNeo4jDateTime(validated.createdAt),
+        principalIds: validated.principalIds,
+      };
+
+      const query = `
+        MERGE (e:Entity {id: $id, tenantId: $tenantId})
+        ON CREATE SET e += $entityProps
+        ON MATCH SET e += $entityProps
+        RETURN e.id AS entityId
+      `;
+
+      const result = await this.client.executeWrite(async (tx) => {
+        const executionResult = await tx.run(query, {
+          id: validated.id,
+          tenantId: validated.tenantId,
+          entityProps,
+        });
+
+        if (executionResult.records.length === 0) {
+          throw new Error("Entity projection failed");
+        }
+
+        return executionResult.records[0]?.get("entityId");
+      });
+
+      if (typeof result !== "string" || result !== validated.id) {
+        throw new Error("Entity projection failed to return the projected entity id");
+      }
+
+      return { ok: true, value: undefined };
+    } catch (error) {
+      return { ok: false, error: error as Error };
+    }
+  }
+
+  async removeEntity(
+    entityId: string,
+    tenantId: string,
+  ): Promise<{ ok: true; value: void } | { ok: false; error: Error }> {
+    try {
+      const query = `
+        MATCH (e:Entity {id: $entityId, tenantId: $tenantId})
+        DETACH DELETE e
+      `;
+
+      await this.client.executeWrite(async (tx) => {
+        await tx.run(query, { entityId, tenantId });
       });
 
       return { ok: true, value: undefined };

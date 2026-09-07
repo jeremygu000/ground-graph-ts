@@ -17,19 +17,49 @@ export class GraphReconciliationService {
     if (fact.status === "verified") {
       const subjectEntity = await this.entityRepo.findById(fact.subjectId, tenantId);
       if (!subjectEntity.ok || !subjectEntity.value) {
-        return {
-          ok: false,
-          error: new InternalError("Subject entity not found", { subjectId: fact.subjectId }),
-        };
+        const projectEntityResult = await this.graphRepo.projectEntity({
+          id: fact.subjectId,
+          tenantId,
+          canonicalName: "Unknown",
+          entityType: "unknown",
+          aliases: [],
+          attributes: {},
+          createdAt: new Date().toISOString(),
+          validFrom: new Date().toISOString(),
+          principalIds: [],
+        });
+        if (!projectEntityResult.ok) {
+          return {
+            ok: false,
+            error: new InternalError("Failed to project subject entity", {
+              subjectId: fact.subjectId,
+            }),
+          };
+        }
       }
 
       if (fact.objectId) {
         const objectEntity = await this.entityRepo.findById(fact.objectId, tenantId);
         if (!objectEntity.ok || !objectEntity.value) {
-          return {
-            ok: false,
-            error: new InternalError("Object entity not found", { objectId: fact.objectId }),
-          };
+          const projectEntityResult = await this.graphRepo.projectEntity({
+            id: fact.objectId,
+            tenantId,
+            canonicalName: "Unknown",
+            entityType: "unknown",
+            aliases: [],
+            attributes: {},
+            createdAt: new Date().toISOString(),
+            validFrom: new Date().toISOString(),
+            principalIds: [],
+          });
+          if (!projectEntityResult.ok) {
+            return {
+              ok: false,
+              error: new InternalError("Failed to project object entity", {
+                objectId: fact.objectId,
+              }),
+            };
+          }
         }
       }
     }
@@ -61,7 +91,65 @@ export class GraphReconciliationService {
       };
     }
 
+    const seenEntityIds = new Set<string>();
+
     for (const fact of factsResult.value) {
+      if (fact.status === "verified") {
+        if (!seenEntityIds.has(fact.subjectId)) {
+          seenEntityIds.add(fact.subjectId);
+          const entityResult = await this.entityRepo.findById(fact.subjectId, tenantId);
+          if (!entityResult.ok || !entityResult.value) {
+            const projectEntityResult = await this.graphRepo.projectEntity({
+              id: fact.subjectId,
+              tenantId,
+              canonicalName: "Unknown",
+              entityType: "unknown",
+              aliases: [],
+              attributes: {},
+              createdAt: new Date().toISOString(),
+              validFrom: new Date().toISOString(),
+              principalIds: [],
+            });
+            if (projectEntityResult.ok) {
+              report.entitiesCreated++;
+            } else {
+              report.entitiesFailed++;
+              report.errors.push({
+                entityId: fact.subjectId,
+                error: "Failed to project entity",
+              });
+            }
+          }
+        }
+
+        if (fact.objectId && !seenEntityIds.has(fact.objectId)) {
+          seenEntityIds.add(fact.objectId);
+          const entityResult = await this.entityRepo.findById(fact.objectId, tenantId);
+          if (!entityResult.ok || !entityResult.value) {
+            const projectEntityResult = await this.graphRepo.projectEntity({
+              id: fact.objectId,
+              tenantId,
+              canonicalName: "Unknown",
+              entityType: "unknown",
+              aliases: [],
+              attributes: {},
+              createdAt: new Date().toISOString(),
+              validFrom: new Date().toISOString(),
+              principalIds: [],
+            });
+            if (projectEntityResult.ok) {
+              report.entitiesCreated++;
+            } else {
+              report.entitiesFailed++;
+              report.errors.push({
+                entityId: fact.objectId,
+                error: "Failed to project entity",
+              });
+            }
+          }
+        }
+      }
+
       const result = await this.reconcileFact(fact, tenantId);
       if (result.ok) {
         report.factsReconciled++;

@@ -14,6 +14,7 @@ const entity = (id: string): CanonicalEntity => ({
   attributes: {},
   createdAt: "2024-01-01T00:00:00.000Z",
   validFrom: "2024-01-01T00:00:00.000Z",
+  principalIds: [],
 });
 const fact = (overrides: Partial<KnowledgeFact> = {}): KnowledgeFact => ({
   id: "11111111-1111-4111-8111-111111111111",
@@ -43,29 +44,25 @@ describe("GraphReconciliationService", () => {
     expect(entityRepo.findById).not.toHaveBeenCalled();
   });
 
-  it("rejects projection failures and missing verified subject/object", async () => {
-    const failed = { ok: false, error: new Error("graph down") };
-    const graphRepo = { projectFact: vi.fn().mockResolvedValue(failed) };
+  it("rejects projection failures for subject/object entities", async () => {
+    const graphRepo = {
+      projectFact: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+      projectEntity: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    };
     const entityRepo = {
-      findById: vi.fn().mockResolvedValue({ ok: true, value: entity("subject") }),
+      findById: vi.fn().mockResolvedValue({ ok: true, value: null }),
     };
     const service = new GraphReconciliationService(graphRepo as any, {} as any, entityRepo as any);
 
-    graphRepo.projectFact.mockResolvedValue({ ok: true, value: undefined });
-    entityRepo.findById.mockResolvedValue({ ok: true, value: null });
-    expect((await service.reconcileFact(fact(), "tenant")).ok).toBe(false);
+    graphRepo.projectEntity.mockResolvedValueOnce({ ok: false, error: new Error("graph down") });
+    const firstResult = await service.reconcileFact(fact(), "tenant");
+    expect(firstResult.ok).toBe(false);
 
-    entityRepo.findById
-      .mockResolvedValueOnce({ ok: true, value: entity("subject") })
-      .mockResolvedValueOnce({ ok: true, value: null });
-    expect(
-      (
-        await service.reconcileFact(
-          fact({ objectId: "66666666-6666-4666-8666-666666666666" }),
-          "tenant",
-        )
-      ).ok,
-    ).toBe(false);
+    const secondFact = fact({ objectId: "66666666-6666-4666-8666-666666666666" });
+    graphRepo.projectEntity.mockResolvedValueOnce({ ok: false, error: new Error("graph down") });
+    entityRepo.findById.mockResolvedValueOnce({ ok: true, value: entity("subject") });
+    const secondResult = await service.reconcileFact(secondFact, "tenant");
+    expect(secondResult.ok).toBe(false);
   });
 
   it("reconciles verified facts and records individual failures", async () => {
@@ -75,6 +72,7 @@ describe("GraphReconciliationService", () => {
         .fn()
         .mockResolvedValueOnce({ ok: true, value: undefined })
         .mockResolvedValueOnce({ ok: false, error: new Error("bad fact") }),
+      projectEntity: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
     };
     const factRepo = { findByStatus: vi.fn().mockResolvedValue({ ok: true, value: facts }) };
     const entityRepo = {

@@ -376,7 +376,7 @@ describe("Neo4jGraphRepository M5 component tests", () => {
       if (!before.ok) throw before.error;
       expect(before.value.some((e) => e.entityId === b)).toBe(true);
 
-      const deleteResult = await repository.deleteFact(factId, tenantId);
+      const deleteResult = await repository.removeFact(factId, tenantId);
       expect(deleteResult.ok, deleteResult.ok ? "" : deleteResult.error.message).toBe(true);
 
       const after = await repository.findConnectedEntities(a, 1, tenantId);
@@ -391,7 +391,7 @@ describe("Neo4jGraphRepository M5 component tests", () => {
       const factId = crypto.randomUUID();
       await projectFact(factId, a, b, "rel", tenantId);
 
-      const result = await repository.deleteFact(factId, tenantIdB);
+      const result = await repository.removeFact(factId, tenantIdB);
       expect(result.ok).toBe(false);
       if (result.ok) throw new Error("expected failure");
       expect(result.error.message).toContain("tenant mismatch");

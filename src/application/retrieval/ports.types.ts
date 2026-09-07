@@ -29,6 +29,7 @@ export interface TraversalParams {
   maxDepth?: number;
   direction?: "outgoing" | "incoming" | "both";
   validAsOf?: string;
+  principalId?: string;
 }
 
 export interface TraversalResult {

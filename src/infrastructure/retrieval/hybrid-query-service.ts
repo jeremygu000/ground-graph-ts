@@ -182,9 +182,15 @@ export class HybridQueryService {
     const maxDepth = Math.min(query.maxHops ?? 2, this.deps.config.maxGraphDepth);
 
     for (const entityId of seedEntityIds) {
-      const graphOptions: { maxDepth: number; direction: "both"; validAsOf?: string } = {
+      const graphOptions: {
+        maxDepth: number;
+        direction: "both";
+        validAsOf?: string;
+        principalId?: string;
+      } = {
         maxDepth,
         direction: "both",
+        principalId: query.principalId,
       };
       if (query.filters?.timeRange?.validFrom) {
         graphOptions.validAsOf = query.filters.timeRange.validFrom;

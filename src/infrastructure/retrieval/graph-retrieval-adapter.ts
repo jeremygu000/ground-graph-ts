@@ -26,6 +26,7 @@ export class DefaultGraphRetrievalAdapter implements GraphRetrievalPort {
       maxDepth: options?.maxDepth ?? 2,
       direction: options?.direction ?? "both",
       ...(options?.validAsOf ? { validAsOf: options.validAsOf } : {}),
+      ...(options?.principalId ? { principalId: options.principalId } : {}),
     };
 
     const result = await this.deps.graph.traverse(params, tenantId);

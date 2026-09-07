@@ -218,7 +218,7 @@ describe("Neo4jGraphRepository", () => {
       ok: true,
       value: undefined,
     });
-    await expect(repository.deleteFact(factId, validFact.tenantId)).resolves.toEqual({
+    await expect(repository.removeFact(factId, validFact.tenantId)).resolves.toEqual({
       ok: true,
       value: undefined,
     });

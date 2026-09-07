@@ -24,6 +24,7 @@ describe("OntologyValidationService", () => {
     attributes: {},
     createdAt: "2024-01-01T00:00:00.000Z",
     validFrom: "2024-01-01T00:00:00.000Z",
+    principalIds: [],
     ...overrides,
   });
 

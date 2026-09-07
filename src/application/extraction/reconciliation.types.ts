@@ -3,6 +3,6 @@ export interface ReconciliationReport {
   factsFailed: number;
   entitiesCreated: number;
   entitiesFailed: number;
-  errors: Array<{ factId: string; error: string }>;
+  errors: Array<{ factId?: string; entityId?: string; error: string }>;
   repositoryError?: string;
 }

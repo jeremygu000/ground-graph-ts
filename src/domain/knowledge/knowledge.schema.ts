@@ -26,6 +26,7 @@ export const CanonicalEntitySchema = z.object({
   validTo: z.string().datetime().optional(),
   supersededBy: z.string().uuid().optional(),
   createdBy: z.string().optional(),
+  principalIds: z.array(z.string().uuid()).default([]),
 });
 
 export type CanonicalEntity = z.infer<typeof CanonicalEntitySchema>;

@@ -63,6 +63,6 @@ export interface MentionRepository {
 export interface GraphProjectionPort {
   projectFact(fact: KnowledgeFact): Promise<Result<void>>;
   projectEntity(entity: CanonicalEntity): Promise<Result<void>>;
-  removeFact(factId: string): Promise<Result<void>>;
-  removeEntity(entityId: string): Promise<Result<void>>;
+  removeFact(factId: string, tenantId: string): Promise<Result<void>>;
+  removeEntity(entityId: string, tenantId: string): Promise<Result<void>>;
 }

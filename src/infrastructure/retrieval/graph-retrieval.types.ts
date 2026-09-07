@@ -7,6 +7,7 @@ export interface GraphRetrievalOptions {
   validAsOf?: string;
   factStatuses?: Array<"candidate" | "verified" | "rejected" | "superseded">;
   entityTypes?: string[];
+  principalId?: string;
 }
 export interface GraphRetrievalPort {
   retrieveGraphNeighbors(
