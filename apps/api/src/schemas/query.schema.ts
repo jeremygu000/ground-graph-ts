@@ -77,9 +77,11 @@ export const QueryResponseSchema = z.object({
 export type QueryResponse = z.infer<typeof QueryResponseSchema>;
 
 export const QueryErrorSchema = z.object({
-  statusCode: z.number(),
-  error: z.string(),
-  message: z.string(),
+  type: z.string(),
+  title: z.string(),
+  status: z.number().int().min(400).max(599),
+  detail: z.string().optional(),
+  instance: z.string().optional(),
 });
 
 export type QueryError = z.infer<typeof QueryErrorSchema>;

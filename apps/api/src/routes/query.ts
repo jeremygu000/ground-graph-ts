@@ -7,6 +7,11 @@ import {
   type QueryResponse,
 } from "../schemas/query.schema";
 import type { RetrievalWorkflow } from "../../../../src/application/retrieval/workflow.types";
+import {
+  createProblemDetail,
+  UNAUTHORIZED_ERROR_TYPE,
+  INTERNAL_ERROR_TYPE,
+} from "../schemas/problem-detail.schema";
 
 export interface QueryRouteDeps {
   retrievalWorkflow: RetrievalWorkflow;
@@ -50,25 +55,35 @@ export async function registerQueryRoutes(
 
         if (error instanceof Error) {
           if (error.message.includes("tenant") || error.message.includes("unauthorized")) {
-            return reply.status(401).send({
-              statusCode: 401,
-              error: "Unauthorized",
-              message: "Access denied to the requested resource",
-            });
+            return reply
+              .status(401)
+              .send(
+                createProblemDetail(
+                  UNAUTHORIZED_ERROR_TYPE,
+                  "Unauthorized",
+                  401,
+                  "Access denied to the requested resource",
+                ),
+              );
           }
 
-          return reply.status(500).send({
-            statusCode: 500,
-            error: "Internal Server Error",
-            message: error.message,
-          });
+          return reply
+            .status(500)
+            .send(
+              createProblemDetail(INTERNAL_ERROR_TYPE, "Internal Server Error", 500, error.message),
+            );
         }
 
-        return reply.status(500).send({
-          statusCode: 500,
-          error: "Internal Server Error",
-          message: "An unexpected error occurred",
-        });
+        return reply
+          .status(500)
+          .send(
+            createProblemDetail(
+              INTERNAL_ERROR_TYPE,
+              "Internal Server Error",
+              500,
+              "An unexpected error occurred",
+            ),
+          );
       }
     },
   });

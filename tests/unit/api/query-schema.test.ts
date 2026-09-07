@@ -5,6 +5,12 @@ import {
   QueryErrorSchema,
   QueryStrategySchema,
 } from "../../../apps/api/src/schemas/query.schema";
+import {
+  ProblemDetailSchema,
+  createProblemDetail,
+  VALIDATION_ERROR_TYPE,
+  UNAUTHORIZED_ERROR_TYPE,
+} from "../../../apps/api/src/schemas/problem-detail.schema";
 
 describe("QueryRequestSchema", () => {
   it("parses a valid query request", () => {
@@ -192,14 +198,25 @@ describe("QueryResponseSchema", () => {
 });
 
 describe("QueryErrorSchema", () => {
-  it("parses a valid error", () => {
+  it("parses a valid RFC 7807 problem detail error", () => {
     const valid = {
-      statusCode: 400,
-      error: "Validation Error",
-      message: "Invalid request body",
+      type: "https://groundgraph.ai/errors/validation",
+      title: "Validation Error",
+      status: 400,
+      detail: "Invalid request body",
     };
     const result = QueryErrorSchema.safeParse(valid);
     expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid status code", () => {
+    const invalid = {
+      type: "https://groundgraph.ai/errors/validation",
+      title: "Validation Error",
+      status: 200,
+    };
+    const result = QueryErrorSchema.safeParse(invalid);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -212,5 +229,55 @@ describe("QueryStrategySchema", () => {
 
   it("rejects invalid strategy", () => {
     expect(QueryStrategySchema.safeParse("invalid").success).toBe(false);
+  });
+});
+
+describe("ProblemDetailSchema", () => {
+  it("parses a valid problem detail", () => {
+    const valid = {
+      type: "https://groundgraph.ai/errors/validation",
+      title: "Bad Request",
+      status: 400,
+      detail: "The request body is invalid",
+      instance: "https://groundgraph.ai/api/v1/query",
+    };
+    const result = ProblemDetailSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects status out of range", () => {
+    const invalid = {
+      type: "https://groundgraph.ai/errors/validation",
+      title: "Bad Request",
+      status: 200,
+    };
+    const result = ProblemDetailSchema.safeParse(invalid);
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("createProblemDetail", () => {
+  it("creates a valid problem detail", () => {
+    const problem = createProblemDetail(
+      VALIDATION_ERROR_TYPE,
+      "Validation Error",
+      400,
+      "Field 'question' is required",
+    );
+    expect(problem.type).toBe(VALIDATION_ERROR_TYPE);
+    expect(problem.title).toBe("Validation Error");
+    expect(problem.status).toBe(400);
+    expect(problem.detail).toBe("Field 'question' is required");
+  });
+
+  it("creates problem detail with instance", () => {
+    const problem = createProblemDetail(
+      UNAUTHORIZED_ERROR_TYPE,
+      "Unauthorized",
+      401,
+      "Access denied",
+      "https://groundgraph.ai/api/v1/query",
+    );
+    expect(problem.instance).toBe("https://groundgraph.ai/api/v1/query");
   });
 });
