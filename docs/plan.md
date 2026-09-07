@@ -56,8 +56,8 @@ Change `[ ]` to `[x]` only after all acceptance criteria pass.
 - [ ] M5 — Knowledge graph construction
 - [x] M6 — Hybrid GraphRAG retrieval
 - [x] M7 — Query workflow, citations, and API
-- [ ] M8 — Evaluation system and CI quality gates
-- [ ] M9 — Governance, security, and adversarial testing
+- [x] M8 — Evaluation system and CI quality gates
+- [x] M9 — Governance, security, and adversarial testing
 - [ ] M10 — Operator and review interfaces
 - [ ] M11 — Production hardening and pilot readiness
 - [ ] M12 — Post-MVP controlled improvement loop
