@@ -64,7 +64,7 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
       async () => {
         const prompt = this.buildPrompt(request);
         const parser = new ZodStructuredOutputParser<StructuredAnswer>(request.schema);
-        const answer = await this.callGenerateObject(prompt, request.schema, parser);
+        const answer = await this.callGenerateObject(prompt, request, request.schema, parser);
         if (!answer.ok) {
           return answer;
         }
@@ -92,6 +92,7 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
 
   private async callGenerateObject(
     prompt: { system: string; user: string },
+    request: GenerationRequest,
     schema: z.ZodType<StructuredAnswer>,
     parser: ZodStructuredOutputParser<StructuredAnswer>,
   ): Promise<Result<GenerationResult>> {
@@ -100,6 +101,24 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), this.resolvedTimeoutMs);
       try {
+        if (this.config.provider === "local") {
+          clearTimeout(timer);
+          const structured = deterministicStructuredAnswer(request, requestSchemaId(schema));
+          const parsed = parser.parse(structured);
+          if (!parsed.ok) {
+            lastError = parsed.error;
+            continue;
+          }
+          return success({
+            structured: parsed.value,
+            model: this.config.model,
+            promptTokens: 0,
+            completionTokens: 0,
+            totalTokens: 0,
+            finishReason: "stop",
+            repairAttempts: 0,
+          });
+        }
         const result = await generateObject({
           model: this.resolveModel(),
           system: prompt.system,
@@ -170,6 +189,14 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
   ): Promise<
     Result<{ text: string; promptTokens: number; completionTokens: number; finishReason: string }>
   > {
+    if (this.config.provider === "local") {
+      return success({
+        text: `[local:${this.config.model}] ${systemPrompt}\n${userPrompt}`,
+        promptTokens: 0,
+        completionTokens: 0,
+        finishReason: "stop",
+      });
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.resolvedTimeoutMs);
     try {
@@ -249,5 +276,44 @@ export class OpenAIGeneratorAdapter implements GeneratorPort {
   exportForTesting = {
     buildPrompt: this.buildPrompt.bind(this),
     filterCitations: this.filterCitations.bind(this),
+  };
+}
+
+function requestSchemaId(schema: z.ZodType<StructuredAnswer>): string {
+  return schema.description ?? "structured-answer";
+}
+
+function deterministicStructuredAnswer(
+  request: GenerationRequest,
+  schemaId: string,
+): StructuredAnswer {
+  const hasEvidence = request.allowedCitationIds.length > 0;
+  const answer = hasEvidence ? `Deterministic local answer for ${schemaId}` : "";
+  const status: StructuredAnswer["status"] = hasEvidence ? "answered" : "insufficient_evidence";
+  return {
+    answer,
+    status,
+    claims: hasEvidence
+      ? [
+          {
+            claimId: "00000000-0000-4000-8000-000000000001",
+            claimText: request.question.slice(0, 120),
+            citations: request.allowedCitationIds.slice(0, 1).map((citationId) => ({
+              citationId,
+              evidenceId: citationId,
+              chunkId: citationId,
+              documentVersionId: citationId,
+              locatorPath: "deterministic-local",
+              snippet: "deterministic local evidence",
+              startChar: 0,
+              endChar: 10,
+              score: 1,
+            })),
+            confidence: 1,
+            supportedBy: request.allowedCitationIds.slice(0, 1),
+          },
+        ]
+      : [],
+    ...(hasEvidence ? {} : { refusalReason: "Insufficient evidence" }),
   };
 }

@@ -52,28 +52,31 @@ export class HybridQueryService {
 
         let indexVersion: IndexVersionInfo | null = null;
         let queryEmbedding: number[] | undefined;
+        let embeddingMs = 0;
         if (needsEmbedding) {
+          const embeddingStartedAt = this.deps.clock();
           const indexResult = await this.deps.vector.getActiveIndexVersion(query.tenantId);
           if (!indexResult.ok) return indexResult;
           indexVersion = indexResult.value;
 
-          const embedResult = await this.deps.embedding.embedBatch({
-            inputs: [query.question],
-            tenantId: query.tenantId,
-          });
-          if (!embedResult.ok) return embedResult;
-          queryEmbedding = embedResult.value.embeddings[0]?.embedding;
-          if (!queryEmbedding) {
-            return failure(new InternalError("Embedding result missing for question"));
+          if (indexVersion) {
+            const embedResult = await this.deps.embedding.embedBatch({
+              inputs: [query.question],
+              tenantId: query.tenantId,
+            });
+            if (!embedResult.ok) return embedResult;
+            queryEmbedding = embedResult.value.embeddings[0]?.embedding;
+            if (!queryEmbedding) {
+              return failure(new InternalError("Embedding result missing for question"));
+            }
           }
+          embeddingMs = this.deps.clock().getTime() - embeddingStartedAt.getTime();
         }
-        const embeddingMs =
-          this.deps.clock().getTime() - startedAt.getTime() - entityResolutionElapsed;
 
         const resultsByStrategy = new Map<RetrievalStrategy, RetrievalResult[]>();
 
         let vectorSearchMs = 0;
-        if (needsEmbedding) {
+        if (needsEmbedding && indexVersion && queryEmbedding) {
           const vectorSearchMsBefore = this.deps.clock();
           const searchOptions: VectorSearchOptions = {
             limit: query.maxResults ?? 20,

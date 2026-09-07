@@ -21,6 +21,8 @@ jobs:
       NEO4J_PASSWORD: change-me-local-only
       S3_ACCESS_KEY: change-me-local-only
       S3_SECRET_KEY: change-me-local-only
+      EMBEDDING_PROVIDER: local
+      LLM_PROVIDER: local
       E2E_API_URL: http://127.0.0.1:8080
       DATABASE_URL: postgresql://groundgraph:change-me-local-only@127.0.0.1:5432/groundgraph
 
@@ -77,6 +79,8 @@ jobs:
       NEO4J_PASSWORD: change-me-local-only
       S3_ACCESS_KEY: change-me-local-only
       S3_SECRET_KEY: change-me-local-only
+      EMBEDDING_PROVIDER: local
+      LLM_PROVIDER: local
       E2E_API_URL: http://127.0.0.1:8080
       DATABASE_URL: postgresql://groundgraph:change-me-local-only@127.0.0.1:5432/groundgraph
 

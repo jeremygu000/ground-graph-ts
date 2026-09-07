@@ -208,7 +208,7 @@ const tracer = new NoopTracer();
 const citationBuilder = new CitationBuilder();
 
 const embeddingAdapter = new OpenAIEmbeddingAdapter({
-  provider: (process.env.EMBEDDING_PROVIDER as "openai" | "openrouter" | "local") ?? "openai",
+  provider: (process.env.EMBEDDING_PROVIDER as "openai" | "openrouter" | "local") ?? "local",
   model: process.env.EMBEDDING_MODEL ?? "text-embedding-3-small",
   dimension: 1536,
   apiKey: process.env.OPENAI_API_KEY ?? "",
@@ -218,7 +218,7 @@ const embeddingAdapter = new OpenAIEmbeddingAdapter({
 const reranker = new NoopRerankAdapter("noop");
 
 const generator = new OpenAIGeneratorAdapter({
-  provider: (process.env.LLM_PROVIDER as "openai" | "openrouter") ?? "openrouter",
+  provider: (process.env.LLM_PROVIDER as "openai" | "openrouter" | "local") ?? "local",
   model: process.env.LLM_MODEL ?? "google/gemini-2.0-flash-thinking-exp:free",
   apiKey: process.env.OPENAI_API_KEY ?? "",
   ...(process.env.LLM_BASE_URL ? { baseUrl: process.env.LLM_BASE_URL } : {}),

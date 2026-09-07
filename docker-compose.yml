@@ -58,10 +58,10 @@ x-app-env: &app-env
   OTEL_ENABLED: "${OTEL_ENABLED:-true}"
   NODE_ENV: "production"
   OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
-  LLM_PROVIDER: "${LLM_PROVIDER:-openrouter}"
+  LLM_PROVIDER: "${LLM_PROVIDER:-local}"
   LLM_MODEL: "${LLM_MODEL:-google/gemini-2.0-flash-thinking-exp:free}"
   LLM_BASE_URL: "${LLM_BASE_URL:-https://openrouter.ai/api/v1}"
-  EMBEDDING_PROVIDER: "${EMBEDDING_PROVIDER:-openai}"
+  EMBEDDING_PROVIDER: "${EMBEDDING_PROVIDER:-local}"
   EMBEDDING_MODEL: "${EMBEDDING_MODEL:-text-embedding-3-small}"
   EMBEDDING_BASE_URL: "${EMBEDDING_BASE_URL:-}"
 

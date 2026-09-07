@@ -114,6 +114,56 @@ describe("OpenAIGeneratorAdapter", () => {
     expect(result.ok).toBe(false);
   });
 
+  it("uses deterministic local generation when provider is local", async () => {
+    const adapter = new OpenAIGeneratorAdapter({
+      provider: "local",
+      model: "offline-stub",
+    });
+
+    const result = await adapter.generateStructured({
+      tenantId: "tenant-1",
+      question: "What is grounded?",
+      evidence: [
+        {
+          citationId: "cite-1",
+          evidenceId: "ev-1",
+          chunkId: "chunk-1",
+          documentVersionId: "ver-1",
+          locatorPath: "path/1",
+          snippet: "evidence",
+          startChar: 0,
+          endChar: 8,
+          score: 1,
+        },
+      ],
+      allowedCitationIds: ["cite-1"],
+      schema: z.any(),
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.totalTokens).toBe(0);
+      expect(result.value.structured.status).toBe("answered");
+      expect(result.value.structured.claims).toHaveLength(1);
+    }
+    expect(aiMocks.generateObject).not.toHaveBeenCalled();
+  });
+
+  it("returns deterministic raw completion when provider is local", async () => {
+    const adapter = new OpenAIGeneratorAdapter({
+      provider: "local",
+      model: "offline-stub",
+    });
+
+    const result = await adapter.generateRawCompletion("system", "user");
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.text).toContain("[local:offline-stub]");
+    }
+    expect(aiMocks.generateText).not.toHaveBeenCalled();
+  });
+
   it("rejects unsupported providers and retries malformed structured output", async () => {
     const unsupported = await new OpenAIGeneratorAdapter({
       model: "gpt-4o-mini",
@@ -555,6 +605,24 @@ describe("OpenAIGeneratorAdapter", () => {
   });
 
   describe("provider routing", () => {
+    it("uses deterministic local routing when provider is local", async () => {
+      const adapter = new OpenAIGeneratorAdapter({
+        provider: "local",
+        model: "offline-stub",
+      });
+
+      const result = await adapter.generateStructured({
+        tenantId: "tenant-1",
+        question: "test",
+        evidence: [],
+        allowedCitationIds: [],
+        schema: z.any(),
+      });
+
+      expect(result.ok).toBe(true);
+      expect(aiMocks.generateObject).not.toHaveBeenCalled();
+    });
+
     it("uses openrouter when provider is openrouter", async () => {
       aiMocks.generateObject.mockResolvedValueOnce({
         object: { answer: "test", status: "answered", claims: [] },
